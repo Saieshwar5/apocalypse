@@ -83,6 +83,10 @@ export class InputState {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
+    // Typing in a text field (the call sign) is not flying.
+    if (event.target instanceof HTMLInputElement && event.target.type === 'text') {
+      return;
+    }
     // In flight Tab opens the tactical map, so it must not move focus; in
     // menus (mouse not captured) Tab keeps its normal keyboard navigation.
     const flightTab = event.code === 'Tab' && this.pointerLocked;

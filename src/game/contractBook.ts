@@ -7,11 +7,13 @@ import { contractPayout, contractValue, formatCredits, type ContractOutcome } fr
 import { burnsUp } from '../logic/planetDamage';
 import type { Wallet } from '../logic/economy';
 import type { GameEvents } from './gameEvents';
+import type { RadioNet } from './radioNet';
 import { pilotName, splitPay, type PilotId, type RivalId } from '../logic/rivals';
 
 export interface ContractBookDependencies {
   walletOf: (pilot: PilotId) => Wallet;
   events: GameEvents;
+  radio: RadioNet;
   hud: Hud;
   feedback: CombatFeedback;
 }
@@ -137,6 +139,9 @@ export class ContractBook {
     }
     if (mine > 0) {
       this.deps.events.emit({ type: 'contract-completed', clean: payout.clean });
+      if (asteroid.targetSite) {
+        this.deps.radio.moment('big-save', { site: asteroid.targetSite });
+      }
       this.fieldEarned += mine;
       this.contractsCompleted += 1;
       const shared = others.length > 0 ? ` (shared with ${others.map(pilotName).join(', ')})` : '';

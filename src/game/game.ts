@@ -30,6 +30,8 @@ import { saveRun } from './runHistory';
 import { bindSettingsControls, loadSettings, type QualityPreference, type Settings } from './settings';
 import { createSampler, effectiveQuality, sampleFrame, type GraphicsQuality } from '../logic/qualityTier';
 import { EnvironmentLighting } from '../scene/environmentLighting';
+import { RadioNet } from './radioNet';
+import { DEFAULT_CALL_SIGN } from '../logic/cast';
 import { FrameStats } from '../scene/frameStats';
 
 export type GamePhase = 'menu' | 'launch' | 'playing' | 'paused' | 'gameover';
@@ -65,6 +67,8 @@ export class Game {
   private readonly qualitySampler = createSampler();
   private qualityPreference: QualityPreference = 'auto';
   private autoQuality: GraphicsQuality = 'high';
+  private callSign = DEFAULT_CALL_SIGN;
+  private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign });
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -155,6 +159,7 @@ export class Game {
       shipSource: models.interceptor,
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
+      radio: this.radio,
     });
     this.shipModel.group.visible = false;
 
@@ -163,6 +168,7 @@ export class Game {
     const applySettings = (settings: Settings): void => {
       this.ship.lookSensitivity = settings.sensitivity;
       this.qualityPreference = settings.quality;
+      this.callSign = settings.callSign;
       this.pipeline.setQuality(effectiveQuality(settings.quality, this.autoQuality));
       this.overlay.resize();
     };
@@ -192,6 +198,7 @@ export class Game {
     }
     this.play.reset(system, continuing);
     this.applySystemLook();
+    this.radio.reset();
     this.explosions.clear();
     this.earth.reset(this.sunriseSpinAngle());
     this.shipModel.group.visible = true;
@@ -356,6 +363,7 @@ export class Game {
 
   private updatePlaying(deltaSeconds: number): void {
     this.play.update(deltaSeconds);
+    this.radio.update(deltaSeconds);
     if (this.play.campaign.orbitComplete) {
       this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} is through the debris field`, true);
     } else if (this.session.integrity <= 0) {

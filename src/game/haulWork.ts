@@ -13,6 +13,7 @@ import type { GameEvents } from './gameEvents';
 import type { JobRow, Waypoint } from './satelliteJobHelpers';
 import type { StationMarket } from './stationMarket';
 import type { TowLine } from './towLine';
+import type { RadioNet } from './radioNet';
 
 export interface HaulWorkDependencies {
   field: AsteroidField;
@@ -25,6 +26,7 @@ export interface HaulWorkDependencies {
   hud: Hud;
   sound: SoundEffects;
   rng: RandomSource;
+  radio: RadioNet;
 }
 
 /** Ceres accepts a rock released this close to its intake... */
@@ -117,6 +119,7 @@ export class HaulWork {
     wallet.earn(pay);
     events.emit({ type: 'satellite-job-completed' });
     this.haul = null;
+    this.deps.radio.moment('haul-delivered');
     hud.showMessage(`Delivered to Ceres Works: ${formatCredits(pay)}. Refined into ${Math.round(made.fuel)} fuel and ${Math.round(made.parts)} parts`, 'success', 4.5);
     sound.killConfirm();
   }

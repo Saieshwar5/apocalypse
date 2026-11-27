@@ -16,6 +16,7 @@ import { SATELLITE_INCOME } from '../logic/stationEconomy';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import type { ContractBook } from './contractBook';
 import type { SatelliteWork } from './satelliteWork';
+import type { RadioNet } from './radioNet';
 import type { ShipController } from '../ship/shipController';
 import type { SiteDefence } from '../sites/siteDefence';
 import { STATION_NAME, type StationOperations } from '../station/stationOperations';
@@ -54,6 +55,7 @@ export interface CampaignDependencies {
   postHaul: () => boolean;
   /** Working satellites, which pay the pilot a fee when a field is cleared. */
   workingSatellites: () => number;
+  radio: RadioNet;
 }
 
 /**
@@ -178,9 +180,13 @@ export class Campaign {
           const dock = stationOps.present ? ` Dock at ${STATION_NAME} to refuel and upgrade.` : '';
           hud.showMessage(`Calm zone.${dock} Enter moves on when ready`, 'info', 5);
           // Calm stretches are when satellite operators post work.
+          this.deps.radio.setCalm(true);
+          this.deps.radio.moment('calm-start');
           this.calmZoneJobs();
           continue;
         }
+        this.deps.radio.setCalm(false);
+        this.deps.radio.moment('field-start');
         const passersBy = Math.max(1, Math.round(plan.spawns.length * PASSER_BY_RATIO));
         this.passerByDelays = Array.from({ length: passersBy }, () => this.deps.rng() * plan.durationSeconds);
         // Dense fields sometimes bring a solar flare that blinds the scanner for a while.
@@ -217,14 +223,14 @@ export class Campaign {
 
   private calmZoneJobs(): void {
     const { work, rng } = this.deps;
-    if (!work.yardBusy && rng() < 0.75) {
-      work.postRepairTow();
+    if (!work.yardBusy && rng() < 0.75 && work.postRepairTow()) {
+      this.deps.radio.moment('repair-posted');
     }
     if (rng() < 0.5) {
       this.dodgeIn = 6 + rng() * 6;
     }
-    if (rng() < 0.6) {
-      this.deps.postHaul();
+    if (rng() < 0.6 && this.deps.postHaul()) {
+      this.deps.radio.moment('haul-posted');
     }
   }
 

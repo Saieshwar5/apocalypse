@@ -21,6 +21,7 @@ import { OrbitDebris } from './orbitDebris';
 import type { SatelliteTraffic } from '../satellites/satelliteTraffic';
 import { FRAGILE } from '../logic/towing';
 import { RivalPilots } from './rivalPilots';
+import type { RadioNet } from './radioNet';
 import type { CombatResolver } from './combatResolver';
 import type { ContractBook } from './contractBook';
 import type { GameSession } from './gameSession';
@@ -46,6 +47,7 @@ export interface OrbitServicesDependencies {
   station: () => { position: THREE.Vector3; velocity: THREE.Vector3 } | null;
   /** Rivals give way to a pilot in good standing, and stop once the licence is under review. */
   playerGoodStanding: () => boolean;
+  radio: RadioNet;
   /** Aegis's own fuel and missile store, for the market; null once it is destroyed. */
   aegisStock: () => { fuel: number; missiles: number } | null;
 }
@@ -117,6 +119,7 @@ export class OrbitServices {
       hud: deps.hud,
       sound: deps.sound,
       rng: deps.rng,
+      radio: deps.radio,
     });
     deps.scene.add(this.outposts.group, this.tow.mesh, this.market.group);
     this.debris = new OrbitDebris({
@@ -144,6 +147,7 @@ export class OrbitServices {
       playerProjectiles: deps.playerProjectiles,
       station: deps.station,
       playerGoodStanding: deps.playerGoodStanding,
+      radio: deps.radio,
     });
   }
 
