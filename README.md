@@ -9,8 +9,8 @@ The game is being rebuilt in stages towards the "contract pilot" design:
 jobs and money, several stations, towing and repairs, rival pilots and
 reputation. This version is stage 1, the foundation: a large planet,
 natural flight, short-range weapons, few asteroids that must be found and
-reached, and clear guidance. The earlier defence campaign still runs on top
-of it.
+reached, and clear guidance. Stage 2 adds money and defence contracts. The
+earlier orbit campaign (fields, calm zones, workshop) still runs on top.
 
 ## Play it locally
 
@@ -46,6 +46,30 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## Stage 2: money and contracts
+
+- Every asteroid on an impact course carries an open contract from the Earth
+  Defence Authority. Pay follows danger, not size: 30 cr plus 25 cr per point
+  of planet integrity the impact would remove, half as much again if it is
+  heading for a city or installation, and a quarter more for stopping it with
+  40 seconds or more to spare. A rock that would burn up pays nothing, so
+  scanning tells you whether a chase is worth it (unscanned rocks show an
+  estimate, marked ~).
+- Destroying or deflecting a rock pays the whole contract. A laser that
+  splits a big rock pays 40%, and the pieces carry contracts of their own.
+  A rock that reaches the planet takes its contract with it.
+- The Incoming list is now the contract board: what each rock pays, when it
+  lands, how far away it is, and this field's earnings and losses. The
+  PRIORITY marker shows the pay too.
+- Money buys everything at Aegis: fuel at 2 cr a unit, missiles at 60 cr and
+  hull repairs at 3 cr a point (the shield recharges free). Fuel and hull are
+  bought before missiles. A pilot who cannot pay still gets enough fuel to
+  fly (30%), courtesy of the Authority. Upgrades come from the same balance.
+- The pilot starts with 500 cr. Clearing a field pays a bonus; shooting a
+  satellite costs a 150 cr fine.
+- The end screen shows earnings, spending, balance and contracts completed
+  and lost, and the best runs in this browser are ranked by earnings.
 
 ## Stage 1: the foundation
 
@@ -199,6 +223,7 @@ npm run build
 `npm test` covers the game rules: waves, damage, scoring, threat ranking,
 wave timing, laser range, aim-ahead, blasts, shield and hull, units, priority
 sites, atmosphere zones and the automatic pull-up, the flight model, guidance,
+contract pay, station prices and the wallet,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.

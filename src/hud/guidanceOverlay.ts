@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { Guidance } from '../game/guidance';
 import type { InterceptVerdict } from '../logic/guidance';
+import { formatCredits } from '../logic/contracts';
 import { formatCountdown, formatDistance } from '../logic/units';
 import type { Satellite } from '../satellites/satelliteFleet';
 import type { ScreenProjector } from './screenProjector';
@@ -30,6 +31,10 @@ export interface GuidanceFrame {
   shipVelocity: THREE.Vector3;
   /** Flight assist off: show where the ship is really moving. */
   showDrift: boolean;
+  /** Contract offer for the priority target, in credits; 0 when none. */
+  priorityPay: number;
+  /** True when the offer is an estimate because the rock is not scanned yet. */
+  priorityEstimate: boolean;
 }
 
 /**
@@ -55,6 +60,7 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
   const point = projector.project(priority.item.mesh.position);
   const times = `REACH ${formatCountdown(priority.reachSeconds)} · IMPACT ${formatCountdown(priority.impactSeconds)}`;
   const verdict = VERDICT_TEXT[priority.verdict];
+  const pay = frame.priorityPay > 0 ? ` · ${frame.priorityEstimate ? '~' : ''}${formatCredits(frame.priorityPay)}` : '';
   const centreX = projector.width / 2;
   const centreY = projector.height / 2;
 
@@ -73,7 +79,7 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
     context.stroke();
     context.textAlign = 'center';
     context.fillStyle = PRIORITY_COLOR;
-    context.fillText('PRIORITY', point.x, point.y - size - 24);
+    context.fillText(`PRIORITY${pay}`, point.x, point.y - size - 24);
     context.fillStyle = 'rgba(232, 241, 255, 0.9)';
     context.fillText(times, point.x, point.y - size - 11);
     context.fillStyle = VERDICT_COLOR[priority.verdict];
@@ -100,15 +106,15 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
   context.fill();
   context.restore();
 
-  const textX = centreX + Math.cos(angle) * (ring + 30);
-  const textY = centreY + Math.sin(angle) * (ring + 30) + (Math.sin(angle) > 0.5 ? 14 : 0);
-  context.textAlign = Math.cos(angle) > 0.3 ? 'left' : Math.cos(angle) < -0.3 ? 'right' : 'center';
+  // The text sits under the reticle, where it never hides behind a panel.
+  const textY = centreY + ring + 34;
+  context.textAlign = 'center';
   context.fillStyle = PRIORITY_COLOR;
-  context.fillText(`PRIORITY · TURN ${priority.cue} · ${formatDistance(priority.distance)}`, textX, textY);
+  context.fillText(`PRIORITY${pay} · TURN ${priority.cue} · ${formatDistance(priority.distance)}`, centreX, textY);
   context.fillStyle = 'rgba(232, 241, 255, 0.9)';
-  context.fillText(times, textX, textY + 13);
+  context.fillText(times, centreX, textY + 13);
   context.fillStyle = VERDICT_COLOR[priority.verdict];
-  context.fillText(verdict, textX, textY + 26);
+  context.fillText(verdict, centreX, textY + 26);
 }
 
 function drawSatellites(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: GuidanceFrame): void {

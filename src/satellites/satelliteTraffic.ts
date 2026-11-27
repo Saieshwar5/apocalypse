@@ -12,6 +12,7 @@ import {
   scannerRangeBonus,
 } from '../logic/satellites';
 import type { ShipController } from '../ship/shipController';
+import { formatCredits } from '../logic/contracts';
 import { SatelliteFleet, type Satellite } from './satelliteFleet';
 
 const SHIP_RADIUS = 0.55;
@@ -110,8 +111,8 @@ export class SatelliteTraffic {
         const hit = this.fleet.findHit(start, current);
         projectile.userData.lastSatelliteCheck = current.clone();
         if (hit) {
-          this.lose(hit, `You shot a satellite: -${SATELLITE_LOSS_PENALTY} points`);
-          session.score = Math.max(session.spent, session.score - SATELLITE_LOSS_PENALTY);
+          const fined = session.wallet.fine(SATELLITE_LOSS_PENALTY);
+          this.lose(hit, `You shot a satellite. Operator's fine: ${formatCredits(fined)}`);
         }
       }
     }

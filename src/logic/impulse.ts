@@ -19,8 +19,3 @@ export function asteroidMass(radius: number, density = 1): number {
 export function hitSpeedChange(weapon: WeaponKind, radius: number, density = 1): number {
   return Math.min(MAX_SPEED_CHANGE, WEAPON_IMPULSE[weapon] / asteroidMass(Math.max(radius, 0.05), density));
 }
-
-/** Points for pushing an asteroid onto a path that misses the planet. */
-export function deflectionScore(baseScore: number): number {
-  return Math.round(baseScore * 0.75);
-}

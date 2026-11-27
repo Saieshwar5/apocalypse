@@ -1,3 +1,4 @@
+import { formatCredits } from '../logic/contracts';
 import { UPGRADES, nextCost, type UpgradeLevels } from '../logic/upgrades';
 
 /**
@@ -38,7 +39,7 @@ export class WorkshopPanel {
     }
     this.lastState = state;
     this.panel.hidden = !visible;
-    this.credits.textContent = credits.toLocaleString();
+    this.credits.textContent = formatCredits(credits);
     UPGRADES.forEach((upgrade, index) => {
       const row = this.rows[index];
       const cost = nextCost(levels, upgrade.id);

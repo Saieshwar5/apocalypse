@@ -29,6 +29,8 @@ import { STAR_SYSTEMS, type StarSystem } from '../logic/starSystems';
 import { SiteDefence } from '../sites/siteDefence';
 import { SiteMarkers } from '../sites/siteMarkers';
 import { CombatResolver } from './combatResolver';
+import { ContractBook } from './contractBook';
+import { formatCredits } from '../logic/contracts';
 import { FlightHazards } from './flightHazards';
 import type { GameSession } from './gameSession';
 import { computeGuidance, type Guidance } from './guidance';
@@ -77,6 +79,7 @@ export class PlaySession {
   readonly missiles = new MissileLauncher();
   readonly campaign: Campaign;
   readonly combat: CombatResolver;
+  readonly contracts: ContractBook;
   tactical = false;
   private readonly visuals = new ThreatVisuals(EARTH_RADIUS);
   private readonly dust = new SpaceDust();
@@ -102,6 +105,7 @@ export class PlaySession {
 
   constructor(private readonly deps: PlaySessionDependencies) {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
+    this.contracts = new ContractBook({ wallet: deps.session.wallet, hud: deps.hud, feedback: this.feedback });
     deps.shipModel.group.add(this.shield.mesh);
     this.sites = new SiteDefence(deps.earth, STAR_SYSTEMS[0].sites);
     this.siteMarkers = new SiteMarkers(deps.earth, this.sites);
@@ -119,6 +123,7 @@ export class PlaySession {
       feedback: this.feedback,
       cameraRig: deps.cameraRig,
       session: deps.session,
+      contracts: this.contracts,
       ship: deps.ship,
       shield: this.shield,
       rng: deps.rng,
@@ -144,6 +149,7 @@ export class PlaySession {
       hud: deps.hud,
       cameraRig: deps.cameraRig,
       input: deps.input,
+      wallet: deps.session.wallet,
     });
     deps.scene.add(this.hazards.group);
     this.satellites = new SatelliteTraffic({
@@ -172,6 +178,7 @@ export class PlaySession {
       ship: deps.ship,
       laser: this.laser,
       missiles: this.missiles,
+      contracts: this.contracts,
     });
   }
 
@@ -184,6 +191,7 @@ export class PlaySession {
     this.sites.setDefinitions(system.sites);
     this.siteMarkers.rebuild();
     this.field.clear();
+    this.contracts.reset();
     this.visuals.clear();
     this.scorches.clear();
     this.feedback.clear();
@@ -251,6 +259,7 @@ export class PlaySession {
 
     updateIdentification(deltaSeconds, ship.position, ship.forward(), this.field.all, this.sites.isStanding('radar'), flying, this.feedback);
     this.sites.updateThreats(this.field.all);
+    this.contracts.update(this.field.all);
     this.stationOps.updateThreats();
     const ranked = rankThreats(this.field.all);
     earth.update(deltaSeconds);
@@ -388,6 +397,15 @@ export class PlaySession {
     cameraRig.place(position, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), deltaSeconds);
   }
 
+  private contractSummary(): string {
+    const { fieldEarned, fieldLost } = this.contracts;
+    if (this.campaign.director.phase !== 'field') {
+      return 'Calm zone: contracts post when the next field arrives';
+    }
+    const lost = fieldLost > 0 ? ` · lost ${formatCredits(fieldLost)}` : '';
+    return `This field: earned ${formatCredits(fieldEarned)}${lost}`;
+  }
+
   private destroyShip(cause: string): void {
     const { explosions, sound, cameraRig, hud, ship } = this.deps;
     explosions.spawnExplosion(ship.position, 1.6, 'fire');
@@ -404,12 +422,13 @@ export class PlaySession {
     hud.update(deltaSeconds, {
       integrity: session.integrity,
       wave: Math.max(1, this.campaign.director.wave),
-      credits: this.campaign.credits,
       missileCapacity: this.missiles.capacity,
       fuelCapacity: ship.fuelCapacity,
       shieldCapacity: ship.shieldCapacity,
-      score: session.score,
-      threats: ranked,
+      balance: session.wallet.balance,
+      earned: session.wallet.earned,
+      contracts: this.contracts.listings(ranked),
+      contractSummary: this.contractSummary(),
       laserHeat: this.laser.heat,
       overheated: this.laser.overheated,
       missiles: this.missiles.ammunition,
@@ -456,6 +475,8 @@ export class PlaySession {
         shipPosition: ship.position,
         shipVelocity: ship.velocity,
         showDrift: !ship.assist,
+        priorityPay: this.guidance.priority ? this.contracts.offerFor(this.guidance.priority.item) : 0,
+        priorityEstimate: this.guidance.priority ? !this.guidance.priority.item.identified : false,
       },
     });
   }

@@ -11,7 +11,9 @@ import { randomUnitVector, type RandomSource } from '../logic/random';
 import { waveClearBonus } from '../logic/scoring';
 import { UPGRADES, loadoutFor, noUpgrades, purchase, type UpgradeLevels } from '../logic/upgrades';
 import { PASSER_BY_RATIO, chooseMaterial, type AsteroidSpawnPlan } from '../logic/waves';
+import { formatCredits } from '../logic/contracts';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
+import type { ContractBook } from './contractBook';
 import type { ShipController } from '../ship/shipController';
 import type { SiteDefence } from '../sites/siteDefence';
 import { STATION_NAME, type StationOperations } from '../station/stationOperations';
@@ -41,6 +43,7 @@ export interface CampaignDependencies {
   ship: ShipController;
   laser: LaserCannon;
   missiles: MissileLauncher;
+  contracts: ContractBook;
 }
 
 /**
@@ -80,7 +83,7 @@ export class Campaign {
   }
 
   get credits(): number {
-    return this.deps.session.score - this.deps.session.spent;
+    return this.deps.session.wallet.balance;
   }
 
   reset(difficulty = 0, keepUpgrades = false): void {
@@ -125,11 +128,11 @@ export class Campaign {
       }
       const result = purchase(this.levels, upgrade.id, this.credits);
       if (!result.ok) {
-        hud.showMessage(result.reason === 'maxed' ? `${upgrade.name} is fully upgraded` : `Not enough credits for ${upgrade.name}`, 'warning', 2);
+        hud.showMessage(result.reason === 'maxed' ? `${upgrade.name} is fully upgraded` : `Not enough money for ${upgrade.name}`, 'warning', 2);
         return;
       }
+      session.wallet.spend(result.cost);
       this.levels = result.levels;
-      session.spent += result.cost;
       this.applyLoadout();
       hud.showMessage(`${upgrade.name} upgraded: ${upgrade.effect}`, 'success', 2.5);
       sound.chime();
@@ -155,6 +158,7 @@ export class Campaign {
       if (event.type === 'sector-started') {
         session.impactsThisWave = 0;
         session.destroyedThisWave = 0;
+        this.deps.contracts.startField();
         const plan = event.plan;
         if (!plan) {
           const dock = stationOps.present ? ` Dock at ${STATION_NAME} to refuel and upgrade.` : '';
@@ -175,10 +179,12 @@ export class Campaign {
         this.spawnAsteroid(event.spawn);
       } else if (event.type === 'wave-cleared') {
         const bonus = waveClearBonus(event.wave, session.destroyedThisWave, session.impactsThisWave);
-        session.score += bonus;
+        session.wallet.earn(bonus);
         session.wavesCleared += 1;
+        const { fieldEarned, fieldLost } = this.deps.contracts;
         const clean = session.impactsThisWave === 0 ? ' No impacts.' : '';
-        const reward = bonus > 0 ? ` +${bonus} points.` : '';
+        const lost = fieldLost > 0 ? `, lost ${formatCredits(fieldLost)}` : '';
+        const reward = ` Earned ${formatCredits(fieldEarned + bonus)}${bonus > 0 ? ` (bonus ${formatCredits(bonus)})` : ''}${lost}.`;
         sites.repairSurvivors(loadoutFor(this.levels).siteRepairMultiplier);
         const launchSite = sites.sites.find((site) => site.definition.kind === 'launch' && site.health > 0);
         const supply = stationOps.sendSupplies(launchSite?.localDirection ?? null);
