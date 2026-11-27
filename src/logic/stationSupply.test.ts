@@ -11,9 +11,9 @@ import {
 describe('fuel', () => {
   it('burns faster when boosting and not at all when coasting', () => {
     expect(fuelBurned(0, 0, false, 10)).toBe(0);
-    expect(fuelBurned(1, 0, false, 10)).toBeCloseTo(9);
-    expect(fuelBurned(1, 0, true, 10)).toBeCloseTo(32);
-    expect(fuelBurned(-1, 1, false, 10)).toBeCloseTo(12);
+    expect(fuelBurned(1, 0, false, 10)).toBeCloseTo(6);
+    expect(fuelBurned(1, 0, true, 10)).toBeCloseTo(24);
+    expect(fuelBurned(-1, 1, false, 10)).toBeCloseTo(8);
   });
 
   it('leaves weak thrust with an empty tank so the ship is never stranded', () => {

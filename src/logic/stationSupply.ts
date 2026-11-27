@@ -1,6 +1,7 @@
 /** Ship fuel tank. Thrust and boost burn it; the laser does not. */
 export const FUEL_CAPACITY = 100;
-export const FUEL_BURN = { thrust: 0.9, boost: 3.2, strafe: 0.3 } as const;
+/** A full tank gives nearly three minutes of thrust, or about 40 seconds of boost. */
+export const FUEL_BURN = { thrust: 0.6, boost: 2.4, strafe: 0.2 } as const;
 /** With an empty tank the engines still give this share of their thrust. */
 export const EMPTY_TANK_THRUST = 0.25;
 export const LOW_FUEL = 25;
