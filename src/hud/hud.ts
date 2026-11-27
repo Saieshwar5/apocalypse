@@ -5,6 +5,7 @@ import { integrityLevel, threatRating } from '../logic/planetDamage';
 import { formatCredits } from '../logic/contracts';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { ContractListing } from '../game/contractBook';
+import type { JobRow } from '../game/satelliteWork';
 import type { SiteState } from '../sites/siteDefence';
 import { SitePanel } from './sitePanel';
 
@@ -48,7 +49,11 @@ export interface HudSnapshot {
     autopilot: string | null;
     thrusting: boolean;
     braking: boolean;
+    /** What is on the tow line, or null. */
+    towing: string | null;
   };
+  /** Satellite contracts, shown above the defence contracts. */
+  jobs: readonly JobRow[];
 }
 
 const ZONE_LABEL: Record<AtmosphereZone, string> = {
@@ -115,6 +120,7 @@ export class Hud {
   private readonly steerStatus = element<HTMLElement>('#steer-status');
   private readonly assistStatus = element<HTMLElement>('#assist-status');
   private readonly motionStatus = element<HTMLElement>('#motion-status');
+  private readonly towStatus = element<HTMLElement>('#tow-status');
   private readonly damageFlash = element<HTMLDivElement>('#damage-flash');
   private readonly defaultHint = this.hint.textContent ?? '';
   private sitePanel: SitePanel | null = null;
@@ -219,6 +225,8 @@ export class Hud {
     setStatus(this.assistStatus, controls.assist ? 'on' : 'off', controls.assist ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF: DRIFTING');
     const motion = controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING: S TO BRAKE';
     setStatus(this.motionStatus, controls.braking ? 'off' : 'on', motion);
+    this.towStatus.hidden = controls.towing === null;
+    setStatus(this.towStatus, 'off', controls.towing ?? '');
   }
 
   private renderPosition(snapshot: HudSnapshot): void {
@@ -248,6 +256,10 @@ export class Hud {
   }
 
   private renderThreats(snapshot: HudSnapshot): void {
+    const jobs = snapshot.jobs.map(
+      (job) =>
+        `<li class="job ${job.urgent ? 'urgent' : ''}"><span>${job.title}</span><span class="threat-pay">${formatCredits(job.pay)}</span><span class="threat-detail">${job.detail}</span></li>`,
+    );
     const rows = snapshot.contracts.slice(0, VISIBLE_THREATS).map(({ asteroid, pay, estimate }) => {
       const eta = asteroid.timeToImpact === null ? 'off course' : formatCountdown(asteroid.timeToImpact);
       const urgent = asteroid.timeToImpact !== null && (asteroid.timeToImpact < 20 || asteroid.threatensSite);
@@ -265,6 +277,7 @@ export class Hud {
     if (hidden > 0) {
       rows.push(`<li class="empty">+${hidden} more</li>`);
     }
+    rows.unshift(...jobs);
     const markup = rows.length > 0 ? rows.join('') : '<li class="empty">No open contracts</li>';
     // Rewriting identical markup every frame would waste layout work.
     if (markup !== this.lastThreatMarkup) {

@@ -68,12 +68,15 @@ export class SatelliteTraffic {
     this.debrisWarned = false;
   }
 
+  /** A satellite the ship cannot collide with: the one on its tow line. */
+  shipIgnores: Satellite | null = null;
+
   update(deltaSeconds: number, shipActive: boolean): void {
     const { ship, field, combat, hud, session } = this.deps;
     this.fleet.update(deltaSeconds);
 
     if (shipActive) {
-      const struck = this.fleet.findOverlap(ship.position, SHIP_RADIUS);
+      const struck = this.fleet.findOverlap(ship.position, SHIP_RADIUS, this.shipIgnores);
       if (struck) {
         const point = this.lose(struck, 'You flew into a satellite');
         ship.velocity.addScaledVector(ship.position.clone().sub(point).normalize(), 6);

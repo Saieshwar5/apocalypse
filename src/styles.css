@@ -394,6 +394,14 @@ body {
   color: var(--danger);
 }
 
+#threat-list li.job {
+  color: #8fd3ff;
+}
+
+#threat-list li.job.urgent {
+  color: var(--danger);
+}
+
 #threat-list li.empty {
   display: block;
   color: var(--hud-dim);

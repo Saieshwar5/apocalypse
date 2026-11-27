@@ -7,6 +7,7 @@ import { RATING_COLOR, RATING_LABEL, ratingOf } from '../asteroids/identificatio
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { CombatFeedback } from './combatFeedback';
+import type { StationMarker } from '../game/orbitServices';
 import { drawGuidance, type GuidanceFrame } from './guidanceOverlay';
 import { drawReticle } from './reticle';
 import { ScreenProjector, type ScreenPoint } from './screenProjector';
@@ -31,7 +32,7 @@ export interface OverlayFrame {
   shipPosition: THREE.Vector3;
   /** Priority sites on the side of Earth facing the camera. */
   sites: readonly SiteLabel[];
-  stationMarkers: readonly { world: THREE.Vector3; name: string; ghost: boolean }[];
+  stationMarkers: readonly StationMarker[];
   /** Priority target, satellite labels and the drift marker. */
   guidance: GuidanceFrame;
 }
@@ -151,13 +152,13 @@ export class TargetOverlay {
   }
 
   /** Cyan marker on the station, or an arrow at the screen edge towards it. */
-  private drawStation(station: { world: THREE.Vector3; name: string; ghost: boolean }, shipPosition: THREE.Vector3): void {
+  private drawStation(station: StationMarker, shipPosition: THREE.Vector3): void {
     const context = this.context;
     const point = this.projector.project(station.world);
     const label = `${station.name} ${formatDistance(station.world.distanceTo(shipPosition))}`;
     context.save();
-    context.strokeStyle = '#5fd8ff';
-    context.fillStyle = '#5fd8ff';
+    context.strokeStyle = station.color ?? '#5fd8ff';
+    context.fillStyle = station.color ?? '#5fd8ff';
     context.font = `700 11px ${MONO}`;
     if (station.ghost) {
       // Destinations and supply rockets: a dashed marker, and no edge arrow.
@@ -173,7 +174,7 @@ export class TargetOverlay {
     if (point.visible) {
       context.strokeRect(point.x - 9, point.y - 9, 18, 18);
       context.fillText(label, point.x + 14, point.y + 4);
-    } else {
+    } else if (station.edgeArrow !== false) {
       const width = this.projector.width;
       const height = this.projector.height;
       const angle = Math.atan2(point.y - height / 2, point.x - width / 2);

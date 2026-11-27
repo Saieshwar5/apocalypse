@@ -38,6 +38,7 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | R / V | Slide up / down |
 | Q / E | Roll |
 | Shift | Boost |
+| T | Connect the tow line to a contract satellite, or release it |
 | Z | Flight assist on or off |
 | Left click or Space | Laser (short range; overheats if held too long) |
 | F or right click | Missile at the locked target |
@@ -46,6 +47,34 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## Stage 3: stations and towing
+
+- Three new stations on their own orbits, built in Blender like Aegis:
+  Vulcan Yard (satellite repair yard, amber), Halo (crew habitat, white)
+  and Ceres Works (refinery, green, highest and slowest). They are
+  labelled on screen and on the scanner in their colours, and the ship
+  bumps off them. Only Aegis docks the ship; Ceres and Halo get their own
+  jobs in later stages.
+- The tow line (T): fly within about 640 km of a contract satellite and
+  match its speed, then press T. The line is a rope that only pulls, and the
+  load's mass is shared with the ship, so it speeds up, turns and stops more
+  slowly. Pulling too hard wears the satellite down (its condition shows on
+  the status line) and can snap the line. T again releases it.
+- Satellite dodge: an iron asteroid that will miss Earth but hit a
+  satellite. The operator pays 320 cr to keep the satellite safe: tow it out
+  of the path and, once the rock has passed, put it back in its orbit slot,
+  or destroy the rock and leave the satellite where it is.
+- Repair tow, like a mechanic's shop: a satellite develops a fault (a
+  blinking red light). Tow it to Vulcan Yard's cradle and release it there;
+  the repair runs for a minute while you do other work, mission control
+  calls you when it is ready, and you collect it and return it to its orbit
+  slot. Pays 480 cr when it is back, less the further from the exact slot
+  you leave it. The yard takes one satellite at a time.
+- Satellite jobs appear at the top of the contract board with their current
+  step, and a cyan JOB marker (an arrow above the reticle when out of view)
+  shows where to go next: the satellite, the yard cradle or the orbit slot.
+- Operators post work in calm zones; a dodge can also come during a field.
 
 ## Stage 2: money and contracts
 
@@ -223,7 +252,8 @@ npm run build
 `npm test` covers the game rules: waves, damage, scoring, threat ranking,
 wave timing, laser range, aim-ahead, blasts, shield and hull, units, priority
 sites, atmosphere zones and the automatic pull-up, the flight model, guidance,
-contract pay, station prices and the wallet,
+contract pay, station prices and the wallet, the tow line, placement and
+satellite job paths,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
@@ -246,6 +276,7 @@ changed and rebuilt rather than edited by hand:
 | `art/blender/build_launch.py` | `booster.glb` and `launchpad.glb` |
 | `art/blender/build_satellites.py` | `satellites.glb` (communications, navigation and weather satellites) |
 | `art/blender/build_station.py` | `station.glb` (Aegis: hub, spinning ring, docking bay, tanks, solar wings) |
+| `art/blender/build_outposts.py` | `vulcan.glb`, `ceres.glb` and `halo.glb` (Vulcan Yard, Ceres Works, Halo) |
 | `art/blender/shipParts.py` | Shared mesh helpers: lofted hulls, armour plating, greebles |
 
 They need Blender's Python module, which can be installed with pip in a
