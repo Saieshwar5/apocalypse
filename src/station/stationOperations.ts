@@ -31,6 +31,7 @@ export interface StationOperationsDependencies {
   cameraRig: CameraRig;
   input: InputState;
   wallet: Wallet;
+  fuelPrice: () => number;
 }
 
 /**
@@ -55,6 +56,7 @@ export class StationOperations {
       hud: deps.hud,
       cameraRig: deps.cameraRig,
       wallet: deps.wallet,
+      fuelPrice: deps.fuelPrice,
     });
     this.defence = new StationDefence({
       station: this.station,

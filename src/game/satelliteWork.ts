@@ -9,6 +9,7 @@ import { pilotName, type PilotId } from '../logic/rivals';
 import { randomUnitVector, type RandomSource } from '../logic/random';
 import { dodgeApproach, satelliteJobPay, type SatelliteJobKind } from '../logic/satelliteJobs';
 import { SATELLITE_JOB_PAY, YARD_REPAIR_SECONDS } from '../logic/stations';
+import { YARD_PARTS } from '../logic/stationEconomy';
 import { TOW, isPlaced } from '../logic/towing';
 import { formatCountdown, formatDistance } from '../logic/units';
 import type { Satellite, SatelliteFleet } from '../satellites/satelliteFleet';
@@ -50,6 +51,8 @@ export interface SatelliteWorkDependencies {
   hud: Hud;
   sound: SoundEffects;
   rng: RandomSource;
+  /** Takes parts for a repair from Vulcan's store; false when it has none (the repair is then slower). */
+  useYardParts?: () => boolean;
 }
 
 /**
@@ -392,9 +395,11 @@ export class SatelliteWork {
       const yard = outposts.get('vulcan');
       fleet.stow(satellite, yard.port);
       this.inYard = satellite;
-      this.repairLeft = YARD_REPAIR_SECONDS;
+      const parts = this.deps.useYardParts?.() ?? true;
+      this.repairLeft = YARD_REPAIR_SECONDS * (parts ? 1 : YARD_PARTS.slowdownWithout);
       if (player) {
-        hud.showMessage(`Left at Vulcan Yard. Repair takes ${formatCountdown(YARD_REPAIR_SECONDS)}: carry on working, you will be called`, 'success', 4.5);
+        const slow = parts ? '' : ' The yard is out of parts, so it will be slow.';
+        hud.showMessage(`Left at Vulcan Yard. Repair takes ${formatCountdown(this.repairLeft)}: carry on working, you will be called.${slow}`, 'success', 4.5);
       }
       return;
     }

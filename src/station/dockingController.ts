@@ -11,7 +11,7 @@ import {
 } from '../logic/stationSupply';
 import { stationService } from '../logic/stationDamage';
 import { PRICES, buyUnits, emergencyFuel, type Wallet } from '../logic/economy';
-import { formatCredits } from '../logic/contracts';
+import { formatCredits, formatPrice } from '../logic/contracts';
 import { formatSpeed } from '../logic/units';
 import type { ShipController } from '../ship/shipController';
 import type { MissileLauncher } from '../weapons/missileLauncher';
@@ -34,6 +34,8 @@ export interface DockingDependencies {
   cameraRig: CameraRig;
   /** The pilot pays for fuel, missiles and hull repairs. */
   wallet: Wallet;
+  /** Aegis's fuel price now: it follows the station's stock. */
+  fuelPrice: () => number;
 }
 
 /**
@@ -167,7 +169,7 @@ export class DockingController {
       sound.dockClamp();
       cameraRig.addShake(0.45);
       hud.showMessage(
-        `Docking clamps engaged. Fuel ${formatCredits(PRICES.fuelPerUnit)} a unit, missiles ${formatCredits(PRICES.missile)}, hull ${formatCredits(PRICES.hullPerPoint)} a point`,
+        `Docking clamps engaged. Fuel ${formatPrice(this.deps.fuelPrice())} a unit, missiles ${formatCredits(PRICES.missile)}, hull ${formatCredits(PRICES.hullPerPoint)} a point`,
         'success',
         4,
       );
@@ -186,8 +188,8 @@ export class DockingController {
     const { wallet } = this.deps;
     const fuelWanted = drawFromStock(station.stock.fuel, Math.min(SERVICE_RATE.fuel * service.rate * deltaSeconds, ship.fuelCapacity - ship.fuel));
     // A pilot who cannot pay still gets enough fuel to fly: the Authority covers it.
-    const freeFuel = wallet.balance < PRICES.fuelPerUnit ? emergencyFuel(ship.fuel, fuelWanted) : 0;
-    const boughtFuel = buyUnits(fuelWanted - freeFuel, PRICES.fuelPerUnit, wallet.balance);
+    const freeFuel = wallet.balance < this.deps.fuelPrice() ? emergencyFuel(ship.fuel, fuelWanted) : 0;
+    const boughtFuel = buyUnits(fuelWanted - freeFuel, this.deps.fuelPrice(), wallet.balance);
     this.charge(boughtFuel.cost);
     this.emergencyFuelGiven += freeFuel;
     ship.fuel += freeFuel + boughtFuel.units;
@@ -195,7 +197,7 @@ export class DockingController {
 
     this.missileProgress += SERVICE_RATE.missilesPerSecond * service.rate * deltaSeconds;
     // Fuel and hull come first: missiles are only bought with what is left over.
-    const reserved = (ship.fuelCapacity - ship.fuel) * PRICES.fuelPerUnit + (HULL_CAPACITY - ship.hull) * PRICES.hullPerPoint;
+    const reserved = (ship.fuelCapacity - ship.fuel) * this.deps.fuelPrice() + (HULL_CAPACITY - ship.hull) * PRICES.hullPerPoint;
     const canAffordMissile = wallet.balance - Math.max(0, reserved) >= PRICES.missile;
     if (service.missiles && this.missileProgress >= 1 && missiles.ammunition < missiles.capacity && station.stock.missiles >= 1 && canAffordMissile) {
       this.missileProgress = 0;
@@ -208,7 +210,7 @@ export class DockingController {
     this.charge(hull.cost);
     ship.repair(hull.units, SERVICE_RATE.shield * deltaSeconds);
 
-    const broke = wallet.balance < PRICES.fuelPerUnit;
+    const broke = wallet.balance < this.deps.fuelPrice();
     const fuelDone = ship.fuel >= ship.fuelCapacity - 0.01 || station.stock.fuel <= 0 || (broke && freeFuel <= 0);
     const missilesDone =
       missiles.ammunition >= missiles.capacity || station.stock.missiles < 1 || !service.missiles || wallet.balance < PRICES.missile;

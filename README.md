@@ -49,6 +49,30 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 5c: the station economy
+
+- Every station keeps a store of **fuel** and **parts**. Prices follow
+  stock: from 0.7x the station's base price with a full store to 1.6x when
+  nearly empty. Ceres Works has the cheapest fuel; on-screen station labels
+  show each outpost's fuel price, and Aegis's docking price follows its
+  store too.
+- Ceres makes fuel and parts: a trickle from its mining drones, and much
+  more from hauled rocks (8 fuel and 2 parts per tonne). Automatic shuttles,
+  visible as small cargo craft flying arcs around the planet, carry goods
+  from Ceres to whichever station's store is emptiest.
+- Aegis builds missiles from parts (one part every 12 s while it has room);
+  Vulcan Yard uses 6 parts per satellite repair and repairs three times
+  slower without them. Shortages spread if nobody hauls.
+- **Berthing at the outposts**: stop within about 1,100 km of Vulcan, Ceres
+  or Halo's port, release the controls and the ship is held there. It buys
+  fuel at the local price; Vulcan also repairs hulls at 2 cr a point. W
+  launches.
+- **Asteroid haul** (Ceres posts it in calm zones): tow a carbon-rich rock of
+  several tonnes to Ceres's intake and release it there; 40 cr a tonne. The
+  rock is very heavy on the tow line, so plan fuel and brake early. T picks
+  the haul rock when it is the nearest thing to tow.
+- Working satellites pay 15 cr each when a field is cleared.
+
 ## Stage 5b: reputation and the licence
 
 - Reputation (start 60, out of 100) is the pilot's licence to fly. It
@@ -352,7 +376,8 @@ sites, atmosphere zones and the automatic pull-up, the flight model, guidance,
 contract pay, station prices and the wallet, the tow line, placement and
 satellite job paths, rival choices, shared pay, radio rationing, the autopilot,
 the Cascade (debris, drag, growth, sweeping, orbits through a point), automatic
-quality, reputation, probation, insurance and the emergency loan,
+quality, reputation, probation, insurance and the emergency loan, station prices,
+shuttle routes and haul masses,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.

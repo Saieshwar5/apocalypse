@@ -178,6 +178,7 @@ export class PlaySession {
       cameraRig: deps.cameraRig,
       input: deps.input,
       wallet: deps.session.wallet,
+      fuelPrice: () => this.services.market.price('aegis', 'fuel'),
     });
     deps.scene.add(this.hazards.group);
     this.satellites = new SatelliteTraffic({
@@ -212,6 +213,7 @@ export class PlaySession {
       playerProjectiles: [this.laser.group, this.missiles.group],
       station: () => this.stationNow(),
       playerGoodStanding: () => this.licence.inGoodStanding,
+      aegisStock: () => (this.stationOps.present ? this.stationOps.station.stock : null),
     });
     this.campaign = new Campaign({
       field: this.field,
@@ -228,6 +230,9 @@ export class PlaySession {
       missiles: this.missiles,
       contracts: this.contracts,
       work: this.services.work,
+      extraHint: () => this.services.berths.hint,
+      postHaul: () => this.services.haul.post(),
+      workingSatellites: () => this.satellites.fleet.aliveCount,
     });
   }
 
@@ -280,7 +285,7 @@ export class PlaySession {
     this.elapsed += deltaSeconds;
     const { ship, shipModel, earth, explosions, sound, cameraRig } = this.deps;
     const active = this.shipActive;
-    const flying = active && !this.tactical && !this.stationOps.holdingShip;
+    const flying = active && !this.tactical && !this.stationOps.holdingShip && !this.services.berths.holding;
     const input = flying ? this.hazards.filterInput(readFlightInput(this.deps.input), deltaSeconds) : IDLE_INPUT;
     ship.assistOverride = this.hazards.autopilot;
     ship.update(deltaSeconds, input);
@@ -307,7 +312,7 @@ export class PlaySession {
     this.combat.resolveEscaped(this.field.collectEscaped());
     this.satellites.shipIgnores = this.services.work.towed;
     this.satellites.update(deltaSeconds, active);
-    this.services.update(deltaSeconds, flying && !this.hazards.autopilot, active);
+    this.services.update(deltaSeconds, flying && !this.hazards.autopilot, active, pilotBusy);
     const lostCause = this.combat.consumeShipLost();
     if (lostCause && active) {
       this.loss.destroy(lostCause);

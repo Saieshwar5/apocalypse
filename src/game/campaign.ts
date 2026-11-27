@@ -12,6 +12,7 @@ import { waveClearBonus } from '../logic/scoring';
 import { UPGRADES, loadoutFor, noUpgrades, purchase, type UpgradeLevels } from '../logic/upgrades';
 import { PASSER_BY_RATIO, chooseMaterial, type AsteroidSpawnPlan } from '../logic/waves';
 import { formatCredits } from '../logic/contracts';
+import { SATELLITE_INCOME } from '../logic/stationEconomy';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import type { ContractBook } from './contractBook';
 import type { SatelliteWork } from './satelliteWork';
@@ -47,6 +48,12 @@ export interface CampaignDependencies {
   contracts: ContractBook;
   /** Satellite contracts: posted in calm zones, sometimes during fields. */
   work: SatelliteWork;
+  /** A hint from berthing at an outpost, shown like the docking hint. */
+  extraHint: () => string | null;
+  /** Ceres posts an asteroid haul; false when one is already open. */
+  postHaul: () => boolean;
+  /** Working satellites, which pay the pilot a fee when a field is cleared. */
+  workingSatellites: () => number;
 }
 
 /**
@@ -122,7 +129,7 @@ export class Campaign {
       hud.showMessage('Leaving the calm zone', 'info', 2);
     }
     const tip = TIPS.find(([from, to]) => this.seconds >= from && this.seconds < to);
-    hud.setHint(stationOps.docking.hint ?? (tip ? tip[2] : null));
+    hud.setHint(stationOps.docking.hint ?? this.deps.extraHint() ?? (tip ? tip[2] : null));
     this.workshop.update(docked, this.levels, this.credits);
     this.orbitMap.draw(this.director);
   }
@@ -189,12 +196,14 @@ export class Campaign {
         this.spawnAsteroid(event.spawn);
       } else if (event.type === 'wave-cleared') {
         const bonus = waveClearBonus(event.wave, session.destroyedThisWave, session.impactsThisWave);
-        session.wallet.earn(bonus);
+        const income = this.deps.workingSatellites() * SATELLITE_INCOME;
+        session.wallet.earn(bonus + income);
         session.wavesCleared += 1;
         const { fieldEarned, fieldLost } = this.deps.contracts;
         const clean = session.impactsThisWave === 0 ? ' No impacts.' : '';
         const lost = fieldLost > 0 ? `, lost ${formatCredits(fieldLost)}` : '';
-        const reward = ` Earned ${formatCredits(fieldEarned + bonus)}${bonus > 0 ? ` (bonus ${formatCredits(bonus)})` : ''}${lost}.`;
+        const satellites = income > 0 ? `, satellite fees ${formatCredits(income)}` : '';
+        const reward = ` Earned ${formatCredits(fieldEarned + bonus + income)}${bonus > 0 ? ` (bonus ${formatCredits(bonus)}${satellites})` : satellites ? ` (${satellites.slice(2)})` : ''}${lost}.`;
         sites.repairSurvivors(loadoutFor(this.levels).siteRepairMultiplier);
         const launchSite = sites.sites.find((site) => site.definition.kind === 'launch' && site.health > 0);
         const supply = stationOps.sendSupplies(launchSite?.localDirection ?? null);
@@ -213,6 +222,9 @@ export class Campaign {
     }
     if (rng() < 0.5) {
       this.dodgeIn = 6 + rng() * 6;
+    }
+    if (rng() < 0.6) {
+      this.deps.postHaul();
     }
   }
 
