@@ -73,6 +73,11 @@ export function contractPayout(value: number, outcome: ContractOutcome, secondsT
   return { amount: roundPay(value * share * bonus), early, clean };
 }
 
+/** A unit price: "2.6 cr" below 10 credits, whole credits above. */
+export function formatPrice(price: number): string {
+  return price < 10 ? `${price.toFixed(1)} cr` : formatCredits(price);
+}
+
 /** "1,250 cr". */
 export function formatCredits(amount: number): string {
   return `${Math.round(amount).toLocaleString('en-US')} cr`;
