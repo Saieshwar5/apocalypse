@@ -27,10 +27,26 @@ describe('tow line', () => {
     expect(canAttach(2, TOW.attachSpeed + 1)).toBe(false);
   });
 
-  it('does nothing while slack and never pushes', () => {
+  it('never pulls while slack, only steadies the load', () => {
     const slack = towStep({ shipPosition: [0, 0, 0], shipVelocity: [0, 0, 0], loadPosition: [0, 0, 2], loadVelocity: [0, 0, -5], loadMass: 1 }, 0.1);
     expect(slack.tension).toBe(0);
-    expect(slack.shipDelta).toEqual([0, 0, 0]);
+    // A small steadying push, shared by mass: equal and opposite momentum.
+    expect(slack.loadDelta[2]).toBeGreaterThan(0);
+    expect(slack.loadDelta[2] + slack.shipDelta[2]).toBeCloseTo(0, 10);
+  });
+
+  it('settles a load swinging round a stopped ship', () => {
+    let load: Vec3Tuple = [TOW.length + 0.5, 0, 0];
+    let loadVelocity: Vec3Tuple = [0, 0, 6];
+    let shipVelocity: Vec3Tuple = [0, 0, 0];
+    const step = 1 / 120;
+    for (let time = 0; time < 10; time += step) {
+      const result = towStep({ shipPosition: [0, 0, 0], shipVelocity, loadPosition: load, loadVelocity, loadMass: LOAD_MASS.satellite }, step);
+      loadVelocity = loadVelocity.map((v, i) => v + result.loadDelta[i]) as Vec3Tuple;
+      shipVelocity = [0, 0, 0];
+      load = load.map((p, i) => p + loadVelocity[i] * step) as Vec3Tuple;
+    }
+    expect(Math.hypot(...loadVelocity)).toBeLessThan(1.5);
   });
 
   it('pulls the load along and shares momentum by mass', () => {
