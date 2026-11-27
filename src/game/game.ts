@@ -140,6 +140,7 @@ export class Game {
       rng: this.rng,
       shipModel: this.shipModel,
       stationModel: models.station,
+      satellitesModel: models.satellites,
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
     });

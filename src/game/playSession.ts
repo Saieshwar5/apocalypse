@@ -23,6 +23,7 @@ import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipC
 import type { ShipModel } from '../ship/shipModel';
 import { LaserCannon } from '../weapons/laserCannon';
 import { MissileLauncher } from '../weapons/missileLauncher';
+import { SatelliteTraffic } from '../satellites/satelliteTraffic';
 import { StationOperations } from '../station/stationOperations';
 import { STAR_SYSTEMS, type StarSystem } from '../logic/starSystems';
 import { SiteDefence } from '../sites/siteDefence';
@@ -58,6 +59,7 @@ export interface PlaySessionDependencies {
   shipModel: ShipModel;
   /** The Blender station model. */
   stationModel: THREE.Object3D;
+  satellitesModel: THREE.Object3D;
   ship: ShipController;
   /** Shows or hides the cockpit frame overlay. */
   setCockpitFrame: (visible: boolean) => void;
@@ -85,6 +87,7 @@ export class PlaySession {
   private readonly plumes: ImpactPlumes;
   private readonly hazards: FlightHazards;
   readonly stationOps: StationOperations;
+  readonly satellites: SatelliteTraffic;
   /** Why the mission failed because of the ship, once the loss has played out. */
   shipFailure: string | null = null;
   private lostCause: string | null = null;
@@ -141,6 +144,19 @@ export class PlaySession {
       input: deps.input,
     });
     deps.scene.add(this.hazards.group);
+    this.satellites = new SatelliteTraffic({
+      scene: deps.scene,
+      model: deps.satellitesModel,
+      rng: deps.rng,
+      ship: deps.ship,
+      field: this.field,
+      combat: this.combat,
+      explosions: deps.explosions,
+      sound: deps.sound,
+      hud: deps.hud,
+      session: deps.session,
+      projectiles: [this.laser.group, this.missiles.group],
+    });
     this.campaign = new Campaign({
       field: this.field,
       sites: this.sites,
@@ -175,6 +191,7 @@ export class PlaySession {
     this.plumes.clear();
     this.hazards.reset();
     this.stationOps.reset();
+    this.satellites.reset();
     this.shipFailure = null;
     this.lostCause = null;
     this.lostTimer = 0;
@@ -217,6 +234,7 @@ export class PlaySession {
     this.combat.resolveWeaponHits(this.missiles.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'missile');
     this.combat.resolveShipCollisions();
     this.combat.resolveEscaped(this.field.collectEscaped());
+    this.satellites.update(deltaSeconds, active);
     const lostCause = this.combat.consumeShipLost();
     if (lostCause && active) {
       this.destroyShip(lostCause);
@@ -384,9 +402,9 @@ export class PlaySession {
       zone: this.hazards.zone,
       sites: this.sites.sites,
     });
-    const range = this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2;
+    const range = (this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * this.satellites.scannerBonus;
     const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
-    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null, this.campaign.scannerBlind);
+    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null, this.campaign.scannerBlind, this.satellites.positions());
     if (!showTargets || !this.shipActive || !this.targeting || this.stationOps.holdingShip) {
       overlay.clear();
       return;

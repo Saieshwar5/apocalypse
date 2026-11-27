@@ -61,6 +61,7 @@ export class Radar {
     range = SCANNER_RANGE,
     station: THREE.Vector3 | null = null,
     blind = false,
+    satellites: readonly THREE.Vector3[] = [],
   ): void {
     const context = this.context;
     const centreX = this.width / 2;
@@ -86,6 +87,10 @@ export class Radar {
     if (station) {
       this.local.copy(station).sub(ship.position).applyQuaternion(this.inverse);
       contacts.push({ point: projectToScanner(this.local.toArray(), range, radius), color: '#5fd8ff', size: 3.5, locked: false, square: true });
+    }
+    for (const satellite of satellites) {
+      this.local.copy(satellite).sub(ship.position).applyQuaternion(this.inverse);
+      contacts.push({ point: projectToScanner(this.local.toArray(), range, radius), color: '#9aa6b5', size: 2, locked: false, square: true });
     }
     this.local.copy(ship.position).negate().applyQuaternion(this.inverse);
     const earth = projectToScanner(this.local.toArray(), range, radius);

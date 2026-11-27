@@ -122,6 +122,18 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 - Physics: hits push and spin asteroids according to their mass, so missiles
   can deflect a giant into missing the planet; fragments keep their parent's
   momentum; the ship banks into turns.
+- Satellites: eight communications, navigation and weather satellites on
+  three orbit bands (grey squares on the scanner). Flying into one damages
+  the ship and destroys it; asteroids and your own stray shots can destroy
+  them too, and a wreck leaves a debris cloud that stays in that orbit and
+  hurts the ship. Each working satellite extends scanner range slightly.
+- Asteroid types: rubble pile, carbon-rich, stony, iron and ice, with danger
+  set by density, not size. Contacts are unidentified until scanned by
+  holding the reticle on them; small or loose bodies burn up harmlessly, and
+  some asteroids only pass by.
+- The Moon as a landmark, a generated score that rises with danger, urgent
+  messages read aloud, solar flares that blind the scanner, and settings for
+  mouse sensitivity and graphics quality on the pause screen.
 - Star systems: after Earth, travel to Tau Ceti to defend the Meridian colony,
   a generated world with its own settlements, harder fields and your score
   and upgrades carried over.
@@ -168,6 +180,7 @@ changed and rebuilt rather than edited by hand:
 | --- | --- |
 | `art/blender/build_ship.py` | `interceptor.glb`, in two variants: `gunship` (used) and `interceptor` |
 | `art/blender/build_launch.py` | `booster.glb` and `launchpad.glb` |
+| `art/blender/build_satellites.py` | `satellites.glb` (communications, navigation and weather satellites) |
 | `art/blender/build_station.py` | `station.glb` (Aegis: hub, spinning ring, docking bay, tanks, solar wings) |
 | `art/blender/shipParts.py` | Shared mesh helpers: lofted hulls, armour plating, greebles |
 
