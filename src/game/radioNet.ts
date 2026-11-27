@@ -6,6 +6,8 @@ export interface RadioNetDependencies {
   hud: Hud;
   sound: SoundEffects;
   callSign: () => string;
+  /** The pilot's rank, for lines that address them formally. */
+  rank?: () => string;
   random?: () => number;
 }
 
@@ -49,7 +51,7 @@ export class RadioNet {
 
   /** A specific line from a speaker; `urgent` jumps the queue and ignores the speaker's own spacing. */
   say(speaker: SpeakerId, text: string, urgent = false): void {
-    const line = { speaker, text: fillLine(text, { callsign: this.deps.callSign() }) };
+    const line = { speaker, text: fillLine(text, { callsign: this.deps.callSign(), rank: this.deps.rank?.() ?? 'Pilot' }) };
     if (urgent) {
       this.queue.unshift(line);
       this.lastBy.delete(speaker);

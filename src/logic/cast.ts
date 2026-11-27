@@ -67,7 +67,7 @@ export type Moment =
 
 export const LINES: Record<Moment, Partial<Record<SpeakerId, readonly string[]>>> = {
   'run-start': {
-    control: ['{callsign}, this is Capcom Reyes on Halo. You are cleared to work. Fly clean out there.', 'Morning, {callsign}. The stream is early this year. Contracts are on your board.'],
+    control: ['{rank} {callsign}, this is Capcom Reyes on Halo. You are cleared to work. Fly clean out there.', 'Morning, {rank} {callsign}. The stream is early this year. Contracts are on your board.'],
   },
   'field-start': {
     control: ['{callsign}, debris field inbound. Contracts are live.', 'Here they come, {callsign}. Mind the satellites.'],
