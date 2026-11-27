@@ -220,10 +220,10 @@ export class Hud {
     setStatus(
       this.steerStatus,
       controls.autopilot ? 'alert' : controls.mouseCaptured ? 'on' : 'off',
-      controls.autopilot ?? (controls.mouseCaptured ? 'MOUSE STEERING' : 'CLICK TO STEER WITH THE MOUSE · ARROWS ALSO STEER'),
+      controls.autopilot ?? (controls.mouseCaptured ? 'MOUSE STEERING' : 'CLICK FOR MOUSE STEERING'),
     );
     setStatus(this.assistStatus, controls.assist ? 'on' : 'off', controls.assist ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF: DRIFTING');
-    const motion = controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING: S TO BRAKE';
+    const motion = controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING';
     setStatus(this.motionStatus, controls.braking ? 'off' : 'on', motion);
     this.towStatus.hidden = controls.towing === null;
     setStatus(this.towStatus, 'off', controls.towing ?? '');

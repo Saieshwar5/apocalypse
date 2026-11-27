@@ -37,6 +37,7 @@ export class Outposts {
 
   constructor(models: Record<OutpostId, THREE.Object3D>) {
     this.group.name = 'outposts';
+    const toned = new Set<THREE.Material>();
     const ports: Record<OutpostId, string> = { vulcan: 'drop_zone', ceres: 'intake', halo: 'crew_port' };
     this.list = (Object.keys(MODEL_ROOTS) as OutpostId[]).map((id) => {
       const group = new THREE.Group();
@@ -49,6 +50,7 @@ export class Outposts {
         if (node.name.startsWith('Beacon')) {
           this.beacons.push(node);
         }
+        dimWindows(node, toned);
       });
       this.group.add(group);
       return {
@@ -91,7 +93,7 @@ export class Outposts {
       orientationFromForward(forward, up, outpost.group.quaternion);
     }
     if (this.ring) {
-      this.ring.rotation.y += HALO_SPIN * deltaSeconds;
+      this.ring.rotation.z += HALO_SPIN * deltaSeconds;
     }
     const blink = Math.sin(this.elapsed * 3) > 0.6;
     for (const beacon of this.beacons) {
@@ -121,5 +123,25 @@ export class Outposts {
   /** World position of a station's port. */
   portPosition(id: OutpostId, target = new THREE.Vector3()): THREE.Vector3 {
     return this.get(id).port.getWorldPosition(target);
+  }
+}
+
+/**
+ * Hundreds of lit windows add up under bloom and turn Halo's ring into a
+ * white blur, so window and floodlight glow is turned down once per material.
+ */
+const GLOW_SCALE: Record<string, number> = { OutpostWindow: 0.3, Floodlight: 0.5, BlueLight: 0.6 };
+
+function dimWindows(node: THREE.Object3D, toned: Set<THREE.Material>): void {
+  if (!(node instanceof THREE.Mesh)) {
+    return;
+  }
+  const materials = Array.isArray(node.material) ? node.material : [node.material];
+  for (const material of materials) {
+    const scale = GLOW_SCALE[material.name];
+    if (scale !== undefined && !toned.has(material) && material instanceof THREE.MeshStandardMaterial) {
+      material.emissiveIntensity *= scale;
+      toned.add(material);
+    }
   }
 }

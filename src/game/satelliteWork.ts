@@ -180,7 +180,9 @@ export class SatelliteWork {
 
   /** Rows for the contract board, above the defence contracts. */
   rows(): JobRow[] {
-    return this.jobs.map((job) => ({ title: this.title(job), detail: this.stepText(job), pay: job.pay, urgent: job.kind === 'dodge' && !job.clear }));
+    const rows = this.jobs.map((job) => ({ title: this.title(job), detail: this.stepText(job), pay: job.pay, urgent: job.kind === 'dodge' && !job.clear }));
+    // Threatened satellites first: they have a deadline.
+    return rows.sort((a, b) => Number(b.urgent) - Number(a.urgent));
   }
 
   /** Where the current job wants the ship to go next. */
@@ -196,7 +198,7 @@ export class SatelliteWork {
   /** The tow status for the control line, or null when not towing. */
   towStatus(): string | null {
     const load = this.deps.tow.load;
-    return load ? `TOWING ${KIND_LABEL[load.kind]} · ${Math.round(load.condition)}% · T RELEASES` : null;
+    return load ? `TOWING ${KIND_LABEL[load.kind]} ${Math.round(load.condition)}% · T LETS GO` : null;
   }
 
   /** Ignored by the ship's collision test while on the line. */
