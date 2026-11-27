@@ -14,7 +14,9 @@ import {
   type AsteroidSize,
   type WeaponKind,
 } from '../logic/asteroidClasses';
+import { ASTEROID_CLASSES } from '../logic/asteroidClasses';
 import { blastDamage, laserRangeMultiplier } from '../logic/ballistics';
+import { deflectionScore, hitSpeedChange } from '../logic/impulse';
 import { applyPlanetDamage, craterAngularRadius } from '../logic/planetDamage';
 import { randomUnitVector, type RandomSource } from '../logic/random';
 import { destroyScore } from '../logic/scoring';
@@ -96,7 +98,7 @@ export class CombatResolver {
         this.detonateMissile(hit);
       }
       if (hit.asteroid.alive) {
-        this.applyHit(hit.asteroid, hit.point, hit.baseDamage, weapon, hit.range);
+        this.applyHit(hit.asteroid, hit.point, hit.baseDamage, weapon, hit.range, hit.direction);
       }
     }
   }
@@ -178,7 +180,32 @@ export class CombatResolver {
     }
   }
 
-  private applyHit(asteroid: Asteroid, point: THREE.Vector3, baseDamage: number, weapon: WeaponKind, range: number): void {
+  /** Scores asteroids pushed onto a path that misses the planet. */
+  resolveEscaped(escaped: readonly Asteroid[]): void {
+    const { session, feedback, hud, sound } = this.deps;
+    for (const asteroid of escaped) {
+      // Only rocks the pilot actually hit count as deflections.
+      if (asteroid.lastHitBy === null) {
+        continue;
+      }
+      const score = deflectionScore(ASTEROID_CLASSES[asteroid.size].score);
+      session.score += score;
+      session.asteroidsDestroyed += 1;
+      session.destroyedThisWave += 1;
+      feedback.kill(asteroid.mesh.position, score, 'DEFLECTED');
+      hud.showMessage(`${SIZE_NAME[asteroid.size]} asteroid deflected: it will miss Earth. +${score}`, 'success', 3.5);
+      sound.killConfirm();
+    }
+  }
+
+  private applyHit(
+    asteroid: Asteroid,
+    point: THREE.Vector3,
+    baseDamage: number,
+    weapon: WeaponKind,
+    range: number,
+    direction: THREE.Vector3,
+  ): void {
     const { field, explosions, scorches, sound, feedback, hud } = this.deps;
     const rangeMultiplier = weapon === 'laser' ? laserRangeMultiplier(range) : 1;
     const damage = weaponDamage(baseDamage * rangeMultiplier, weapon, asteroid.material);
@@ -188,6 +215,11 @@ export class CombatResolver {
     feedback.hit(point, damage, quality);
 
     if (!destroyed) {
+      const wasOnCourse = asteroid.timeToImpact !== null;
+      field.applyImpulse(asteroid, direction, hitSpeedChange(weapon, asteroid.radius));
+      if (wasOnCourse && asteroid.timeToImpact === null) {
+        hud.showMessage('Knocked off course: it will now miss Earth', 'success', 3);
+      }
       sound.hit(asteroid.material);
       scorches.add(asteroid.mesh, point, resisted ? 0.35 : 0.6);
       if (resisted) {
@@ -239,7 +271,8 @@ export class CombatResolver {
       const distance = other.mesh.position.distanceTo(hit.point) - other.radius;
       const splash = blastDamage(distance, MISSILE_BLAST.radius, MISSILE_SPLASH_DAMAGE);
       if (splash > 0) {
-        this.applyHit(other, other.mesh.position.clone().lerp(hit.point, 0.5), splash, 'missile', 0);
+        const away = other.mesh.position.clone().sub(hit.point).normalize();
+        this.applyHit(other, other.mesh.position.clone().lerp(hit.point, 0.5), splash, 'missile', 0, away);
       }
     }
     const selfDamage = blastDamage(hit.point.distanceTo(ship.position), MISSILE_BLAST.radius, MISSILE_BLAST.damage);
@@ -280,8 +313,11 @@ export class CombatResolver {
       return;
     }
     for (let index = 0; index < fragments.count; index += 1) {
-      const offset = new THREE.Vector3(...randomUnitVector(this.deps.rng)).multiplyScalar(parent.radius * 0.6);
-      this.deps.field.spawnAt(fragments.size, parent.material, parent.mesh.position.clone().add(offset), 1.15);
+      // Pieces keep the parent's momentum and drift apart, as real debris would.
+      const outward = new THREE.Vector3(...randomUnitVector(this.deps.rng));
+      const position = parent.mesh.position.clone().addScaledVector(outward, parent.radius * 0.6);
+      const velocity = parent.velocity.clone().addScaledVector(outward, 0.35 + this.deps.rng() * 0.5);
+      this.deps.field.spawnFragment(fragments.size, parent.material, position, velocity);
     }
     this.deps.hud.showMessage(
       `${SIZE_NAME[parent.size]} asteroid split into ${fragments.count} fragments. Missiles destroy it whole`,

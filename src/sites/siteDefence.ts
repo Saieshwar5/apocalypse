@@ -103,9 +103,12 @@ export class SiteDefence {
     return hits;
   }
 
-  repairSurvivors(): void {
+  /** `times` is how many repair steps to apply (repair crews double it). */
+  repairSurvivors(times = 1): void {
     for (const site of this.sites) {
-      site.health = repairedHealth(site.health);
+      for (let step = 0; step < times; step += 1) {
+        site.health = repairedHealth(site.health);
+      }
     }
   }
 

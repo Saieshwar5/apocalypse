@@ -5,7 +5,6 @@ import type { AltitudeReadout, AtmosphereZone } from '../logic/atmosphere';
 import { integrityLevel } from '../logic/planetDamage';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { SiteState } from '../sites/siteDefence';
-import { MISSILE_CAPACITY } from '../weapons/missileLauncher';
 import { SitePanel } from './sitePanel';
 
 export interface HudSnapshot {
@@ -16,6 +15,10 @@ export interface HudSnapshot {
   laserHeat: number;
   overheated: boolean;
   missiles: number;
+  missileCapacity: number;
+  credits: number;
+  fuelCapacity: number;
+  shieldCapacity: number;
   boost: number;
   shield: number;
   hull: number;
@@ -63,6 +66,7 @@ export class Hud {
   private readonly integrityValue = element<HTMLSpanElement>('#integrity-value');
   private readonly waveValue = element<HTMLElement>('#wave-value');
   private readonly scoreValue = element<HTMLElement>('#score-value');
+  private readonly creditsValue = element<HTMLElement>('#credits-value');
   private readonly threatList = element<HTMLOListElement>('#threat-list');
   private readonly heatBar = element<HTMLDivElement>('#heat-bar');
   private readonly missileValue = element<HTMLElement>('#missile-value');
@@ -98,13 +102,14 @@ export class Hud {
     this.integrityValue.textContent = `${integrity.toFixed(0)}%`;
     this.waveValue.textContent = String(snapshot.wave);
     this.scoreValue.textContent = snapshot.score.toLocaleString();
+    this.creditsValue.textContent = snapshot.credits.toLocaleString();
 
     this.heatBar.style.width = `${snapshot.laserHeat}%`;
     this.heatBar.dataset.level = snapshot.overheated ? 'critical' : snapshot.laserHeat > 70 ? 'damaged' : 'stable';
-    this.missileValue.textContent = `${snapshot.missiles} / ${MISSILE_CAPACITY}`;
+    this.missileValue.textContent = `${snapshot.missiles} / ${snapshot.missileCapacity}`;
     this.boostBar.style.width = `${snapshot.boost}%`;
-    this.fuelBar.style.width = `${snapshot.fuel}%`;
-    this.fuelBar.dataset.level = snapshot.fuel <= 0 ? 'critical' : snapshot.fuel < 25 ? 'damaged' : 'stable';
+    this.fuelBar.style.width = `${(snapshot.fuel / snapshot.fuelCapacity) * 100}%`;
+    this.fuelBar.dataset.level = snapshot.fuel <= 0 ? 'critical' : snapshot.fuel < snapshot.fuelCapacity * 0.25 ? 'damaged' : 'stable';
     const { station } = snapshot;
     this.stationValue.textContent = station.destroyed
       ? 'DESTROYED'
@@ -115,9 +120,9 @@ export class Hud {
           : formatDistance(station.distance);
     this.stockValue.textContent = station.destroyed ? '—' : `${Math.round(station.stock.fuel)} fuel · ${Math.floor(station.stock.missiles)} missiles`;
     const threat = station.threatenedIn !== null ? ` · HIT IN ${formatCountdown(station.threatenedIn)}` : '';
-    this.stationHealthValue.textContent = station.destroyed ? '—' : `shield ${Math.round(station.shield)} · hull ${Math.round(station.health)}${threat}`;
+    this.stationHealthValue.textContent = station.destroyed ? '—' : `shield ${Math.round(station.shield)} hull ${Math.round(station.health)}${threat}`;
     this.stationHealthValue.dataset.alert = String(station.threatenedIn !== null || station.health < 60);
-    this.shieldBar.style.width = `${snapshot.shield}%`;
+    this.shieldBar.style.width = `${(snapshot.shield / snapshot.shieldCapacity) * 100}%`;
     this.hullBar.style.width = `${snapshot.hull}%`;
     this.hullBar.dataset.level = integrityLevel(snapshot.hull);
     this.speedValue.textContent = formatSpeed(snapshot.speed);

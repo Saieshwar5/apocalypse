@@ -253,20 +253,22 @@ export class Game {
     this.phase = 'playing';
     this.screens.setCinematic(false);
     this.hud.setVisible(true);
-    this.play.beginDefence(6);
+    this.play.beginDefence();
     this.hud.showMessage('In orbit. Defend Earth', 'success', 4);
   }
 
   private updatePlaying(deltaSeconds: number): void {
     this.play.update(deltaSeconds);
-    if (this.session.integrity <= 0) {
+    if (this.play.campaign.orbitComplete) {
+      this.endRun('Earth is through the debris field', true);
+    } else if (this.session.integrity <= 0) {
       this.endRun('Earth has fallen');
     } else if (this.play.shipFailure) {
       this.endRun(this.play.shipFailure);
     }
   }
 
-  private endRun(reason: string): void {
+  private endRun(reason: string, victory = false): void {
     this.phase = 'gameover';
     this.input.releasePointerLock();
     this.hud.setVisible(false);
@@ -281,6 +283,8 @@ export class Game {
       citiesStanding: this.play.sites.citiesStanding,
       cityCount: this.play.sites.cityCount,
       reason,
+      victory,
+      integrity: this.session.integrity,
     });
     this.sound.setAtmosphere(0);
   }

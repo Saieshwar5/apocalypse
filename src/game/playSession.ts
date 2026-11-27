@@ -13,11 +13,7 @@ import { SCANNER_RANGE, type Radar } from '../hud/radar';
 import type { TargetOverlay } from '../hud/targetOverlay';
 import type { InputState } from '../input/inputState';
 import { altitudeReadout } from '../logic/atmosphere';
-import { siteTargetingChance } from '../logic/prioritySites';
-import { randomUnitVector, type RandomSource } from '../logic/random';
-import type { AsteroidSpawnPlan } from '../logic/waves';
-import { waveClearBonus } from '../logic/scoring';
-import { SHIELD_CAPACITY } from '../logic/shipDefense';
+import type { RandomSource } from '../logic/random';
 import { rankThreats } from '../logic/threats';
 import { damping } from '../math/orientation';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
@@ -33,17 +29,10 @@ import { CombatResolver } from './combatResolver';
 import { FlightHazards } from './flightHazards';
 import type { GameSession } from './gameSession';
 import { computeTargeting, type TargetingInfo } from './targeting';
-import { WaveDirector, type WaveEvent } from './waveDirector';
+import { Campaign } from './campaign';
 
 /** After the ship is destroyed, play continues this long so the player sees it. */
 const SHIP_LOST_SECONDS = 2.5;
-/** Hints shown in the first minute: [from second, to second, text]. */
-const TIPS: readonly [number, number, string][] = [
-  [1, 9, 'Tip: the 3D scanner shows contacts on stalks. Stalk up means above you'],
-  [9, 17, 'Tip: red rings on Earth mark where asteroids will land. Guard the labelled sites'],
-  [17, 25, 'Tip: press Tab for the tactical map. Time slows while it is open'],
-  [25, 33, 'Tip: stay out of the atmosphere. Watch "Above atmosphere" on the left'],
-];
 /** Missiles delivered by supply rocket after each wave, until the space base exists. */
 const AIM_DISTANCE = 70;
 /** Time runs this much slower while the tactical map is open. */
@@ -81,7 +70,7 @@ export class PlaySession {
   readonly field: AsteroidField;
   readonly laser = new LaserCannon();
   readonly missiles = new MissileLauncher();
-  readonly director: WaveDirector;
+  readonly campaign: Campaign;
   readonly combat: CombatResolver;
   tactical = false;
   private readonly visuals = new ThreatVisuals(EARTH_RADIUS);
@@ -98,7 +87,6 @@ export class PlaySession {
   shipFailure: string | null = null;
   private lostCause: string | null = null;
   private lostTimer = 0;
-  private defenceSeconds = 0;
   private targeting: TargetingInfo | null = null;
   /** Map orbit angles, set from the ship's position when the map opens. */
   private readonly tacticalOrbit = new THREE.Spherical(TACTICAL_DISTANCE, Math.PI / 3, 0);
@@ -107,7 +95,6 @@ export class PlaySession {
 
   constructor(private readonly deps: PlaySessionDependencies) {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
-    this.director = new WaveDirector(deps.rng);
     deps.shipModel.group.add(this.shield.mesh);
     this.sites = new SiteDefence(deps.earth);
     this.siteMarkers = new SiteMarkers(deps.earth, this.sites);
@@ -152,6 +139,20 @@ export class PlaySession {
       input: deps.input,
     });
     deps.scene.add(this.hazards.group);
+    this.campaign = new Campaign({
+      field: this.field,
+      sites: this.sites,
+      stationOps: this.stationOps,
+      earth: deps.earth,
+      hud: deps.hud,
+      sound: deps.sound,
+      session: deps.session,
+      rng: deps.rng,
+      input: deps.input,
+      ship: deps.ship,
+      laser: this.laser,
+      missiles: this.missiles,
+    });
   }
 
   get shipActive(): boolean {
@@ -165,7 +166,7 @@ export class PlaySession {
     this.feedback.clear();
     this.laser.reset();
     this.missiles.reset();
-    this.director.reset();
+    this.campaign.reset();
     this.sites.reset();
     this.plumes.clear();
     this.hazards.reset();
@@ -173,14 +174,12 @@ export class PlaySession {
     this.shipFailure = null;
     this.lostCause = null;
     this.lostTimer = 0;
-    this.defenceSeconds = 0;
     this.tactical = false;
     this.targeting = null;
   }
 
   /** Called when the launch hands over control. */
-  beginDefence(firstWaveDelay: number): void {
-    this.director.reset(firstWaveDelay);
+  beginDefence(): void {
     this.stationOps.begin();
   }
 
@@ -213,11 +212,12 @@ export class PlaySession {
     this.combat.resolveWeaponHits(this.laser.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'laser');
     this.combat.resolveWeaponHits(this.missiles.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'missile');
     this.combat.resolveShipCollisions();
+    this.combat.resolveEscaped(this.field.collectEscaped());
     const lostCause = this.combat.consumeShipLost();
     if (lostCause && active) {
       this.destroyShip(lostCause);
     }
-    this.handleWaveEvents(this.director.update(deltaSeconds, this.field.count));
+    this.campaign.update(deltaSeconds);
 
     this.sites.updateThreats(this.field.all);
     this.stationOps.updateThreats();
@@ -225,15 +225,15 @@ export class PlaySession {
     earth.update(deltaSeconds);
     this.siteMarkers.update(deltaSeconds);
     this.plumes.update(deltaSeconds);
-    this.updateTips(deltaSeconds);
     explosions.update(deltaSeconds);
     this.scorches.update(deltaSeconds);
     this.feedback.update(deltaSeconds);
     this.visuals.update(deltaSeconds, ranked);
     this.dust.update(ship.position, ship.velocity);
     this.dust.lines.visible = !this.tactical;
-    this.shield.update(deltaSeconds, ship.shield / SHIELD_CAPACITY);
+    this.shield.update(deltaSeconds, ship.shield / ship.shieldCapacity);
     shipModel.setThrottle(ship.throttle, ship.boosting);
+    shipModel.setBank(flying ? ship.yawRate : 0, deltaSeconds);
     shipModel.update(this.elapsed);
     sound.setEngine(this.shipActive ? ship.throttle : 0, ship.boosting);
 
@@ -352,62 +352,15 @@ export class PlaySession {
     hud.showMessage('Interceptor destroyed', 'danger', SHIP_LOST_SECONDS);
   }
 
-  /** Aims some later-wave asteroids at a standing site, allowing for Earth's rotation. */
-  private spawnAsteroid(spawn: AsteroidSpawnPlan): void {
-    const { earth, rng } = this.deps;
-    const site = rng() < siteTargetingChance(this.director.wave) ? this.sites.pickStanding(rng) : null;
-    if (!site) {
-      this.field.spawnIncoming(spawn.size, spawn.material, spawn.direction);
-      return;
-    }
-    // Approach from the site's side of the planet so the path is not blocked.
-    const overSite = earth.localToWorldDirectionAt(site.localDirection, 45);
-    const direction = overSite.add(new THREE.Vector3(...randomUnitVector(rng)).multiplyScalar(0.5)).normalize();
-    this.field.spawnAt(spawn.size, spawn.material, direction.multiplyScalar(185), 1, (flightSeconds) =>
-      earth.localToWorldDirectionAt(site.localDirection, flightSeconds).multiplyScalar(EARTH_RADIUS),
-    );
-  }
-
-  private updateTips(deltaSeconds: number): void {
-    this.defenceSeconds += deltaSeconds;
-    const tip = TIPS.find(([from, to]) => this.defenceSeconds >= from && this.defenceSeconds < to);
-    this.deps.hud.setHint(this.stationOps.docking.hint ?? (tip ? tip[2] : null));
-  }
-
-  private handleWaveEvents(events: readonly WaveEvent[]): void {
-    const { session, hud, sound } = this.deps;
-    for (const event of events) {
-      if (event.type === 'wave-started') {
-        session.impactsThisWave = 0;
-        session.destroyedThisWave = 0;
-        if (event.plan.hasGiant) {
-          hud.showMessage(`Wave ${event.plan.wave}: giant asteroid detected. Intercept it far out`, 'danger', 5);
-          sound.alarm();
-        } else {
-          hud.showMessage(`Wave ${event.plan.wave} incoming: ${event.plan.spawns.length} contacts`, 'warning', 3.5);
-        }
-      } else if (event.type === 'spawn') {
-        this.spawnAsteroid(event.spawn);
-      } else {
-        const bonus = waveClearBonus(event.wave, session.destroyedThisWave, session.impactsThisWave);
-        session.score += bonus;
-        session.wavesCleared += 1;
-        const clean = session.impactsThisWave === 0 ? ' Earth untouched.' : '';
-        const reward = bonus > 0 ? ` +${bonus} points.` : '';
-        this.sites.repairSurvivors();
-        const launchSite = this.sites.sites.find((site) => site.definition.kind === 'launch' && site.health > 0);
-        const supply = this.stationOps.sendSupplies(launchSite?.localDirection ?? null);
-        hud.showMessage(`Wave ${event.wave} over.${reward}${clean}${supply}`, 'success', 5);
-        sound.chime();
-      }
-    }
-  }
-
   private updateHud(deltaSeconds: number, ranked: readonly Asteroid[], showTargets = true): void {
     const { hud, radar, overlay, ship, shipModel, session, camera } = this.deps;
     hud.update(deltaSeconds, {
       integrity: session.integrity,
-      wave: Math.max(1, this.director.wave),
+      wave: Math.max(1, this.campaign.director.wave),
+      credits: this.campaign.credits,
+      missileCapacity: this.missiles.capacity,
+      fuelCapacity: ship.fuelCapacity,
+      shieldCapacity: ship.shieldCapacity,
       score: session.score,
       threats: ranked,
       laserHeat: this.laser.heat,

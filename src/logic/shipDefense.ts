@@ -32,8 +32,8 @@ export interface DamageResult {
   hullDamage: number;
 }
 
-export function createDefenseState(): DefenseState {
-  return { shield: SHIELD_CAPACITY, hull: HULL_CAPACITY, secondsSinceDamage: SHIELD_RECHARGE_DELAY };
+export function createDefenseState(shieldCapacity: number = SHIELD_CAPACITY): DefenseState {
+  return { shield: shieldCapacity, hull: HULL_CAPACITY, secondsSinceDamage: SHIELD_RECHARGE_DELAY };
 }
 
 /** The shield takes damage first; whatever it cannot hold reaches the hull. */
@@ -55,11 +55,11 @@ export function applyShipDamage(state: DefenseState, amount: number): DamageResu
 }
 
 /** The hull is only repaired at the space base (a later stage). */
-export function rechargeShield(state: DefenseState, deltaSeconds: number): DefenseState {
+export function rechargeShield(state: DefenseState, deltaSeconds: number, capacity: number = SHIELD_CAPACITY): DefenseState {
   const secondsSinceDamage = state.secondsSinceDamage + deltaSeconds;
   const charging = secondsSinceDamage >= SHIELD_RECHARGE_DELAY && state.hull > 0;
   return {
-    shield: charging ? Math.min(SHIELD_CAPACITY, state.shield + SHIELD_RECHARGE_PER_SECOND * deltaSeconds) : state.shield,
+    shield: charging ? Math.min(capacity, state.shield + SHIELD_RECHARGE_PER_SECOND * deltaSeconds) : state.shield,
     hull: state.hull,
     secondsSinceDamage,
   };

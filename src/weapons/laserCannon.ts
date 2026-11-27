@@ -10,6 +10,8 @@ export interface WeaponHit {
   point: THREE.Vector3;
   /** Distance travelled from the gun, for laser falloff. */
   range: number;
+  /** Unit direction the shot was travelling, for the push it gives. */
+  direction: THREE.Vector3;
 }
 
 export const BOLT_SPEED = 190;
@@ -40,6 +42,9 @@ interface Bolt {
 export class LaserCannon {
   readonly group = new THREE.Group();
   heat = 0;
+  /** Set from the loadout; upgrades raise these. */
+  damageMultiplier = 1;
+  coolingMultiplier = 1;
   overheated = false;
   private readonly bolts: Bolt[] = [];
   private cooldown = 0;
@@ -76,7 +81,7 @@ export class LaserCannon {
     gunPorts: readonly THREE.Vector3[],
   ): boolean {
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
-    this.heat = Math.max(0, this.heat - COOLING_PER_SECOND * deltaSeconds);
+    this.heat = Math.max(0, this.heat - COOLING_PER_SECOND * this.coolingMultiplier * deltaSeconds);
     if (this.overheated && this.heat < OVERHEAT_RECOVERY) {
       this.overheated = false;
     }
@@ -132,7 +137,7 @@ export class LaserCannon {
       for (const asteroid of asteroids) {
         const hitPoint = segmentHitsSphere(this.previous, bolt.mesh.position, asteroid.mesh.position, asteroid.radius);
         if (hitPoint) {
-          hits.push({ asteroid, baseDamage: BASE_DAMAGE, point: hitPoint, range: hitPoint.distanceTo(bolt.origin) });
+          hits.push({ asteroid, baseDamage: BASE_DAMAGE * this.damageMultiplier, point: hitPoint, range: hitPoint.distanceTo(bolt.origin), direction: bolt.velocity.clone().normalize() });
           this.deactivate(bolt);
           break;
         }

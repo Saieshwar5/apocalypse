@@ -10,6 +10,8 @@ export class GameSession {
   totalImpacts = 0;
   wavesCleared = 0;
   sitesLost = 0;
+  /** Credits spent on upgrades; credits available are score minus this. */
+  spent = 0;
 
   reset(): void {
     this.integrity = MAX_PLANET_INTEGRITY;
@@ -20,5 +22,6 @@ export class GameSession {
     this.totalImpacts = 0;
     this.wavesCleared = 0;
     this.sitesLost = 0;
+    this.spent = 0;
   }
 }

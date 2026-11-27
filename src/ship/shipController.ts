@@ -44,6 +44,10 @@ export class ShipController {
   boostEnergy = 100;
   /** Burned by thrust and boost; refilled at the station. */
   fuel = FUEL_CAPACITY;
+  /** Set from the loadout; upgrades raise these. */
+  fuelCapacity = FUEL_CAPACITY;
+  shieldCapacity = 100;
+  thrustMultiplier = 1;
   defense: DefenseState = createDefenseState();
   /** 0..1 engine output, used for exhaust visuals and sound. */
   throttle = 0;
@@ -63,6 +67,11 @@ export class ShipController {
     return this.defense.shield;
   }
 
+  /** Current yaw rate in radians per second (positive turns left), for banking. */
+  get yawRate(): number {
+    return this.angularVelocity.y;
+  }
+
   get position(): THREE.Vector3 {
     return this.object.position;
   }
@@ -76,7 +85,7 @@ export class ShipController {
   }
 
   update(deltaSeconds: number, input: FlightInput): void {
-    this.defense = rechargeShield(this.defense, deltaSeconds);
+    this.defense = rechargeShield(this.defense, deltaSeconds, this.shieldCapacity);
     this.updateRotation(deltaSeconds, input);
     this.updateThrust(deltaSeconds, input);
     this.velocity.multiplyScalar(Math.exp(-DRAG * deltaSeconds));
@@ -95,7 +104,7 @@ export class ShipController {
     this.defense = {
       ...this.defense,
       hull: Math.min(100, this.defense.hull + hull),
-      shield: Math.min(100, this.defense.shield + shield),
+      shield: Math.min(this.shieldCapacity, this.defense.shield + shield),
     };
   }
 
@@ -105,8 +114,8 @@ export class ShipController {
     this.velocity.copy(this.forward()).multiplyScalar(initialSpeed);
     this.angularVelocity.set(0, 0, 0);
     this.boostEnergy = 100;
-    this.fuel = FUEL_CAPACITY;
-    this.defense = createDefenseState();
+    this.fuel = this.fuelCapacity;
+    this.defense = createDefenseState(this.shieldCapacity);
     this.throttle = 0;
     this.boosting = false;
   }
@@ -132,7 +141,7 @@ export class ShipController {
   private updateThrust(deltaSeconds: number, input: FlightInput): void {
     const wantsBoost = input.boost && input.thrust > 0 && this.boostEnergy > 1 && this.fuel > 0;
     // An empty tank leaves weak reserve thrust, so the ship can still limp home.
-    const power = thrustScale(this.fuel);
+    const power = thrustScale(this.fuel) * this.thrustMultiplier;
     this.fuel = Math.max(0, this.fuel - fuelBurned(input.thrust, input.strafe, wantsBoost, deltaSeconds));
     this.boosting = wantsBoost;
     this.boostEnergy = wantsBoost

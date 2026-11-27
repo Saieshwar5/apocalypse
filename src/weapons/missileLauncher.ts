@@ -4,7 +4,7 @@ import { getGlowTexture } from '../scene/glowTexture';
 import { segmentHitsSphere } from './collision';
 import type { WeaponHit } from './laserCannon';
 
-export const MISSILE_CAPACITY = 8;
+const DEFAULT_CAPACITY = 8;
 const BASE_DAMAGE = 140;
 const LAUNCH_SPEED = 12;
 const MAX_SPEED = 75;
@@ -29,7 +29,9 @@ interface Missile {
  */
 export class MissileLauncher {
   readonly group = new THREE.Group();
-  ammunition = MISSILE_CAPACITY;
+  /** Set from the loadout; the missile rack upgrade raises it. */
+  capacity = DEFAULT_CAPACITY;
+  ammunition = DEFAULT_CAPACITY;
   lockedTarget: Asteroid | null = null;
   private readonly missiles: Missile[] = [];
   private cooldown = 0;
@@ -122,7 +124,7 @@ export class MissileLauncher {
 
   /** Adds missiles up to capacity; returns how many were actually loaded. */
   resupply(count: number): number {
-    const loaded = Math.min(count, MISSILE_CAPACITY - this.ammunition);
+    const loaded = Math.max(0, Math.min(count, this.capacity - this.ammunition));
     this.ammunition += loaded;
     return loaded;
   }
@@ -131,7 +133,7 @@ export class MissileLauncher {
     for (const missile of [...this.missiles]) {
       this.remove(missile);
     }
-    this.ammunition = MISSILE_CAPACITY;
+    this.ammunition = this.capacity;
     this.lockedTarget = null;
     this.cooldown = 0;
   }
@@ -159,7 +161,7 @@ export class MissileLauncher {
       // A small proximity fuse makes near misses count.
       const point = segmentHitsSphere(this.previous, missile.group.position, asteroid.mesh.position, asteroid.radius + 0.35);
       if (point) {
-        return { asteroid, baseDamage: BASE_DAMAGE, point, range: 0 };
+        return { asteroid, baseDamage: BASE_DAMAGE, point, range: 0, direction: missile.velocity.clone().normalize() };
       }
     }
     return null;

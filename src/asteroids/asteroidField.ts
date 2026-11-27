@@ -135,6 +135,39 @@ export class AsteroidField {
     return asteroid;
   }
 
+  /** A piece of a broken asteroid: keeps the given velocity instead of aiming at the planet. */
+  spawnFragment(size: AsteroidSize, material: AsteroidMaterial, position: THREE.Vector3, velocity: THREE.Vector3): Asteroid {
+    const fragment = this.spawnAt(size, material, position);
+    fragment.velocity.copy(velocity);
+    this.refreshTimeToImpact(fragment);
+    return fragment;
+  }
+
+  /**
+   * Removes asteroids that can no longer hit the planet and are flying away,
+   * and returns them so a deflection can be scored. Without this a deflected
+   * rock would drift forever and its wave would never end.
+   */
+  collectEscaped(): Asteroid[] {
+    const escaped = this.asteroids.filter(
+      (asteroid) =>
+        asteroid.timeToImpact === null &&
+        asteroid.mesh.position.dot(asteroid.velocity) > 0 &&
+        asteroid.mesh.position.length() > this.planetRadius * 5,
+    );
+    for (const asteroid of escaped) {
+      this.remove(asteroid);
+    }
+    return escaped;
+  }
+
+  /** Pushes an asteroid and adds tumble, as from a weapon hit. */
+  applyImpulse(asteroid: Asteroid, direction: THREE.Vector3, speedChange: number): void {
+    asteroid.velocity.addScaledVector(direction, speedChange);
+    asteroid.spinRate = Math.min(2.5, asteroid.spinRate + speedChange * 0.6);
+    this.refreshTimeToImpact(asteroid);
+  }
+
   /** Moves everything and returns the asteroids that reached the surface. */
   update(deltaSeconds: number): PlanetImpact[] {
     const impacts: PlanetImpact[] = [];

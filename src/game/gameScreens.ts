@@ -1,3 +1,5 @@
+import { orbitRating } from '../logic/orbitPlan';
+
 export interface ScreenActions {
   onStart(): void;
   onResume(): void;
@@ -13,6 +15,9 @@ export interface RunSummary {
   cityCount: number;
   /** Why the mission ended, shown above the heading. */
   reason: string;
+  /** True when the orbit was completed rather than lost. */
+  victory: boolean;
+  integrity: number;
 }
 
 function element<T extends HTMLElement>(selector: string): T {
@@ -59,7 +64,8 @@ export class GameScreens {
   showGameOver(summary: RunSummary): void {
     const rows: [string, string][] = [
       ['Score', summary.score.toLocaleString()],
-      ['Waves survived', String(summary.wavesCleared)],
+      ['Earth integrity', `${Math.max(0, Math.round(summary.integrity))}%`],
+      ['Fields cleared', String(summary.wavesCleared)],
       ['Asteroids destroyed', String(summary.asteroidsDestroyed)],
       ['Impacts on Earth', String(summary.impacts)],
       ['Cities standing', `${summary.citiesStanding} of ${summary.cityCount}`],
@@ -74,6 +80,11 @@ export class GameScreens {
       }),
     );
     element<HTMLParagraphElement>('#failure-reason').textContent = summary.reason;
+    const stars = orbitRating(summary.integrity, summary.citiesStanding, summary.cityCount);
+    element<HTMLHeadingElement>('#outcome-heading').textContent = summary.victory
+      ? `Orbit complete ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`
+      : 'Mission failed';
+    this.gameOver.dataset.outcome = summary.victory ? 'victory' : 'defeat';
     this.gameOver.hidden = false;
     element<HTMLButtonElement>('#restart-button').focus();
   }
