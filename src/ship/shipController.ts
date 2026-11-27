@@ -32,7 +32,6 @@ const BOOST_MULTIPLIER = 2.6;
 const DRAG = 0.55;
 const BOOST_DRAIN = 28;
 const BOOST_RECHARGE = 11;
-const HULL_CLEARANCE = 0.9;
 
 /**
  * Moves the interceptor: mouse steers pitch and yaw, keys thrust, strafe and
@@ -73,13 +72,12 @@ export class ShipController {
     return target.set(0, 1, 0).applyQuaternion(this.object.quaternion);
   }
 
-  update(deltaSeconds: number, input: FlightInput, planetRadius: number): void {
+  update(deltaSeconds: number, input: FlightInput): void {
     this.defense = rechargeShield(this.defense, deltaSeconds);
     this.updateRotation(deltaSeconds, input);
     this.updateThrust(deltaSeconds, input);
     this.velocity.multiplyScalar(Math.exp(-DRAG * deltaSeconds));
     this.object.position.addScaledVector(this.velocity, deltaSeconds);
-    this.keepAbovePlanet(planetRadius);
   }
 
   /** Shield first, then hull. The caller checks `hull` to see if the ship is lost. */
@@ -132,20 +130,5 @@ export class ShipController {
 
     const targetThrottle = Math.max(0, input.thrust) * (wantsBoost ? 1 : 0.75) + 0.1;
     this.throttle = THREE.MathUtils.lerp(this.throttle, targetThrottle, damping(6, deltaSeconds));
-  }
-
-  /** The ship cannot fly into the planet: it slides along the upper atmosphere. */
-  private keepAbovePlanet(planetRadius: number): void {
-    const minimum = planetRadius + HULL_CLEARANCE;
-    const distance = this.object.position.length();
-    if (distance >= minimum) {
-      return;
-    }
-    const normal = this.scratch.copy(this.object.position).normalize();
-    this.object.position.copy(normal).multiplyScalar(minimum);
-    const inward = this.velocity.dot(normal);
-    if (inward < 0) {
-      this.velocity.addScaledVector(normal, -inward * 1.3);
-    }
   }
 }

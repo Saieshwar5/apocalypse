@@ -3,6 +3,7 @@ import type { Asteroid, AsteroidField, PlanetImpact } from '../asteroids/asteroi
 import type { SoundEffects } from '../audio/soundEffects';
 import type { CameraRig } from '../camera/cameraRig';
 import type { Explosions } from '../effects/explosions';
+import type { ImpactPlumes } from '../effects/impactPlumes';
 import type { ScorchMarks } from '../effects/scorchMarks';
 import type { CombatFeedback, HitQuality } from '../hud/combatFeedback';
 import type { Hud } from '../hud/hud';
@@ -20,6 +21,7 @@ import { destroyScore } from '../logic/scoring';
 import { COLLISION_DAMAGE, MISSILE_BLAST, SHRAPNEL } from '../logic/shipDefense';
 import type { Earth } from '../scene/earth';
 import { localDirectionToLatLon } from '../scene/earth';
+import type { SiteDefence, SiteHit } from '../sites/siteDefence';
 import type { ShieldBubble } from '../ship/shieldBubble';
 import type { ShipController } from '../ship/shipController';
 import type { WeaponHit } from '../weapons/laserCannon';
@@ -35,6 +37,8 @@ export interface CombatDependencies {
   earth: Earth;
   explosions: Explosions;
   scorches: ScorchMarks;
+  plumes: ImpactPlumes;
+  sites: SiteDefence;
   sound: SoundEffects;
   hud: Hud;
   feedback: CombatFeedback;
@@ -43,7 +47,7 @@ export interface CombatDependencies {
   ship: ShipController;
   shield: ShieldBubble;
   rng: RandomSource;
-  /** False while the ship is destroyed and waiting to relaunch. */
+  /** False once the ship has been destroyed. */
   shipActive: () => boolean;
 }
 
@@ -53,15 +57,37 @@ export interface CombatDependencies {
  * shrapnel that can hurt the ship, asteroids reaching Earth, and collisions.
  */
 export class CombatResolver {
-  private shipLost = false;
+  private shipLostCause: string | null = null;
 
   constructor(private readonly deps: CombatDependencies) {}
 
-  /** True once after the ship's hull reaches zero. */
-  consumeShipLost(): boolean {
-    const lost = this.shipLost;
-    this.shipLost = false;
-    return lost;
+  /** Why the ship was destroyed, returned once; null if it was not. */
+  consumeShipLost(): string | null {
+    const cause = this.shipLostCause;
+    this.shipLostCause = null;
+    return cause;
+  }
+
+  /** Continuous damage such as atmospheric heating: no per-hit messages. */
+  applyEnvironmentDamage(amount: number, causeIfFatal: string): void {
+    const { ship, hud } = this.deps;
+    if (!this.deps.shipActive() || ship.hull <= 0) {
+      return;
+    }
+    const result = ship.applyDamage(amount);
+    if (result.hullDamage > 0) {
+      hud.flashDamage(new THREE.Vector3(0, 0, -1), 0.25);
+    }
+    if (ship.hull <= 0) {
+      this.shipLostCause = causeIfFatal;
+    }
+  }
+
+  destroyShip(cause: string): void {
+    if (this.deps.shipActive() && this.shipLostCause === null) {
+      this.deps.ship.applyDamage(1e6);
+      this.shipLostCause = cause;
+    }
   }
 
   resolveWeaponHits(hits: readonly WeaponHit[], weapon: WeaponKind): void {
@@ -82,11 +108,17 @@ export class CombatResolver {
       session.impactsThisWave += 1;
       session.totalImpacts += 1;
       earth.addImpact(point, craterAngularRadius(asteroid.size));
+      this.deps.plumes.add(point, craterAngularRadius(asteroid.size));
       explosions.spawnSurfaceImpact(point, asteroid.radius);
+      const siteHits = this.deps.sites.applyImpact(point, asteroid.size);
       const weight = SIZE_WEIGHT[asteroid.size];
       sound.planetImpact(weight);
       const distance = listenerPosition.distanceTo(point);
       cameraRig.addShake(weight * 1.2 * Math.max(0.25, 1 - distance / 60));
+      if (siteHits.length > 0) {
+        this.reportSiteHits(siteHits);
+        continue;
+      }
       const { latitude, longitude } = localDirectionToLatLon(earth.worldToLocalDirection(point));
       hud.showMessage(
         `${SIZE_NAME[asteroid.size]} impact at ${formatCoordinate(latitude, 'N', 'S')} ${formatCoordinate(longitude, 'E', 'W')}: integrity -${asteroid.planetDamage.toFixed(0)}%`,
@@ -94,6 +126,33 @@ export class CombatResolver {
         3.5,
       );
     }
+  }
+
+  private reportSiteHits(hits: readonly SiteHit[]): void {
+    const { hud, sound, earth, session } = this.deps;
+    // Report the worst hit; a destroyed site always wins.
+    const worst = [...hits].sort((a, b) => Number(b.destroyed) - Number(a.destroyed) || b.damage - a.damage)[0];
+    const name = worst.site.definition.name.toUpperCase();
+    for (const hit of hits) {
+      if (!hit.destroyed) {
+        continue;
+      }
+      session.sitesLost += 1;
+      // A wide dead zone: the city's lights go out for good.
+      earth.addImpact(earth.localToWorldDirection(hit.site.localDirection), 0.09);
+      sound.alarm();
+    }
+    if (!worst.destroyed) {
+      hud.showMessage(`${name} HIT: ${Math.ceil(worst.site.health)}% standing`, 'danger', 4);
+      return;
+    }
+    const consequence =
+      worst.site.definition.kind === 'launch'
+        ? ' No more supply rockets.'
+        : worst.site.definition.kind === 'radar'
+          ? ' Scanner range halved.'
+          : ` ${worst.site.definition.population} million people lost.`;
+    hud.showMessage(`${name} DESTROYED.${consequence}`, 'danger', 6);
   }
 
   resolveShipCollisions(): void {
@@ -115,7 +174,7 @@ export class CombatResolver {
         field.remove(asteroid);
         explosions.spawnExplosion(asteroid.mesh.position, asteroid.radius, 'fire');
       }
-      this.damageShip(COLLISION_DAMAGE[asteroid.size], asteroid.mesh.position, 'Collision');
+      this.damageShip(COLLISION_DAMAGE[asteroid.size], asteroid.mesh.position, 'Collision', 'The interceptor was destroyed in a collision');
     }
   }
 
@@ -164,7 +223,7 @@ export class CombatResolver {
     const surfaceDistance = position.distanceTo(ship.position) - asteroid.radius;
     const damage = blastDamage(surfaceDistance, shrapnel.radius, shrapnel.damage);
     if (damage > 0) {
-      this.damageShip(damage, position, 'Shrapnel');
+      this.damageShip(damage, position, 'Shrapnel', 'The interceptor was destroyed by shrapnel');
     }
   }
 
@@ -185,17 +244,18 @@ export class CombatResolver {
     }
     const selfDamage = blastDamage(hit.point.distanceTo(ship.position), MISSILE_BLAST.radius, MISSILE_BLAST.damage);
     if (selfDamage > 0) {
-      this.damageShip(selfDamage, hit.point, 'Own missile blast');
+      this.damageShip(selfDamage, hit.point, 'Own missile blast', 'The interceptor was destroyed by its own missile');
     }
   }
 
-  private damageShip(amount: number, source: THREE.Vector3, cause: string): void {
+  private damageShip(amount: number, source: THREE.Vector3, cause: string, causeIfFatal: string): void {
     const { ship, shield, sound, feedback, cameraRig, hud } = this.deps;
     if (!this.deps.shipActive() || ship.hull <= 0) {
       return;
     }
     const result = ship.applyDamage(amount);
     const local = ship.object.worldToLocal(source.clone());
+    hud.flashDamage(local, result.hullDamage > 0 ? 1 : 0.45);
     if (result.absorbedByShield > 0) {
       shield.flash(local, result.absorbedByShield / amount);
       sound.shieldHit();
@@ -210,7 +270,7 @@ export class CombatResolver {
       hud.showMessage(`${cause}: shield absorbed ${Math.round(result.absorbedByShield)}`, 'warning', 1.6);
     }
     if (ship.hull <= 0) {
-      this.shipLost = true;
+      this.shipLostCause = causeIfFatal;
     }
   }
 

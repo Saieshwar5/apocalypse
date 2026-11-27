@@ -78,6 +78,23 @@ Then open the address Vite prints (usually http://localhost:5173) and click
   and space dust that shows your own speed.
 - Radar, threat list ranked by urgency, on-screen target markers, arrows
   pointing to threats outside the view, and a tactical map.
+- Priority sites: six cities (Mumbai, New York, São Paulo, Lagos, London,
+  Sydney), the Launch Complex and the Deep-Space Radar in Antarctica. Each has
+  health, a marker and label on the globe and a row in the HUD. Asteroids
+  heading for a site are flagged with the site's name and a countdown, and
+  from wave 2 some are aimed at sites. Losing the Launch Complex stops missile
+  resupply; losing the radar halves scanner range. Survivors repair a little
+  between waves.
+- Lasting damage on Earth: every impact leaves a scar, a fire and a smoke
+  pall visible from orbit; a destroyed city goes dark.
+- 3D scanner in place of the flat radar: contacts sit on stalks above or
+  below the ship's wing plane, with Earth shown the same way.
+- Atmosphere: a pull-up warning, then heating, shaking, a roar and shield and
+  hull damage inside it, and break-up if the ship goes too deep. The HUD shows
+  distance from Earth's centre, above the surface and above the atmosphere.
+- One ship: if it is destroyed the mission fails. Hits flash red on the side
+  of the screen they came from; a failing hull sparks, smokes and sounds an
+  alarm. Flying too far out hands control to an autopilot that returns.
 - Waves from one to three attack fronts, with a giant every fifth wave.
   A supply rocket delivers 3 missiles after each wave.
 - Synthesised sound effects (no audio files yet).
@@ -97,7 +114,8 @@ npm run build
 ```
 
 `npm test` covers the game rules: waves, damage, scoring, threat ranking,
-wave timing, laser range, aim-ahead, blasts, shield and hull, and units. In development builds the running game is available as
+wave timing, laser range, aim-ahead, blasts, shield and hull, units, priority
+sites, atmosphere zones and the scanner projection. In development builds the running game is available as
 `window.apocalypse` so browser automation can drive it; production builds do
 not expose it.
 
@@ -177,7 +195,8 @@ src/
   asteroids/  Asteroid shapes and the asteroid field
   weapons/    Laser, missiles, hit tests
   effects/    Explosions, scorch marks, space dust
-  hud/        Radar, target markers, reticle, hit feedback, status panels
+  hud/        3D scanner, target markers, reticle, hit feedback, status panels
+  sites/      Priority sites: health, threats, globe markers
   camera/     Chase and cockpit camera
   input/      Keyboard and mouse
   audio/      Synthesised sound effects

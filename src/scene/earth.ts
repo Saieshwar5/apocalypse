@@ -148,6 +148,22 @@ export class Earth {
     return localDirection.clone().transformDirection(this.spin.matrixWorld);
   }
 
+  /** Where a surface point will be, in world space, after `seconds` of rotation. */
+  localToWorldDirectionAt(localDirection: THREE.Vector3, seconds: number): THREE.Vector3 {
+    return this.localToWorldDirection(localDirection).applyAxisAngle(this.northAxis(), SPIN_RATE * seconds);
+  }
+
+  /** The surface point that will be under a world-space point after `seconds`. */
+  worldToLocalDirectionAt(worldPoint: THREE.Vector3, seconds: number): THREE.Vector3 {
+    const rewound = worldPoint.clone().applyAxisAngle(this.northAxis(), -SPIN_RATE * seconds);
+    return this.worldToLocalDirection(rewound);
+  }
+
+  /** Adds an object that stays fixed to the ground as the planet turns. */
+  attachToSurface(object: THREE.Object3D): void {
+    this.spin.add(object);
+  }
+
   /** World-space direction of the spin axis (geographic north). */
   northAxis(): THREE.Vector3 {
     return new THREE.Vector3(0, 1, 0).applyQuaternion(this.group.quaternion);

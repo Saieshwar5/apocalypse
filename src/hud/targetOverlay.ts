@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import { THREAT_COLORS, threatTone } from '../asteroids/threatTone';
 import type { TargetingInfo } from '../game/targeting';
+import type { SiteLabel } from '../sites/siteMarkers';
 import type { AsteroidSize } from '../logic/asteroidClasses';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { CombatFeedback } from './combatFeedback';
@@ -26,7 +27,11 @@ export interface OverlayFrame {
   /** Zoomed-out planning view: label everything, no reticle. */
   tactical: boolean;
   shipPosition: THREE.Vector3;
+  /** Priority sites on the side of Earth facing the camera. */
+  sites: readonly SiteLabel[];
 }
+
+const SITE_LABEL_COLOR = { intact: '#7dffb0', damaged: '#ffb347', critical: '#ff5a4a', destroyed: '#7f8c9e' } as const;
 
 /**
  * Screen-space layer over the 3D view: brackets and labels on asteroids,
@@ -66,6 +71,7 @@ export class TargetOverlay {
     context.lineWidth = 1.5;
     context.font = `600 11px ${MONO}`;
     const lockedId = frame.targeting.target?.id ?? null;
+    this.drawSiteLabels(frame.sites);
 
     frame.ranked.forEach((asteroid, rank) => {
       const tone = threatTone(asteroid, rank);
@@ -104,6 +110,37 @@ export class TargetOverlay {
     }
   }
 
+  private drawSiteLabels(sites: readonly SiteLabel[]): void {
+    const context = this.context;
+    context.save();
+    context.font = `700 11px ${MONO}`;
+    for (const { site, world, condition } of sites) {
+      const point = this.projector.project(world);
+      if (!point.visible) {
+        continue;
+      }
+      const threatened = site.threatenedIn !== null && condition !== 'destroyed';
+      const color = threatened ? '#ff5a4a' : SITE_LABEL_COLOR[condition];
+      const name = site.definition.name.toUpperCase();
+      const text =
+        condition === 'destroyed'
+          ? `${name} LOST`
+          : threatened
+            ? `${name} ${formatCountdown(site.threatenedIn ?? 0)}`
+            : condition === 'intact'
+              ? name
+              : `${name} ${Math.ceil(site.health)}%`;
+      const width = context.measureText(text).width;
+      // Installations label to the left so they do not cover a nearby city.
+      const x = site.definition.kind === 'city' ? point.x + 13 : point.x - 13 - width;
+      context.fillStyle = 'rgba(4, 10, 18, 0.6)';
+      context.fillRect(x - 4, point.y - 9, width + 8, 16);
+      context.fillStyle = color;
+      context.fillText(text, x, point.y + 3);
+    }
+    context.restore();
+  }
+
   private drawBracket(x: number, y: number, size: number, color: string): void {
     const context = this.context;
     const arm = Math.max(4, size * 0.4);
@@ -140,7 +177,8 @@ export class TargetOverlay {
   private drawLabel(asteroid: Asteroid, x: number, y: number, color: string, shipPosition: THREE.Vector3): void {
     const context = this.context;
     const distance = asteroid.mesh.position.distanceTo(shipPosition) - asteroid.radius;
-    const eta = asteroid.timeToImpact === null ? 'MISSES EARTH' : `IMPACT ${formatCountdown(asteroid.timeToImpact)}`;
+    const where = asteroid.targetSite ? `→ ${asteroid.targetSite.toUpperCase()}` : 'IMPACT';
+    const eta = asteroid.timeToImpact === null ? 'MISSES EARTH' : `${where} ${formatCountdown(asteroid.timeToImpact)}`;
     context.fillStyle = color;
     context.fillText(`${SIZE_LABEL[asteroid.size]} ${asteroid.material.toUpperCase()}  ${eta}`, x, y - 4);
     context.fillStyle = 'rgba(232, 241, 255, 0.75)';

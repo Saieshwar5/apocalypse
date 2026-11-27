@@ -33,6 +33,9 @@ export interface Asteroid {
   entryHeat: number;
   /** The weapon that last hit it, for the kill confirmation. */
   lastHitBy: 'laser' | 'missile' | null;
+  /** Name of the priority site its impact would damage, if any. */
+  targetSite: string | null;
+  threatensSite: boolean;
 }
 
 export interface PlanetImpact {
@@ -80,13 +83,25 @@ export class AsteroidField {
     return this.spawnAt(size, material, position);
   }
 
-  /** Spawns at a position and aims at a random point on the planet. */
-  spawnAt(size: AsteroidSize, material: AsteroidMaterial, position: THREE.Vector3, speedScale = 1): Asteroid {
+  /**
+   * Spawns at a position and aims at a random point on the planet, or at the
+   * point `aimAt` returns for the estimated flight time (used to aim at a
+   * site on the rotating surface).
+   */
+  spawnAt(
+    size: AsteroidSize,
+    material: AsteroidMaterial,
+    position: THREE.Vector3,
+    speedScale = 1,
+    aimAt?: (flightSeconds: number) => THREE.Vector3,
+  ): Asteroid {
     const definition = ASTEROID_CLASSES[size];
     const radius = randomBetween(this.rng, ...definition.radius);
     const speed =
       randomBetween(this.rng, ...definition.speed) * MATERIAL_TRAITS[material].speedMultiplier * speedScale;
-    const aim = new THREE.Vector3(...randomUnitVector(this.rng)).multiplyScalar(this.planetRadius * AIM_SPREAD * this.rng());
+    const aim = aimAt
+      ? aimAt((position.length() - this.planetRadius) / speed)
+      : new THREE.Vector3(...randomUnitVector(this.rng)).multiplyScalar(this.planetRadius * AIM_SPREAD * this.rng());
     const velocity = aim.sub(position).normalize().multiplyScalar(speed);
     const health = asteroidHealth(size, material);
 
@@ -111,6 +126,8 @@ export class AsteroidField {
       hitFlash: 0,
       entryHeat: 0,
       lastHitBy: null,
+      targetSite: null,
+      threatensSite: false,
     };
     this.nextId += 1;
     this.asteroids.push(asteroid);

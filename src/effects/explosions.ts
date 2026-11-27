@@ -42,7 +42,7 @@ export class Explosions {
   private readonly bursts: Burst[] = [];
   private readonly flashes: Flash[] = [];
   private readonly shockwaves: Shockwave[] = [];
-  private readonly ringGeometry = new THREE.RingGeometry(0.85, 1, 64);
+  private readonly ringGeometry = new THREE.RingGeometry(0.94, 1, 64);
 
   /** `scale` is roughly the radius of what exploded. */
   spawnExplosion(point: THREE.Vector3, scale: number, style: ExplosionStyle): void {
@@ -77,7 +77,7 @@ export class Explosions {
     ring.position.copy(point).multiplyScalar(1.004);
     ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), point.clone().normalize());
     this.group.add(ring);
-    this.shockwaves.push({ mesh: ring, age: 0, lifetime: 2.2, maxScale: scale * 7 });
+    this.shockwaves.push({ mesh: ring, age: 0, lifetime: 2.2, maxScale: scale * 3.5 });
     this.spawnBurst(point, 120, scale * 3, 1.6, 'fire', scale);
   }
 

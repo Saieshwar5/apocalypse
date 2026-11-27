@@ -259,11 +259,13 @@ export class Game {
   private updatePlaying(deltaSeconds: number): void {
     this.play.update(deltaSeconds);
     if (this.session.integrity <= 0) {
-      this.endRun();
+      this.endRun('Earth has fallen');
+    } else if (this.play.shipFailure) {
+      this.endRun(this.play.shipFailure);
     }
   }
 
-  private endRun(): void {
+  private endRun(reason: string): void {
     this.phase = 'gameover';
     this.input.releasePointerLock();
     this.hud.setVisible(false);
@@ -275,7 +277,11 @@ export class Game {
       wavesCleared: this.session.wavesCleared,
       asteroidsDestroyed: this.session.asteroidsDestroyed,
       impacts: this.session.totalImpacts,
+      citiesStanding: this.play.sites.citiesStanding,
+      cityCount: this.play.sites.cityCount,
+      reason,
     });
+    this.sound.setAtmosphere(0);
   }
 
   private readonly onResize = (): void => {

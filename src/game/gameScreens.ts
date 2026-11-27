@@ -9,6 +9,10 @@ export interface RunSummary {
   wavesCleared: number;
   asteroidsDestroyed: number;
   impacts: number;
+  citiesStanding: number;
+  cityCount: number;
+  /** Why the mission ended, shown above the heading. */
+  reason: string;
 }
 
 function element<T extends HTMLElement>(selector: string): T {
@@ -58,6 +62,7 @@ export class GameScreens {
       ['Waves survived', String(summary.wavesCleared)],
       ['Asteroids destroyed', String(summary.asteroidsDestroyed)],
       ['Impacts on Earth', String(summary.impacts)],
+      ['Cities standing', `${summary.citiesStanding} of ${summary.cityCount}`],
     ];
     this.summary.replaceChildren(
       ...rows.flatMap(([label, value]) => {
@@ -68,6 +73,7 @@ export class GameScreens {
         return [term, detail];
       }),
     );
+    element<HTMLParagraphElement>('#failure-reason').textContent = summary.reason;
     this.gameOver.hidden = false;
     element<HTMLButtonElement>('#restart-button').focus();
   }

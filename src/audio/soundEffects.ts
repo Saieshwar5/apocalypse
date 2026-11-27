@@ -10,6 +10,7 @@ export class SoundEffects {
   private noise: AudioBuffer | null = null;
   private engineGain: GainNode | null = null;
   private engineFilter: BiquadFilterNode | null = null;
+  private atmosphereGain: GainNode | null = null;
   private muted = false;
 
   /** Call from a click or key handler. Safe to call more than once. */
@@ -46,6 +47,14 @@ export class SoundEffects {
     const now = this.context.currentTime;
     this.engineGain.gain.setTargetAtTime(0.03 + throttle * (boosting ? 0.12 : 0.07), now, 0.1);
     this.engineFilter.frequency.setTargetAtTime(220 + throttle * (boosting ? 900 : 500), now, 0.1);
+  }
+
+  /** Roar of air on the hull during atmospheric entry (0..1). */
+  setAtmosphere(level: number): void {
+    if (!this.context || !this.atmosphereGain) {
+      return;
+    }
+    this.atmosphereGain.gain.setTargetAtTime(level > 0 ? 0.12 + level * 0.3 : 0, this.context.currentTime, 0.15);
   }
 
   laser(): void {
@@ -176,6 +185,18 @@ export class SoundEffects {
     this.engineFilter.connect(this.engineGain).connect(destination);
     oscillator.start();
     rumble.start();
+
+    const roar = context.createBufferSource();
+    roar.buffer = this.noise;
+    roar.loop = true;
+    const roarFilter = context.createBiquadFilter();
+    roarFilter.type = 'bandpass';
+    roarFilter.frequency.value = 420;
+    roarFilter.Q.value = 0.6;
+    this.atmosphereGain = context.createGain();
+    this.atmosphereGain.gain.value = 0;
+    roar.connect(roarFilter).connect(this.atmosphereGain).connect(destination);
+    roar.start();
   }
 
   private createNoiseBuffer(context: AudioContext): AudioBuffer {
