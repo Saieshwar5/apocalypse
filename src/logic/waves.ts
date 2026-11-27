@@ -25,14 +25,20 @@ export interface WavePlan {
   spawns: AsteroidSpawnPlan[];
 }
 
-const MAX_SMALL_PER_WAVE = 22;
+/**
+ * Few asteroids, each one a job: the pilot has to fly to every rock, so a
+ * field is a handful of contacts spread around the planet, not a swarm.
+ */
+const MAX_SMALL_PER_WAVE = 9;
+const MAX_MEDIUM_PER_WAVE = 4;
+const MAX_LARGE_PER_WAVE = 3;
 
 export function waveComposition(wave: number): Record<AsteroidSize, number> {
   assertWaveNumber(wave);
   return {
-    small: Math.min(MAX_SMALL_PER_WAVE, 3 + wave * 2),
-    medium: Math.floor((wave + 1) / 2),
-    large: wave >= 3 ? Math.floor((wave - 1) / 2) : 0,
+    small: Math.min(MAX_SMALL_PER_WAVE, 2 + wave),
+    medium: Math.min(MAX_MEDIUM_PER_WAVE, Math.floor((wave + 1) / 2)),
+    large: wave >= 3 ? Math.min(MAX_LARGE_PER_WAVE, Math.floor((wave - 1) / 2)) : 0,
     giant: wave % 5 === 0 ? 1 : 0,
   };
 }
@@ -64,17 +70,20 @@ export function chooseMaterial(wave: number, rng: RandomSource): AsteroidMateria
 /** Share of extra asteroids per field that merely pass by and never threaten the planet. */
 export const PASSER_BY_RATIO = 0.3;
 
+/** Share of asteroids that arrive from a random direction instead of a front. */
+const STRAGGLER_RATIO = 0.35;
+
 /**
- * Builds the spawn schedule for one wave. Asteroids come from one to three
- * main approach directions, so the radar shows clear attack fronts instead
- * of uniform noise.
+ * Builds the spawn schedule for one wave. Most asteroids come from two to
+ * four approach directions around the planet and the rest from anywhere, so
+ * the pilot has to read the scanner and choose where to fly.
  */
 export function planWave(wave: number, rng: RandomSource): WavePlan {
   assertWaveNumber(wave);
   const composition = waveComposition(wave);
-  const frontCount = 1 + (wave >= 3 ? 1 : 0) + (wave >= 7 ? 1 : 0);
+  const frontCount = 2 + (wave >= 4 ? 1 : 0) + (wave >= 8 ? 1 : 0);
   const fronts = Array.from({ length: frontCount }, () => randomUnitVector(rng));
-  const durationSeconds = Math.min(70, 20 + wave * 4);
+  const durationSeconds = Math.min(120, 45 + wave * 6);
   const spawns: AsteroidSpawnPlan[] = [];
 
   for (const size of ASTEROID_SIZES) {
@@ -85,7 +94,7 @@ export function planWave(wave: number, rng: RandomSource): WavePlan {
         delaySeconds: size === 'giant' ? durationSeconds * 0.2 : rng() * durationSeconds,
         size,
         material: size === 'giant' ? 'rocky' : chooseMaterial(wave, rng),
-        direction: jitterDirection(front, 0.45, rng),
+        direction: rng() < STRAGGLER_RATIO ? randomUnitVector(rng) : jitterDirection(front, 0.45, rng),
       });
     }
   }

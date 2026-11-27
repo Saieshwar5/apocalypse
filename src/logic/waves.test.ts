@@ -4,7 +4,7 @@ import { chooseMaterial, planWave, waveComposition } from './waves';
 
 describe('waveComposition', () => {
   it('starts with only small and medium asteroids', () => {
-    expect(waveComposition(1)).toEqual({ small: 5, medium: 1, large: 0, giant: 0 });
+    expect(waveComposition(1)).toEqual({ small: 3, medium: 1, large: 0, giant: 0 });
   });
 
   it('adds a giant on every fifth wave', () => {
@@ -13,8 +13,8 @@ describe('waveComposition', () => {
     expect(waveComposition(10).giant).toBe(1);
   });
 
-  it('caps small asteroids so late waves stay readable', () => {
-    expect(waveComposition(50).small).toBe(22);
+  it('caps every size so each asteroid stays a job worth flying to', () => {
+    expect(waveComposition(50)).toEqual({ small: 9, medium: 4, large: 3, giant: 1 });
   });
 
   it('rejects invalid wave numbers', () => {
