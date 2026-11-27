@@ -1,4 +1,4 @@
-"""Builds the Apocalypse interceptor in Blender and exports it as GLB.
+"""Builds the Singularity interceptor in Blender and exports it as GLB.
 
 Run with Blender's Python module (pip package `bpy`):
 

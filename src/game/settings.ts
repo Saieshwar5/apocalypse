@@ -7,7 +7,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, quality: 'high' };
-const STORAGE_KEY = 'apocalypse.settings.v1';
+const STORAGE_KEY = 'singularity.settings.v1';
 
 /** Clamps and repairs stored settings, which may be missing or edited by hand. */
 export function sanitizeSettings(value: unknown): Settings {

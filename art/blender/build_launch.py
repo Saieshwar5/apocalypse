@@ -1,4 +1,4 @@
-"""Builds the launch booster and launch pad for the Apocalypse launch cinematic.
+"""Builds the launch booster and launch pad for the Singularity launch cinematic.
 
     python art/blender/build_launch.py --out public/models --render previews/
 

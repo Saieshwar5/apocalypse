@@ -29,7 +29,7 @@ describe('best runs', () => {
   });
 
   it('writes a result line for sharing', () => {
-    expect(shareText(run(17580, true))).toBe("Apocalypse: I held Earth's orbit ★★☆ with 17,580 points and 9 of 11 cities standing.");
+    expect(shareText(run(17580, true))).toBe("Singularity: I held Earth's orbit ★★☆ with 17,580 points and 9 of 11 cities standing.");
     expect(shareText(run(1200))).toContain('lost Earth');
   });
 });

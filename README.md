@@ -1,4 +1,4 @@
-# Apocalypse
+# Singularity
 
 A realistic 3D browser game. You launch a single interceptor from Earth and
 defend the planet from waves of incoming asteroids. Small rocks dent the
@@ -161,7 +161,7 @@ npm run build
 `npm test` covers the game rules: waves, damage, scoring, threat ranking,
 wave timing, laser range, aim-ahead, blasts, shield and hull, units, priority
 sites, atmosphere zones, the scanner projection, fuel, docking and station stock. In development builds the running game is available as
-`window.apocalypse` so browser automation can drive it; production builds do
+`window.singularity` so browser automation can drive it; production builds do
 not expose it.
 
 URL options for testing: `?autostart` skips the menu and mouse capture, and
