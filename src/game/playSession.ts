@@ -180,6 +180,7 @@ export class PlaySession {
       scene: deps.scene,
       outpostModels: deps.outpostModels,
       fleet: this.satellites.fleet,
+      traffic: this.satellites,
       ship: deps.ship,
       field: this.field,
       walletOf: (pilot) => deps.session.walletOf(pilot),
@@ -422,6 +423,7 @@ export class PlaySession {
     const { hud, radar, overlay, ship, shipModel, session, camera } = this.deps;
     hud.update(deltaSeconds, {
       integrity: session.integrity,
+      orbitHealth: this.services.debris.health,
       wave: Math.max(1, this.campaign.director.wave),
       missileCapacity: this.missiles.capacity,
       fuelCapacity: ship.fuelCapacity,
@@ -486,6 +488,7 @@ export class PlaySession {
         showDrift: !ship.assist,
         priorityPay: this.guidance.priority ? this.contracts.offerFor(this.guidance.priority.item) : 0,
         waypoint: this.services.waypoint(),
+        debris: this.services.debris.labels(ship.position),
         priorityEstimate: this.guidance.priority ? !this.guidance.priority.item.identified : false,
       },
     });

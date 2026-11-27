@@ -16,6 +16,9 @@ export interface RunSummary {
   balance: number;
   contractsCompleted: number;
   contractsLost: number;
+  orbitHealth: number;
+  /** Tonnes of debris swept from orbit. */
+  debrisSwept: number;
   /** Every pilot's earnings, best first. */
   league: readonly { name: string; earned: number; you: boolean }[];
   wavesCleared: number;
@@ -87,6 +90,8 @@ export class GameScreens {
       ['Contracts lost to impacts', String(summary.contractsLost)],
       ...summary.league.map((row, index): [string, string] => [`${index + 1}. ${row.you ? 'You' : row.name}`, formatCredits(row.earned)]),
       [`${summary.planet} integrity`, `${Math.max(0, Math.round(summary.integrity))}%`],
+      ['Orbit health', `${Math.round(summary.orbitHealth)}%`],
+      ['Debris swept', `${summary.debrisSwept.toFixed(1)} t`],
       ['Fields cleared', String(summary.wavesCleared)],
       ['Asteroids destroyed', String(summary.asteroidsDestroyed)],
       ['Impacts', String(summary.impacts)],

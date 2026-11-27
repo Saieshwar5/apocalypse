@@ -38,6 +38,8 @@ export interface GuidanceFrame {
   priorityEstimate: boolean;
   /** Where the current satellite job wants the ship to go. */
   waypoint: Waypoint | null;
+  /** Nearby debris clouds. */
+  debris: readonly { world: THREE.Vector3; text: string }[];
 }
 
 /**
@@ -50,6 +52,7 @@ export function drawGuidance(context: CanvasRenderingContext2D, projector: Scree
   context.font = `700 11px ${MONO}`;
   context.lineWidth = 1.5;
   drawSatellites(context, projector, frame);
+  drawDebris(context, projector, frame);
   drawDrift(context, projector, frame);
   drawPriority(context, projector, frame, elapsed);
   drawWaypoint(context, projector, frame, elapsed);
@@ -230,5 +233,25 @@ function drawWaypoint(context: CanvasRenderingContext2D, projector: ScreenProjec
   context.textAlign = 'center';
   // Below the priority lines, where the message banner cannot cover it.
   context.fillText(`JOB · ${waypoint.label} · ${distance}`, centreX, centreY + ring + 78);
+  context.restore();
+}
+
+/** Debris clouds: a dashed amber ring with the cloud's mass. */
+function drawDebris(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: GuidanceFrame): void {
+  context.save();
+  context.strokeStyle = 'rgba(255, 179, 71, 0.8)';
+  context.fillStyle = 'rgba(255, 179, 71, 0.9)';
+  context.setLineDash([3, 4]);
+  context.textAlign = 'left';
+  for (const cloud of frame.debris) {
+    const point = projector.project(cloud.world);
+    if (!point.visible) {
+      continue;
+    }
+    context.beginPath();
+    context.arc(point.x, point.y, 12, 0, Math.PI * 2);
+    context.stroke();
+    context.fillText(`${cloud.text} · ${formatDistance(cloud.world.distanceTo(frame.shipPosition))}`, point.x + 16, point.y + 4);
+  }
   context.restore();
 }
