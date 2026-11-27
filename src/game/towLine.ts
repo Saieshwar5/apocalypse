@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import type { Asteroid } from '../asteroids/asteroidField';
 import type { Satellite, SatelliteFleet } from '../satellites/satelliteFleet';
 import type { ShipController } from '../ship/shipController';
 import { LOAD_MASS, TOW, canAttach, loadStress, towStep } from '../logic/towing';
@@ -15,11 +14,33 @@ export type TowEvent =
  * The ship's tow line: connects to a satellite, pulls it with a rope that
  * only pulls, wears it down when jerked, and draws the cable.
  */
+/** Anything besides a satellite the line can haul. */
+export interface TowBody {
+  readonly position: THREE.Vector3;
+  readonly velocity: THREE.Vector3;
+  readonly radius: number;
+  readonly alive: boolean;
+}
+
+/** A rock seen as a tow body. */
+export function rockBody(rock: { mesh: THREE.Object3D; velocity: THREE.Vector3; radius: number; alive: boolean }): TowBody {
+  return {
+    get position() {
+      return rock.mesh.position;
+    },
+    velocity: rock.velocity,
+    radius: rock.radius,
+    get alive() {
+      return rock.alive;
+    },
+  };
+}
+
 export class TowLine {
   /** The satellite on the line, or null. */
   load: Satellite | null = null;
-  /** A rock being hauled, or null; never at the same time as a satellite. */
-  rock: Asteroid | null = null;
+  /** A body being hauled (a rock, an escape pod), or null; never at the same time as a satellite. */
+  body: TowBody | null = null;
   private rockMass = 1;
   /** Set when a hauled rock's line snaps; cleared by whoever reports it. */
   snapped = false;
@@ -44,7 +65,7 @@ export class TowLine {
 
   reset(): void {
     this.load = null;
-    this.rock = null;
+    this.body = null;
     this.tension = 0;
     this.mesh.visible = false;
   }
@@ -72,21 +93,21 @@ export class TowLine {
     return { type: 'released', satellite };
   }
 
-  /** Connects to a rock for hauling; returns false when too far or too fast. */
-  attachRock(asteroid: Asteroid, loadMass: number): boolean {
-    const surfaceDistance = asteroid.mesh.position.distanceTo(this.ship.position) - asteroid.radius;
-    if (this.load || !canAttach(surfaceDistance, asteroid.velocity.distanceTo(this.ship.velocity))) {
+  /** Connects to a body for hauling; returns false when too far or too fast. */
+  attachBody(body: TowBody, loadMass: number): boolean {
+    const surfaceDistance = body.position.distanceTo(this.ship.position) - body.radius;
+    if (this.load || !canAttach(surfaceDistance, body.velocity.distanceTo(this.ship.velocity))) {
       return false;
     }
-    this.rock = asteroid;
+    this.body = body;
     this.rockMass = loadMass;
     return true;
   }
 
-  /** Lets go of the hauled rock and returns it. */
-  releaseRock(): Asteroid | null {
-    const rock = this.rock;
-    this.rock = null;
+  /** Lets go of the hauled body and returns it. */
+  releaseBody(): TowBody | null {
+    const rock = this.body;
+    this.body = null;
     this.tension = 0;
     this.mesh.visible = false;
     return rock;
@@ -94,8 +115,8 @@ export class TowLine {
 
   /** Runs the line for one step; returns an event if it broke or the load was lost. */
   update(deltaSeconds: number): TowEvent | null {
-    if (this.rock) {
-      this.updateRock(this.rock, deltaSeconds);
+    if (this.body) {
+      this.updateBody(this.body, deltaSeconds);
       return null;
     }
     const satellite = this.load;
@@ -131,31 +152,31 @@ export class TowLine {
     return null;
   }
 
-  /** Hauling a rock: heavy, but rock does not mind a hard pull. The line can still snap. */
-  private updateRock(rock: Asteroid, deltaSeconds: number): void {
+  /** Hauling a body: no wear, but the line can still snap. */
+  private updateBody(rock: TowBody, deltaSeconds: number): void {
     if (!rock.alive) {
-      this.releaseRock();
+      this.releaseBody();
       return;
     }
     const step = towStep(
       {
         shipPosition: this.ship.position.toArray(),
         shipVelocity: this.ship.velocity.toArray(),
-        loadPosition: rock.mesh.position.toArray(),
+        loadPosition: rock.position.toArray(),
         loadVelocity: rock.velocity.toArray(),
         loadMass: this.rockMass,
       },
       deltaSeconds,
     );
     if (step.snapped) {
-      this.releaseRock();
+      this.releaseBody();
       this.snapped = true;
       return;
     }
     this.tension = step.tension;
     this.ship.velocity.add(new THREE.Vector3().fromArray(step.shipDelta));
     rock.velocity.add(new THREE.Vector3().fromArray(step.loadDelta));
-    this.drawCable({ position: rock.mesh.position }, step.stretch);
+    this.drawCable(rock, step.stretch);
   }
 
   /** A gentle sag while slack, straight when taut. */
