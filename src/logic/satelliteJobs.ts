@@ -1,7 +1,7 @@
 import { normalizeTuple, type Vec3Tuple } from './random';
 import { placementAccuracy } from './towing';
 
-export type SatelliteJobKind = 'dodge' | 'repair-tow';
+export type SatelliteJobKind = 'dodge' | 'repair-tow' | 'reboost';
 
 /**
  * Plans the path of an asteroid that will strike a satellite but miss the
