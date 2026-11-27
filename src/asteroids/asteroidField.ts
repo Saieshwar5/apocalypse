@@ -52,9 +52,9 @@ export interface PlanetImpact {
   point: THREE.Vector3;
 }
 
-const SPAWN_DISTANCE: [number, number] = [165, 205];
+const SPAWN_DISTANCE: [number, number] = [230, 270];
 /** Asteroids start to glow inside this multiple of the planet radius. */
-const ENTRY_HEAT_START = 1.9;
+const ENTRY_HEAT_START = 1.22;
 const HIT_FLASH_DECAY = 6;
 const HIT_FLASH_COLOR = new THREE.Color(1.2, 0.9, 0.6);
 const ENTRY_HEAT_COLOR = new THREE.Color(2.4, 0.7, 0.15);
@@ -159,7 +159,7 @@ export class AsteroidField {
   spawnPasserBy(size: AsteroidSize, material: AsteroidMaterial): Asteroid {
     const outbound = this.rng() < 0.35;
     const from = new THREE.Vector3(...randomUnitVector(this.rng));
-    const position = from.clone().multiplyScalar(outbound ? randomBetween(this.rng, 35, 70) : randomBetween(this.rng, 150, 190));
+    const position = from.clone().multiplyScalar(outbound ? randomBetween(this.rng, 75, 130) : randomBetween(this.rng, 220, 260));
     const asteroid = this.spawnAt(size, material, position);
     const speed = asteroid.velocity.length();
     if (outbound) {
@@ -167,7 +167,7 @@ export class AsteroidField {
     } else {
       // Aim at a point well to one side of the planet, so the path clears it.
       const side = new THREE.Vector3(...randomUnitVector(this.rng)).cross(from).normalize();
-      const missPoint = side.multiplyScalar(this.planetRadius * randomBetween(this.rng, 2.2, 6));
+      const missPoint = side.multiplyScalar(this.planetRadius * randomBetween(this.rng, 1.7, 3.6));
       asteroid.velocity.copy(missPoint.sub(position).normalize().multiplyScalar(speed));
     }
     asteroid.passerBy = true;

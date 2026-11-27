@@ -42,8 +42,8 @@ export class SiteMarkers {
     }
     this.rings.clear();
     const { earth, defence } = this;
-    const ringGeometry = new THREE.RingGeometry(0.2, 0.26, 40);
-    const dotGeometry = new THREE.CircleGeometry(0.07, 20);
+    const ringGeometry = new THREE.RingGeometry(0.46, 0.58, 40);
+    const dotGeometry = new THREE.CircleGeometry(0.15, 20);
     for (const site of defence.sites) {
       const material = () =>
         new THREE.MeshBasicMaterial({

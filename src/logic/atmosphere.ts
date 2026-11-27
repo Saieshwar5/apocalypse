@@ -1,15 +1,17 @@
-/** Altitudes above the surface, in world units (1 unit = 637 km). */
+import { stoppingDistance } from './flightModel';
+
+/** Altitudes above the surface, in world units (1 unit is about 159 km). */
 export const ATMOSPHERE = {
   /** "Pull up" warning starts here. */
-  warning: 1.6,
+  warning: 9,
   /** Top of the atmosphere: heating starts. Matches the visible glow shell. */
-  top: 0.6,
+  top: 2.4,
   /** Below this the ship breaks up. */
-  breakup: 0.2,
+  breakup: 0.5,
 } as const;
 
 /** The ship is turned back beyond `limit`; warned from `warning`. */
-export const DEFENCE_ZONE = { warning: 260, limit: 300 } as const;
+export const DEFENCE_ZONE = { warning: 360, limit: 420 } as const;
 
 export type AtmosphereZone = 'space' | 'warning' | 'atmosphere' | 'breakup';
 
@@ -32,7 +34,29 @@ export function entryHeat(altitude: number): number {
 /** Heating damage per second: survivable at the edge, lethal deep in. */
 export function entryDamagePerSecond(altitude: number): number {
   const heat = entryHeat(altitude);
-  return heat <= 0 && altitude > ATMOSPHERE.top ? 0 : 8 + 60 * heat;
+  return heat <= 0 && altitude > ATMOSPHERE.top ? 0 : 3 + 30 * heat;
+}
+
+/**
+ * The automatic pull-up lets the ship skim the top of the atmosphere, where
+ * heating is mild, and takes the controls at `PULL_UP_FLOOR`, or earlier when
+ * the ship is sinking so fast that braking must start now to stop above that
+ * floor (with `PULL_UP_REACTION` seconds allowed for turning the ship).
+ */
+export const PULL_UP_FLOOR = ATMOSPHERE.top - 1;
+const PULL_UP_REACTION = 0.5;
+/** The pull-up hands back control this far above the atmosphere, once climbing. */
+const PULL_UP_CLEARANCE = 3;
+
+export function needsPullUp(altitude: number, sinkRate: number): boolean {
+  if (altitude <= PULL_UP_FLOOR) {
+    return true;
+  }
+  return sinkRate > 0 && altitude - PULL_UP_FLOOR < stoppingDistance(sinkRate) + sinkRate * PULL_UP_REACTION;
+}
+
+export function pullUpComplete(altitude: number, sinkRate: number): boolean {
+  return altitude >= ATMOSPHERE.top + PULL_UP_CLEARANCE && sinkRate <= 0;
 }
 
 export interface AltitudeReadout {

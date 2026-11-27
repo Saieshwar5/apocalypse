@@ -1,4 +1,4 @@
-"""Builds the launch booster and launch pad for the Apocalypse launch cinematic.
+"""Builds the launch booster and launch pad for the Singularity launch cinematic.
 
     python art/blender/build_launch.py --out public/models --render previews/
 
@@ -113,7 +113,7 @@ def build_booster(out_dir):
             parts.box(f'Strut_{index}_{strut_z}', (-side * 0.85, 0, strut_z), (0.7, 0.3, 0.3), mats['band'], strap)
 
     build_text('PDW', (0, -BOOSTER_RADIUS - 0.03, 17.0), mats['marking'], root, size=1.6, rotation=(math.pi / 2, 0, 0))
-    build_text('APOCALYPSE', (0, -BOOSTER_RADIUS - 0.03, 8.0), mats['marking'], root, size=0.9, rotation=(math.pi / 2, math.pi / 2, 0))
+    build_text('SINGULARITY', (0, -BOOSTER_RADIUS - 0.03, 8.0), mats['marking'], root, size=0.9, rotation=(math.pi / 2, math.pi / 2, 0))
 
     export(os.path.join(out_dir, 'booster.glb'))
     return root

@@ -45,5 +45,5 @@ export function parseRuns(raw: string | null): RunRecord[] {
 /** One line to paste when sharing a result. */
 export function shareText(run: RunRecord): string {
   const outcome = run.victory ? `held ${run.planet}'s orbit ${'★'.repeat(run.stars)}${'☆'.repeat(3 - run.stars)}` : `lost ${run.planet}`;
-  return `Apocalypse: I ${outcome} with ${run.score.toLocaleString('en-US')} points and ${run.citiesStanding} of ${run.cityCount} cities standing.`;
+  return `Singularity: I ${outcome} with ${run.score.toLocaleString('en-US')} points and ${run.citiesStanding} of ${run.cityCount} cities standing.`;
 }

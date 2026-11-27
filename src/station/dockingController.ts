@@ -104,8 +104,8 @@ export class DockingController {
     this.hint =
       readiness === 'too-fast'
         ? distance > DOCKING.range
-          ? `Aegis station: fly closer and slow below ${formatSpeed(DOCKING.maxRelativeSpeed)} to dock`
-          : `Too fast to dock: ${formatSpeed(relativeSpeed)}. Slow below ${formatSpeed(DOCKING.maxRelativeSpeed)}`
+          ? `Aegis station: fly closer and brake (S) below ${formatSpeed(DOCKING.maxRelativeSpeed)} to dock`
+          : `Too fast to dock: ${formatSpeed(relativeSpeed)}. Hold S to brake below ${formatSpeed(DOCKING.maxRelativeSpeed)}`
         : readiness === 'ready' && pilotBusy
           ? 'In docking range: release the controls to dock'
           : null;

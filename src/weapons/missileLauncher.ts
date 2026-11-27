@@ -7,11 +7,11 @@ import type { WeaponHit } from './laserCannon';
 const DEFAULT_CAPACITY = 8;
 const BASE_DAMAGE = 140;
 const LAUNCH_SPEED = 12;
-const MAX_SPEED = 75;
+const MAX_SPEED = 60;
 const ACCELERATION = 55;
 const TURN_RATE = 2.8;
-const LIFETIME = 7;
-export const LOCK_RANGE = 170;
+const LIFETIME = 5;
+export const LOCK_RANGE = 65;
 const LOCK_CONE = THREE.MathUtils.degToRad(14);
 const FIRE_INTERVAL = 0.45;
 

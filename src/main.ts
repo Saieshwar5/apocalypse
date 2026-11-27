@@ -11,11 +11,11 @@ game.load().catch((error: unknown) => {
   console.error(error);
   const loading = document.querySelector('#loading');
   if (loading) {
-    loading.textContent = 'Apocalypse could not start. Your browser may not support WebGL 2.';
+    loading.textContent = 'Singularity could not start. Your browser may not support WebGL 2.';
   }
 });
 
 if (import.meta.env.DEV) {
   // Lets automated browser checks inspect the running game.
-  (window as unknown as { apocalypse: Game }).apocalypse = game;
+  (window as unknown as { singularity: Game }).singularity = game;
 }

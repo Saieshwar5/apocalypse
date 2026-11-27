@@ -52,6 +52,11 @@ export class SatelliteTraffic {
     return scannerRangeBonus(this.fleet.aliveCount, this.fleet.satellites.length);
   }
 
+  /** Every satellite, working or destroyed. */
+  get all(): readonly Satellite[] {
+    return this.fleet.satellites;
+  }
+
   /** World positions of working satellites, for the scanner. */
   positions(): THREE.Vector3[] {
     return this.fleet.satellites.filter((satellite) => satellite.alive).map((satellite) => satellite.position);

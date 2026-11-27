@@ -5,7 +5,7 @@ import type { Vec3Tuple } from './random';
  * dissipates at `maximum`. This makes close attacks stronger but riskier
  * (shrapnel, collisions) and long shots safer but slower to kill.
  */
-export const LASER_RANGE = { optimal: 50, maximum: 170, minimumMultiplier: 0.35 } as const;
+export const LASER_RANGE = { optimal: 16, maximum: 44, minimumMultiplier: 0.35 } as const;
 
 export type RangeBand = 'optimal' | 'reduced' | 'out-of-range';
 

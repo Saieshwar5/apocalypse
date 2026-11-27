@@ -99,7 +99,7 @@ export class StationOperations {
         }
       }
     }
-    const wantsLaunch = !tactical && (input.isDown('KeyW') || input.isDown('ArrowUp'));
+    const wantsLaunch = !tactical && input.isDown('KeyW');
     this.docking.update(deltaSeconds, wantsLaunch, active, pilotBusy);
     if (ship.fuel < LOW_FUEL && !this.fuelWarned && this.present) {
       hud.showMessage(`Fuel low. Dock at ${STATION_NAME} to refuel`, 'warning', 4);

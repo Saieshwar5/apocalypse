@@ -68,21 +68,21 @@ describe('fleet plan', () => {
     const plans = planFleet(createSeededRandom(7));
     const radii = plans.map((plan) => plan.orbit.radius);
     expect(plans).toHaveLength(8);
-    expect(radii.filter((radius) => radius >= 13 && radius <= 15)).toHaveLength(3);
-    expect(radii.filter((radius) => radius >= 20 && radius <= 28)).toHaveLength(3);
-    expect(radii.filter((radius) => radius >= 40 && radius <= 50)).toHaveLength(2);
+    expect(radii.filter((radius) => radius >= 48 && radius <= 53)).toHaveLength(3);
+    expect(radii.filter((radius) => radius >= 60 && radius <= 74)).toHaveLength(3);
+    expect(radii.filter((radius) => radius >= 90 && radius <= 110)).toHaveLength(2);
     expect(new Set(plans.map((plan) => plan.kind))).toEqual(new Set(['comms', 'nav', 'weather']));
   });
 
   it('keeps every period watchable and slower with height', () => {
     for (let seed = 1; seed <= 20; seed += 1) {
       for (const { orbit } of planFleet(createSeededRandom(seed))) {
-        expect(orbit.period).toBeGreaterThanOrEqual(90);
-        expect(orbit.period).toBeLessThanOrEqual(400);
+        expect(orbit.period).toBeGreaterThanOrEqual(260);
+        expect(orbit.period).toBeLessThanOrEqual(700);
         expect(orbit.period).toBeCloseTo(orbitalPeriod(orbit.radius), 10);
       }
     }
-    expect(orbitalPeriod(50)).toBeGreaterThan(orbitalPeriod(13));
+    expect(orbitalPeriod(110)).toBeGreaterThan(orbitalPeriod(48));
   });
 
   it('is reproducible from the seed and differs between seeds', () => {

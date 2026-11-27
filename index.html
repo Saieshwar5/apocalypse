@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Apocalypse: one interceptor, one planet. Defend Earth from incoming asteroids." />
+    <meta name="description" content="Singularity: fly an orbital interceptor and defend Earth from incoming asteroids." />
     <meta name="theme-color" content="#000000" />
-    <title>Apocalypse</title>
+    <title>Singularity</title>
   </head>
   <body>
     <canvas id="scene" aria-label="Game view"></canvas>
@@ -81,7 +81,12 @@
       </section>
 
       <div id="hud-message" class="hud-message" role="status" aria-live="polite"></div>
-      <div id="hud-hint" class="hud-hint">Mouse steer · Click fire · F missile · Shift boost · Tab map · C camera · M sound · Esc pause</div>
+      <div id="control-status" class="control-status" aria-label="Control status">
+        <span id="steer-status" data-state="off">CLICK TO STEER WITH THE MOUSE</span>
+        <span id="assist-status" data-state="on">FLIGHT ASSIST ON</span>
+        <span id="motion-status" data-state="on">COASTING</span>
+      </div>
+      <div id="hud-hint" class="hud-hint">W thrust · S brake · A/D/R/V slide · Shift boost · Click or Space fire · F missile · Z assist · Tab map</div>
       <div id="damage-flash" aria-hidden="true"></div>
     </div>
 
@@ -100,24 +105,26 @@
     <div id="menu" class="screen" hidden>
       <div class="screen-card">
         <p class="eyebrow">Planetary Defence Wing</p>
-        <h1>Apocalypse</h1>
+        <h1>Singularity</h1>
         <p class="tagline">One interceptor. One planet. Hold the line.</p>
         <button id="start-button" type="button" disabled>Loading…</button>
         <dl class="controls">
-          <dt>Mouse</dt><dd>Steer</dd>
-          <dt>Left click / Space</dt><dd>Laser</dd>
-          <dt>F / Right click</dt><dd>Missile at locked target</dd>
-          <dt>W / S</dt><dd>Thrust / brake</dd>
-          <dt>A / D</dt><dd>Strafe</dd>
+          <dt>Mouse or arrow keys</dt><dd>Steer</dd>
+          <dt>W</dt><dd>Thrust. The ship keeps its speed when you let go</dd>
+          <dt>S</dt><dd>Brake to a stop</dd>
+          <dt>A / D, R / V</dt><dd>Slide left / right, up / down</dd>
           <dt>Q / E</dt><dd>Roll</dd>
           <dt>Shift</dt><dd>Boost</dd>
-          <dt>Fly slowly to Aegis</dt><dd>Dock: refuel, rearm, repair (W launches)</dd>
+          <dt>Left click / Space</dt><dd>Laser (short range: fly close)</dd>
+          <dt>F / Right click</dt><dd>Missile at locked target</dd>
+          <dt>Z</dt><dd>Flight assist on or off (off: pure drift and gravity)</dd>
+          <dt>Fly slowly to Aegis</dt><dd>Brake near it and let go to dock: refuel, rearm, repair (W launches)</dd>
           <dt>1 to 8 while docked</dt><dd>Buy upgrades with credits</dd>
           <dt>Enter</dt><dd>Leave a calm zone early (or skip the launch)</dd>
           <dt>Tab</dt><dd>Tactical map (slows time)</dd>
           <dt>C</dt><dd>Chase or cockpit camera</dd>
         </dl>
-        <p class="screen-note">Small rocks dent the planet; giants can end it. Lasers hit hardest up close and fade with range; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, stay out of the atmosphere, and do not lose your ship: there is only one.</p>
+        <p class="screen-note">Small rocks dent the planet; giants can end it. Follow the yellow PRIORITY marker: it shows whether you can reach a rock before it lands. Lasers only reach a short way, so fly to the rock; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, brake before you get too low, and do not lose your ship: there is only one.</p>
       </div>
     </div>
 

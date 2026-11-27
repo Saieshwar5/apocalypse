@@ -16,7 +16,7 @@ import type { InputState } from '../input/inputState';
 import { altitudeReadout } from '../logic/atmosphere';
 import type { RandomSource } from '../logic/random';
 import { rankThreats } from '../logic/threats';
-import { damping } from '../math/orientation';
+import { damping, orientationFromForward } from '../math/orientation';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import { ShieldBubble } from '../ship/shieldBubble';
 import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipController';
@@ -31,16 +31,17 @@ import { SiteMarkers } from '../sites/siteMarkers';
 import { CombatResolver } from './combatResolver';
 import { FlightHazards } from './flightHazards';
 import type { GameSession } from './gameSession';
+import { computeGuidance, type Guidance } from './guidance';
 import { computeTargeting, type TargetingInfo } from './targeting';
 import { Campaign } from './campaign';
 
 /** After the ship is destroyed, play continues this long so the player sees it. */
 const SHIP_LOST_SECONDS = 2.5;
 /** Missiles delivered by supply rocket after each wave, until the space base exists. */
-const AIM_DISTANCE = 70;
+const AIM_DISTANCE = 24;
 /** Time runs this much slower while the tactical map is open. */
 const TACTICAL_TIME_SCALE = 0.3;
-const TACTICAL_DISTANCE = 120;
+const TACTICAL_DISTANCE = 340;
 const TACTICAL_LOOK_SENSITIVITY = 0.004;
 
 export interface PlaySessionDependencies {
@@ -93,6 +94,7 @@ export class PlaySession {
   private lostCause: string | null = null;
   private lostTimer = 0;
   private targeting: TargetingInfo | null = null;
+  private guidance: Guidance = { priority: null, satelliteAhead: null };
   /** Map orbit angles, set from the ship's position when the map opens. */
   private readonly tacticalOrbit = new THREE.Spherical(TACTICAL_DISTANCE, Math.PI / 3, 0);
   private warningTimer = 0;
@@ -202,6 +204,11 @@ export class PlaySession {
   /** Called when the launch hands over control. */
   beginDefence(): void {
     this.stationOps.begin();
+    // Start with the station dead ahead, so the pilot sees where home is.
+    const { ship } = this.deps;
+    const toStation = this.stationOps.station.position.clone().sub(ship.position).normalize();
+    ship.object.quaternion.copy(orientationFromForward(toStation, ship.position.clone().normalize()));
+    ship.velocity.copy(toStation).multiplyScalar(ship.velocity.length());
   }
 
   update(realDeltaSeconds: number): void {
@@ -212,10 +219,11 @@ export class PlaySession {
     const active = this.shipActive;
     const flying = active && !this.tactical && !this.stationOps.holdingShip;
     const input = flying ? this.hazards.filterInput(this.readFlightInput(), deltaSeconds) : IDLE_INPUT;
+    ship.assistOverride = this.hazards.autopilot;
     ship.update(deltaSeconds, input);
     shipModel.group.updateMatrixWorld();
 
-    if (flying && !this.hazards.returning) {
+    if (flying && !this.hazards.autopilot) {
       this.updateWeapons(deltaSeconds);
     } else if (!active) {
       this.lostTimer -= deltaSeconds;
@@ -223,7 +231,7 @@ export class PlaySession {
         this.shipFailure = this.lostCause;
       }
     }
-    const pilotBusy = input.thrust !== 0 || input.strafe !== 0 || this.deps.input.firingPrimary;
+    const pilotBusy = input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || this.deps.input.firingPrimary;
     this.stationOps.update(deltaSeconds, active, this.tactical, pilotBusy);
     shipModel.group.updateMatrixWorld();
     this.hazards.update(deltaSeconds, active);
@@ -263,6 +271,7 @@ export class PlaySession {
     sound.setEngine(this.shipActive ? ship.throttle : 0, ship.boosting);
 
     this.targeting = this.shipActive ? computeTargeting(ship, this.missiles.lockedTarget, this.field.all) : null;
+    this.guidance = computeGuidance(ship, ranked, this.satellites.all);
     this.updateWarnings(realDeltaSeconds);
     this.updateCamera(realDeltaSeconds);
     // In the cockpit the hull would block the view.
@@ -293,6 +302,15 @@ export class PlaySession {
       this.deps.setCockpitFrame(view === 'cockpit');
       cameraRig.snap();
     }
+    if (input.consumePress('KeyZ') && !this.tactical) {
+      const ship = this.deps.ship;
+      ship.assist = !ship.assist;
+      hud.showMessage(
+        ship.assist ? 'Flight assist on: the ship goes where it points' : 'Flight assist off: the ship drifts, and gravity pulls it',
+        'info',
+        3,
+      );
+    }
     if (input.consumePress('KeyM')) {
       hud.showMessage(sound.toggleMute() ? 'Sound off' : 'Sound on', 'info', 1.5);
     }
@@ -304,8 +322,12 @@ export class PlaySession {
       (positive.some((code) => input.isDown(code)) ? 1 : 0) - (negative.some((code) => input.isDown(code)) ? 1 : 0);
     return {
       look: input.consumeLook(),
-      thrust: axis(['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown']),
-      strafe: axis(['KeyD', 'ArrowRight'], ['KeyA', 'ArrowLeft']),
+      pitch: axis(['ArrowUp'], ['ArrowDown']),
+      yaw: axis(['ArrowRight'], ['ArrowLeft']),
+      thrust: input.isDown('KeyW') ? 1 : 0,
+      brake: input.isDown('KeyS') ? 1 : 0,
+      strafe: axis(['KeyD'], ['KeyA']),
+      lift: axis(['KeyR'], ['KeyV']),
       roll: axis(['KeyE'], ['KeyQ']),
       boost: input.isDown('ShiftLeft') || input.isDown('ShiftRight'),
     };
@@ -333,7 +355,7 @@ export class PlaySession {
     if (this.warningTimer > 0) {
       return;
     }
-    if (this.targeting?.collision) {
+    if (this.targeting?.collision || this.guidance.satelliteAhead) {
       this.deps.sound.warningBeep(true);
       this.warningTimer = 0.22;
       return;
@@ -401,6 +423,13 @@ export class PlaySession {
       altitude: altitudeReadout(ship.position.length(), EARTH_RADIUS),
       zone: this.hazards.zone,
       sites: this.sites.sites,
+      controls: {
+        mouseCaptured: this.deps.input.pointerLocked,
+        assist: ship.assist,
+        autopilot: this.hazards.pullingUp ? 'AUTO PULL-UP' : this.hazards.returning ? 'AUTOPILOT RETURNING' : null,
+        thrusting: this.deps.input.isDown('KeyW'),
+        braking: this.deps.input.isDown('KeyS'),
+      },
     });
     const range = (this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * this.satellites.scannerBonus;
     const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
@@ -421,6 +450,13 @@ export class PlaySession {
       shipPosition: ship.position,
       sites: this.siteMarkers.visibleLabels(camera.position),
       stationMarkers: this.stationOps.markers(),
+      guidance: {
+        guidance: this.guidance,
+        satellites: this.satellites.all,
+        shipPosition: ship.position,
+        shipVelocity: ship.velocity,
+        showDrift: !ship.assist,
+      },
     });
   }
 }

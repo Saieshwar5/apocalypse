@@ -6,10 +6,10 @@ import type { Asteroid } from './asteroidField';
 
 /** Seconds of holding the reticle near an asteroid to identify it. */
 const SCAN_SECONDS = 1.6;
-const SCAN_RANGE = 230;
+const SCAN_RANGE = 110;
 const SCAN_CONE = THREE.MathUtils.degToRad(9);
 /** The Radar Station identifies anything that comes this close to the planet. */
-const RADAR_COVERAGE = 48;
+const RADAR_COVERAGE = 40;
 const RADAR_SCAN_SECONDS = 2.5;
 
 export const RATING_LABEL: Record<ThreatRating, string> = {

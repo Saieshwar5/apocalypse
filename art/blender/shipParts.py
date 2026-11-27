@@ -1,4 +1,4 @@
-"""Mesh-building helpers shared by the Apocalypse ship and launch-pad scripts.
+"""Mesh-building helpers shared by the Singularity ship and launch-pad scripts.
 
 Blender axes: +Y is the nose, +Z is up. The glTF exporter converts this to the
 game's frame (forward -Z, up +Y).

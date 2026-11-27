@@ -5,8 +5,8 @@ import { createSeededRandom } from '../logic/random';
  * Far enough to be beyond the defence zone, large enough to read as a
  * landmark. (At true scale it would be 600 units away with a radius of 2.7.)
  */
-const MOON_DISTANCE = 440;
-const MOON_RADIUS = 15;
+const MOON_DISTANCE = 1100;
+const MOON_RADIUS = 24;
 
 /** A cratered grey moon that gives the pilot a fixed reference in the sky. */
 export function createMoon(direction: THREE.Vector3): THREE.Mesh {

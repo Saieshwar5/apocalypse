@@ -285,10 +285,10 @@ export class Game {
 
   private updateMenu(deltaSeconds: number): void {
     this.menuAngle += deltaSeconds * 0.04;
-    const position = new THREE.Vector3(Math.sin(this.menuAngle) * 30, 6, Math.cos(this.menuAngle) * 30);
+    const position = new THREE.Vector3(Math.sin(this.menuAngle) * 118, 22, Math.cos(this.menuAngle) * 118);
     // Look slightly left of Earth so the planet sits right of the menu card.
     const right = new THREE.Vector3().crossVectors(position, new THREE.Vector3(0, 1, 0)).normalize();
-    const lookAt = right.multiplyScalar(7);
+    const lookAt = right.multiplyScalar(27);
     this.cameraRig.place(position, lookAt, new THREE.Vector3(0, 1, 0), deltaSeconds);
     this.earth.update(deltaSeconds);
     this.explosions.update(deltaSeconds);
