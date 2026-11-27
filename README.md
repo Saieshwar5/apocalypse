@@ -1,12 +1,16 @@
 # Singularity
 
-A realistic 3D browser game. You launch a single interceptor from Earth and
-defend the planet from waves of incoming asteroids. Small rocks dent the
-planet; giants can end it.
+A realistic 3D browser game about a working pilot in orbit. You launch a
+single interceptor from Earth and fly it, with real coasting and braking, to
+the asteroids that threaten the planet. Small rocks dent the planet; giants
+can end it.
 
-This is the first playable version. The full design (priority sites, the space
-base, the orbit with danger and safe zones, other solar systems and online
-play) is in the project's game design document and will be built in stages.
+The game is being rebuilt in stages towards the "contract pilot" design:
+jobs and money, several stations, towing and repairs, rival pilots and
+reputation. This version is stage 1, the foundation: a large planet,
+natural flight, short-range weapons, few asteroids that must be found and
+reached, and clear guidance. The earlier defence campaign still runs on top
+of it.
 
 ## Play it locally
 
@@ -27,20 +31,54 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 
 | Input | Action |
 | --- | --- |
-| Mouse | Steer (pitch and yaw) |
-| Left click or Space | Laser (overheats if held too long) |
-| F or right click | Missile at the locked target |
-| W / S | Thrust / brake |
-| A / D | Strafe |
+| Mouse or arrow keys | Steer (pitch and yaw). Click the game to capture the mouse |
+| W | Thrust. The ship keeps its speed when you let go |
+| S | Brake to a stop |
+| A / D | Slide left / right |
+| R / V | Slide up / down |
 | Q / E | Roll |
 | Shift | Boost |
+| Z | Flight assist on or off |
+| Left click or Space | Laser (short range; overheats if held too long) |
+| F or right click | Missile at the locked target |
 | Tab | Tactical map (time slows; mouse rotates the view) |
 | C | Switch between chase and cockpit camera |
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 1: the foundation
+
+- A large planet: Earth's radius is 40 world units and the ship is about 2,
+  so the planet fills the view from low orbit. Fine surface detail fades in
+  near the ground.
+- Natural flight: nothing slows the ship in space, so it coasts until you
+  brake (S). With flight assist on (the default) thrusters cancel sideways
+  drift, hold the ship against gravity and ease it back to cruise speed
+  after a boost. With it off (Z) the ship drifts freely, gravity bends its
+  path and it can coast in an orbit; a DRIFT marker shows the true direction
+  of travel.
+- Short-range weapons: the laser is at full strength within about 2,500 km
+  and gone at 7,000 km; missiles lock within about 10,000 km. You have to
+  fly to each asteroid.
+- Few asteroids, from all sides: a field is 4 to 17 rocks over one to two
+  minutes, arriving on two to four fronts plus stragglers from anywhere.
+- Guidance: a yellow PRIORITY marker picks the most urgent asteroid you can
+  still reach and shows REACH against IMPACT time with a verdict (you can
+  make it, hurry, too late). When it is out of view an arrow around the
+  reticle says which way to turn.
+- A gentler atmosphere: a low-orbit warning from 1,400 km up, mild heating
+  at the top of the atmosphere, and an automatic pull-up that brakes and
+  climbs before the ship can burn up.
+- Clear controls: a status line says whether the mouse is steering, whether
+  flight assist is on and what the engines are doing. The run starts with
+  the station dead ahead, satellites are labelled on screen, and an alarm
+  sounds when one is in your path.
+
 ## What is in this version
+
+Some figures below (ranges, counts) date from before stage 1; the list
+above is the current one where they differ.
 
 - Realistic Earth: day and night sides, city lights, clouds, ocean sun glint,
   terrain relief, an atmosphere halo with orange twilight, and a tilted,
@@ -160,16 +198,17 @@ npm run build
 
 `npm test` covers the game rules: waves, damage, scoring, threat ranking,
 wave timing, laser range, aim-ahead, blasts, shield and hull, units, priority
-sites, atmosphere zones, the scanner projection, fuel, docking and station stock. In development builds the running game is available as
+sites, atmosphere zones and the automatic pull-up, the flight model, guidance,
+the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
 
 URL options for testing: `?autostart` skips the menu and mouse capture, and
 `?skipLaunch` skips the launch sequence.
 
-Distances use 1 world unit = 637 km (Earth's radius is 10 units). Time is
-compressed 150 times, so speeds read as realistic impact speeds (about
-10 to 30 km/s) while a wave still lasts about a minute.
+Distances use 1 world unit = 159 km (Earth's radius is 40 units). Time is
+compressed 38 times, so asteroid speeds read as realistic impact speeds
+(about 6 to 35 km/s) while a field still lasts a minute or two.
 
 ## 3D models (Blender)
 
@@ -234,7 +273,8 @@ Collisions use simple sphere tests; there is no physics engine.
 ```
 src/
   logic/      Game rules with no graphics: asteroid classes, waves, damage, scoring,
-              threats, ballistics (range, aim-ahead, blasts), ship defence, units
+              threats, ballistics (range, aim-ahead, blasts), ship defence, units,
+              the flight model and guidance
   game/       Game phases, play session, campaign (orbit, upgrades), targeting, combat, screens
   launch/     Launch cinematic: pad scene, rocket effects, orbit insertion
   scene/      Renderer, Earth and its shaders, stars and sun
