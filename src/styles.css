@@ -256,7 +256,7 @@ body {
 }
 
 .hud-hint.tip {
-  bottom: 52px;
+  bottom: 66px;
   padding: 6px 12px;
   border-radius: 6px;
   background: rgba(6, 14, 24, 0.7);
@@ -424,6 +424,34 @@ body {
 .hud-message[data-tone='success'] {
   color: var(--accent);
   border-color: rgba(125, 255, 176, 0.4);
+}
+
+.control-status {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.control-status span {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(6, 14, 24, 0.7);
+  color: var(--accent);
+}
+
+.control-status span[data-state='off'] {
+  color: #ffb347;
+}
+
+.control-status span[data-state='alert'] {
+  color: #ff5a4a;
 }
 
 .hud-hint {

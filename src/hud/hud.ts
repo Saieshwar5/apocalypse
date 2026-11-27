@@ -37,11 +37,19 @@ export interface HudSnapshot {
   altitude: AltitudeReadout;
   zone: AtmosphereZone;
   sites: readonly SiteState[];
+  controls: {
+    mouseCaptured: boolean;
+    assist: boolean;
+    /** Name of the autopilot flying the ship, if any. */
+    autopilot: string | null;
+    thrusting: boolean;
+    braking: boolean;
+  };
 }
 
 const ZONE_LABEL: Record<AtmosphereZone, string> = {
   space: 'Space',
-  warning: 'Low: pull up',
+  warning: 'Low orbit',
   atmosphere: 'IN ATMOSPHERE',
   breakup: 'BREAK-UP',
 };
@@ -50,6 +58,15 @@ export type MessageTone = 'info' | 'warning' | 'danger' | 'success';
 
 const SIZE_NAME: Record<AsteroidSize, string> = { small: 'Small', medium: 'Medium', large: 'Large', giant: 'Giant' };
 const VISIBLE_THREATS = 5;
+
+function setStatus(target: HTMLElement, state: string, text: string): void {
+  if (target.dataset.state !== state) {
+    target.dataset.state = state;
+  }
+  if (target.textContent !== text) {
+    target.textContent = text;
+  }
+}
 
 function element<T extends HTMLElement>(selector: string): T {
   const found = document.querySelector<T>(selector);
@@ -84,6 +101,9 @@ export class Hud {
   private readonly atmosphereValue = element<HTMLElement>('#atmosphere-value');
   private readonly zoneValue = element<HTMLElement>('#zone-value');
   private readonly hint = element<HTMLDivElement>('#hud-hint');
+  private readonly steerStatus = element<HTMLElement>('#steer-status');
+  private readonly assistStatus = element<HTMLElement>('#assist-status');
+  private readonly motionStatus = element<HTMLElement>('#motion-status');
   private readonly damageFlash = element<HTMLDivElement>('#damage-flash');
   private readonly defaultHint = this.hint.textContent ?? '';
   private sitePanel: SitePanel | null = null;
@@ -130,6 +150,7 @@ export class Hud {
 
     this.renderThreats(snapshot);
     this.renderPosition(snapshot);
+    this.renderControls(snapshot);
     if (!this.sitePanel || this.sitePanelSites !== snapshot.sites) {
       // The site list is replaced when the star system changes.
       this.sitePanel = new SitePanel(element<HTMLOListElement>('#site-list'), snapshot.sites);
@@ -173,6 +194,19 @@ export class Hud {
       this.hint.textContent = next;
       this.hint.classList.toggle('tip', text !== null);
     }
+  }
+
+  /** Says plainly who is steering and what the engines are doing. */
+  private renderControls(snapshot: HudSnapshot): void {
+    const { controls, speed } = snapshot;
+    setStatus(
+      this.steerStatus,
+      controls.autopilot ? 'alert' : controls.mouseCaptured ? 'on' : 'off',
+      controls.autopilot ?? (controls.mouseCaptured ? 'MOUSE STEERING' : 'CLICK TO STEER WITH THE MOUSE · ARROWS ALSO STEER'),
+    );
+    setStatus(this.assistStatus, controls.assist ? 'on' : 'off', controls.assist ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF: DRIFTING');
+    const motion = controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING: S TO BRAKE';
+    setStatus(this.motionStatus, controls.braking ? 'off' : 'on', motion);
   }
 
   private renderPosition(snapshot: HudSnapshot): void {

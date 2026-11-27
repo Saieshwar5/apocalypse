@@ -7,6 +7,7 @@ import { RATING_COLOR, RATING_LABEL, ratingOf } from '../asteroids/identificatio
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { CombatFeedback } from './combatFeedback';
+import { drawGuidance, type GuidanceFrame } from './guidanceOverlay';
 import { drawReticle } from './reticle';
 import { ScreenProjector, type ScreenPoint } from './screenProjector';
 
@@ -31,6 +32,8 @@ export interface OverlayFrame {
   /** Priority sites on the side of Earth facing the camera. */
   sites: readonly SiteLabel[];
   stationMarkers: readonly { world: THREE.Vector3; name: string; ghost: boolean }[];
+  /** Priority target, satellite labels and the drift marker. */
+  guidance: GuidanceFrame;
 }
 
 const SITE_LABEL_COLOR = { intact: '#7dffb0', damaged: '#ffb347', critical: '#ff5a4a', destroyed: '#7f8c9e' } as const;
@@ -111,6 +114,7 @@ export class TargetOverlay {
     if (frame.tactical) {
       this.drawShipMarker(frame.shipPosition);
     } else {
+      drawGuidance(context, this.projector, frame.guidance, this.elapsed);
       drawReticle(context, this.projector, frame.aimPoint, frame.targeting, frame.feedback, frame.overheated, this.elapsed);
     }
   }
