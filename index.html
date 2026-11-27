@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Apocalypse: one interceptor, one planet. Defend Earth from incoming asteroids." />
+    <meta name="theme-color" content="#000000" />
+    <title>Apocalypse</title>
+  </head>
+  <body>
+    <canvas id="scene" aria-label="Game view"></canvas>
+    <canvas id="overlay" aria-hidden="true"></canvas>
+
+    <div id="cockpit-frame" hidden aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path d="M0 0 L22 0 L6 100 L0 100 Z" />
+        <path d="M100 0 L78 0 L94 100 L100 100 Z" />
+        <path d="M0 0 L100 0 L100 6 Q50 13 0 6 Z" />
+        <path d="M0 100 L0 84 Q50 74 100 84 L100 100 Z" />
+      </svg>
+    </div>
+
+    <div id="hud" hidden>
+      <section class="hud-panel hud-status" aria-label="Earth status">
+        <div class="hud-label">Earth integrity <span id="integrity-value">100%</span></div>
+        <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div>
+        <div class="hud-row"><span>Wave</span><strong id="wave-value">1</strong></div>
+        <div class="hud-row"><span>Score</span><strong id="score-value">0</strong></div>
+      </section>
+
+      <section class="hud-panel hud-threats" aria-label="Incoming asteroids">
+        <div class="hud-label">Incoming <span class="hud-label-note">most urgent first</span></div>
+        <ol id="threat-list"></ol>
+      </section>
+
+      <section class="hud-radar" aria-label="Radar">
+        <canvas id="radar"></canvas>
+        <div class="hud-caption">Radar · nose up · <span id="radar-range">150,000 km</span></div>
+      </section>
+
+      <section class="hud-panel hud-systems" aria-label="Ship systems">
+        <div class="hud-label">Laser heat</div>
+        <div class="bar"><div id="heat-bar" class="bar-fill" data-level="stable"></div></div>
+        <div class="hud-label">Boost</div>
+        <div class="bar"><div id="boost-bar" class="bar-fill boost"></div></div>
+        <div class="hud-label">Shield</div>
+        <div class="bar"><div id="shield-bar" class="bar-fill shield"></div></div>
+        <div class="hud-label">Hull</div>
+        <div class="bar"><div id="hull-bar" class="bar-fill" data-level="stable"></div></div>
+        <div class="hud-row"><span>Missiles</span><strong id="missile-value">8 / 8</strong></div>
+        <div class="hud-row"><span>Speed</span><strong id="speed-value">0</strong></div>
+      </section>
+
+      <div id="hud-message" class="hud-message" role="status" aria-live="polite"></div>
+      <div class="hud-hint">Mouse steer · Click fire · F missile · Shift boost · Tab map · C camera · M sound · Esc pause</div>
+    </div>
+
+    <div id="cinematic" hidden>
+      <div class="letterbox letterbox-top"></div>
+      <div class="letterbox letterbox-bottom"></div>
+      <p id="cinematic-caption" role="status" aria-live="polite"></p>
+      <p class="cinematic-skip">Enter to skip</p>
+    </div>
+    <div id="fade" aria-hidden="true"></div>
+
+    <div id="loading" class="screen">
+      <p class="loading-text">Loading Earth…</p>
+    </div>
+
+    <div id="menu" class="screen" hidden>
+      <div class="screen-card">
+        <p class="eyebrow">Planetary Defence Wing</p>
+        <h1>Apocalypse</h1>
+        <p class="tagline">One interceptor. One planet. Hold the line.</p>
+        <button id="start-button" type="button" disabled>Loading…</button>
+        <dl class="controls">
+          <dt>Mouse</dt><dd>Steer</dd>
+          <dt>Left click / Space</dt><dd>Laser</dd>
+          <dt>F / Right click</dt><dd>Missile at locked target</dd>
+          <dt>W / S</dt><dd>Thrust / brake</dd>
+          <dt>A / D</dt><dd>Strafe</dd>
+          <dt>Q / E</dt><dd>Roll</dd>
+          <dt>Shift</dt><dd>Boost</dd>
+          <dt>Tab</dt><dd>Tactical map (slows time)</dd>
+          <dt>C</dt><dd>Chase or cockpit camera</dd>
+          <dt>Enter</dt><dd>Skip launch</dd>
+        </dl>
+        <p class="screen-note">Small rocks dent the planet; giants can end it. Lasers hit hardest up close and fade with range; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not.</p>
+      </div>
+    </div>
+
+    <div id="pause" class="screen" hidden>
+      <div class="screen-card compact">
+        <h2>Paused</h2>
+        <p class="tagline">The asteroids are waiting.</p>
+        <button id="resume-button" type="button">Resume</button>
+      </div>
+    </div>
+
+    <div id="game-over" class="screen" hidden>
+      <div class="screen-card compact">
+        <p class="eyebrow">Earth has fallen</p>
+        <h2>Mission failed</h2>
+        <dl id="run-summary" class="summary"></dl>
+        <button id="restart-button" type="button">Launch again</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
