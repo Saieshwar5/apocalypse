@@ -1,9 +1,9 @@
 import * as THREE from 'three';
+import { cloudRadius } from '../logic/cascade';
 import { orbitState, type CircularOrbit } from '../logic/satellites';
 
-export const FRAGMENTS_PER_CLOUD = 40;
-/** Hazard radius, in world units, once the cloud has spread out. */
-const FULL_RADIUS = 1.5;
+/** Most fragments drawn for one cloud; thinner clouds draw fewer. */
+export const FRAGMENTS_PER_CLOUD = 60;
 /** The hazard is never smaller than the satellite that made it. */
 const MIN_RADIUS = 0.6;
 /** Time constant of the spread: fragments are 95% of the way out after three of these. */
@@ -12,7 +12,11 @@ const SPREAD_SECONDS = 0.9;
 const ALONG_TRACK_STRETCH = 1.5;
 
 /** Muted versions of the satellite materials: foil, bare metal, solar cell, radiator. */
-const FRAGMENT_COLORS = [0x9a7226, 0x6c6f75, 0x22386e, 0x7d7c75, 0x6c6f75];
+const SATELLITE_COLORS = [0x9a7226, 0x6c6f75, 0x22386e, 0x7d7c75, 0x6c6f75];
+/** Shattered rock: grey-brown regolith, dark iron, pale ice. */
+const ROCK_COLORS = [0x6b6158, 0x4f4a45, 0x857a6c, 0x3c3a38, 0x9aa4ad];
+
+export type DebrisKind = 'satellite' | 'rock';
 
 interface Fragment {
   /** Final offset from the cloud centre in the orbit frame (radial, along-track, cross-track). */
@@ -46,15 +50,20 @@ export function createFragmentMaterial(): THREE.MeshStandardMaterial {
 }
 
 /**
- * What is left of a destroyed satellite: a sparse cloud of tumbling
- * fragments that stays on the satellite's orbit, so the wreck comes round
- * again and again as a hazard. Drawn as one instanced mesh.
+ * Orbital debris: a cloud of tumbling fragments on one orbit, left by a
+ * destroyed satellite or a rock shattered in orbit, so it comes round again
+ * and again as a hazard. Its mass (tonnes) falls to drag and sweeping and,
+ * past the Singularity point, grows; thicker clouds are wider and show more
+ * fragments. Drawn as one instanced mesh.
  */
 export class DebrisCloud {
   /** Centre of the cloud in world space. */
   readonly position = new THREE.Vector3();
+  readonly velocity = new THREE.Vector3();
   /** Current hazard radius; grows from the wreck's size as the cloud spreads. */
   radius = MIN_RADIUS;
+  /** Tonnes of fragments. */
+  mass: number;
   readonly mesh: THREE.InstancedMesh;
   private readonly fragments: Fragment[] = [];
   private age = 0;
@@ -65,7 +74,11 @@ export class DebrisCloud {
     material: THREE.Material,
     private readonly orbit: CircularOrbit,
     rng: () => number,
+    mass: number,
+    kind: DebrisKind = 'satellite',
   ) {
+    this.mass = mass;
+    const palette = kind === 'rock' ? ROCK_COLORS : SATELLITE_COLORS;
     this.mesh = new THREE.InstancedMesh(geometry, material, FRAGMENTS_PER_CLOUD);
     this.mesh.name = 'satellite-debris';
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -73,11 +86,13 @@ export class DebrisCloud {
     this.mesh.frustumCulled = false;
     for (let index = 0; index < FRAGMENTS_PER_CLOUD; index += 1) {
       // Cube-root radius fills the volume evenly instead of crowding the centre.
-      const distance = FULL_RADIUS * Math.cbrt(0.05 + 0.95 * rng());
+      // Offsets are for a cloud of radius 1, scaled by the cloud's current size.
+      const distance = Math.cbrt(0.05 + 0.95 * rng());
       const offset = randomDirection(rng).multiplyScalar(distance);
       offset.y *= ALONG_TRACK_STRETCH;
       // A few large plates (panel sections), mostly small scraps.
-      const size = 0.035 + 0.11 * Math.pow(rng(), 2.2);
+      // Rock fragments are chunkier than torn satellite skin.
+      const size = (0.035 + 0.11 * Math.pow(rng(), 2.2)) * (kind === 'rock' ? 2.2 : 1.6);
       this.fragments.push({
         offset,
         scale: new THREE.Vector3(size * (0.6 + rng()), size * (0.3 + 2.5 * rng() * rng()), size * (0.6 + rng())),
@@ -85,7 +100,7 @@ export class DebrisCloud {
         angle: rng() * Math.PI * 2,
         spinRate: (0.4 + 2.2 * rng()) * (rng() < 0.5 ? -1 : 1),
       });
-      this.mesh.setColorAt(index, color.setHex(FRAGMENT_COLORS[Math.floor(rng() * FRAGMENT_COLORS.length)]));
+      this.mesh.setColorAt(index, color.setHex(palette[Math.floor(rng() * palette.length)]));
     }
   }
 
@@ -94,19 +109,23 @@ export class DebrisCloud {
     this.age += deltaSeconds;
     const state = orbitState(this.orbit, fleetSeconds);
     this.position.fromArray(state.position);
+    this.velocity.fromArray(state.velocity);
     radial.copy(this.position).normalize();
     along.fromArray(state.velocity).normalize();
     across.crossVectors(radial, along);
     // Fast at first, then settling: fragments fly apart and then just drift.
     const spread = 1 - Math.exp(-this.age / SPREAD_SECONDS);
-    this.radius = MIN_RADIUS + (FULL_RADIUS - MIN_RADIUS) * spread;
+    const full = cloudRadius(this.mass);
+    this.radius = MIN_RADIUS + (full - MIN_RADIUS) * spread;
+    const extent = this.radius;
+    this.mesh.count = Math.max(6, Math.min(FRAGMENTS_PER_CLOUD, Math.round(this.mass * 4)));
     this.fragments.forEach((fragment, index) => {
       fragment.angle += fragment.spinRate * deltaSeconds;
       place
         .copy(this.position)
-        .addScaledVector(radial, fragment.offset.x * spread)
-        .addScaledVector(along, fragment.offset.y * spread)
-        .addScaledVector(across, fragment.offset.z * spread);
+        .addScaledVector(radial, fragment.offset.x * extent)
+        .addScaledVector(along, fragment.offset.y * extent)
+        .addScaledVector(across, fragment.offset.z * extent);
       rotation.setFromAxisAngle(fragment.axis, fragment.angle);
       matrix.compose(place, rotation, fragment.scale);
       this.mesh.setMatrixAt(index, matrix);

@@ -10,7 +10,8 @@ import {
 import { orientationFromForward } from '../math/orientation';
 import { requireNode } from '../scene/modelLibrary';
 import { SHIP_SCALE } from '../ship/shipModel';
-import { DebrisCloud, createFragmentGeometry, createFragmentMaterial } from './debrisCloud';
+import { DebrisField } from './debrisField';
+import { CASCADE, orbitThrough } from '../logic/cascade';
 
 /** A working (or lost) satellite, as the rest of the game sees it. */
 export interface Satellite {
@@ -113,10 +114,9 @@ export class SatelliteFleet {
   readonly group = new THREE.Group();
   private readonly prototypes: Record<SatelliteKind, THREE.Object3D>;
   private readonly sunDirection: THREE.Vector3;
-  private readonly fragmentGeometry = createFragmentGeometry();
-  private readonly fragmentMaterial = createFragmentMaterial();
   private live: LiveSatellite[] = [];
-  private clouds: DebrisCloud[] = [];
+  /** Debris from destroyed satellites and shattered rocks. */
+  readonly debris: DebrisField;
   /** Seconds since the last reset; every orbit is a function of this clock. */
   private elapsed = 0;
 
@@ -130,6 +130,8 @@ export class SatelliteFleet {
     options: SatelliteFleetOptions = {},
   ) {
     this.group.name = 'satellites';
+    this.debris = new DebrisField(rng);
+    this.group.add(this.debris.group);
     this.sunDirection = (options.sunDirection ?? DEFAULT_SUN_DIRECTION).clone().normalize();
     this.prototypes = {
       comms: createPrototype(source, 'comms'),
@@ -144,9 +146,14 @@ export class SatelliteFleet {
     return this.live;
   }
 
-  /** Debris clouds from satellites destroyed this run. */
+  /** Every debris cloud in orbit: wrecks and shattered rocks. */
   get debrisClouds(): readonly DebrisHazard[] {
-    return this.clouds;
+    return this.debris.clouds;
+  }
+
+  /** The clock every orbit (satellites and debris) is evaluated at. */
+  get clock(): number {
+    return this.elapsed;
   }
 
   /** Satellites doing their job: alive, not broken and in orbit. */
@@ -220,10 +227,7 @@ export class SatelliteFleet {
       // there is nothing of their own to free: detaching is enough.
       satellite.object.removeFromParent();
     }
-    for (const cloud of this.clouds) {
-      cloud.dispose();
-    }
-    this.clouds = [];
+    this.debris.reset();
     this.elapsed = 0;
     this.live = planFleet(this.rng).map((plan, index) => this.launch(plan, index + 1));
     this.update(0);
@@ -253,9 +257,7 @@ export class SatelliteFleet {
         this.easeBack(satellite, deltaSeconds);
       }
     }
-    for (const cloud of this.clouds) {
-      cloud.update(this.elapsed, deltaSeconds);
-    }
+    this.debris.update(this.elapsed, deltaSeconds);
   }
 
   /**
@@ -269,10 +271,9 @@ export class SatelliteFleet {
       target.alive = false;
       target.holder = null;
       target.object.removeFromParent();
-      const cloud = new DebrisCloud(this.fragmentGeometry, this.fragmentMaterial, target.orbit, this.rng);
-      cloud.update(this.elapsed, 0);
-      this.clouds.push(cloud);
-      this.group.add(cloud.mesh);
+      // A satellite off its orbit (on a tow line, say) scatters onto the orbit through where it broke.
+      const orbit = target.mode === 'orbit' ? target.orbit : this.orbitAt(target.position, target.velocity);
+      this.debris.add(orbit, CASCADE.satelliteWreck, 'satellite', this.elapsed);
     }
     return satellite.position.clone();
   }
@@ -321,13 +322,8 @@ export class SatelliteFleet {
     for (const satellite of this.live) {
       satellite.object.removeFromParent();
     }
-    for (const cloud of this.clouds) {
-      cloud.dispose();
-    }
+    this.debris.dispose();
     this.live = [];
-    this.clouds = [];
-    this.fragmentGeometry.dispose();
-    this.fragmentMaterial.dispose();
   }
 
   private launch(plan: SatellitePlan, id: number): LiveSatellite {
@@ -358,6 +354,12 @@ export class SatelliteFleet {
       object,
       wings: model.children.filter((child) => child.name.startsWith('Wing_')),
     };
+  }
+
+  /** The circular orbit through a point, timed so a body on it is there now. */
+  orbitAt(position: THREE.Vector3, velocity: THREE.Vector3): CircularOrbit {
+    const orbit = orbitThrough(position.toArray(), velocity.toArray());
+    return { ...orbit, phase: orbit.phase - (2 * Math.PI * this.elapsed) / orbit.period };
   }
 
   private find(satellite: Satellite): LiveSatellite {

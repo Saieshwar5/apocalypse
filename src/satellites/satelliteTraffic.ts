@@ -6,7 +6,6 @@ import type { CombatResolver } from '../game/combatResolver';
 import type { GameSession } from '../game/gameSession';
 import type { Hud } from '../hud/hud';
 import {
-  DEBRIS_DAMAGE_PER_SECOND,
   SATELLITE_COLLISION_DAMAGE,
   SATELLITE_LOSS_PENALTY,
   scannerRangeBonus,
@@ -40,7 +39,6 @@ export interface SatelliteTrafficDependencies {
  */
 export class SatelliteTraffic {
   readonly fleet: SatelliteFleet;
-  private debrisWarned = false;
   private readonly world = new THREE.Vector3();
 
   constructor(private readonly deps: SatelliteTrafficDependencies) {
@@ -65,14 +63,13 @@ export class SatelliteTraffic {
 
   reset(): void {
     this.fleet.reset();
-    this.debrisWarned = false;
   }
 
   /** A satellite the ship cannot collide with: the one on its tow line. */
   shipIgnores: Satellite | null = null;
 
   update(deltaSeconds: number, shipActive: boolean): void {
-    const { ship, field, combat, hud, session } = this.deps;
+    const { ship, field, combat, session } = this.deps;
     this.fleet.update(deltaSeconds);
 
     if (shipActive) {
@@ -82,14 +79,6 @@ export class SatelliteTraffic {
         ship.velocity.addScaledVector(ship.position.clone().sub(point).normalize(), 6);
         combat.applyEnvironmentDamage(SATELLITE_COLLISION_DAMAGE, 'The interceptor was destroyed in a collision with a satellite');
       }
-      const inDebris = this.fleet.debrisClouds.some((cloud) => cloud.position.distanceTo(ship.position) < cloud.radius + SHIP_RADIUS);
-      if (inDebris) {
-        combat.applyEnvironmentDamage(DEBRIS_DAMAGE_PER_SECOND * deltaSeconds, 'The interceptor was shredded by orbital debris');
-        if (!this.debrisWarned) {
-          hud.showMessage('Debris field: get clear', 'danger', 2.5);
-        }
-      }
-      this.debrisWarned = inDebris;
     }
 
     for (const asteroid of field.all) {
@@ -121,7 +110,8 @@ export class SatelliteTraffic {
     }
   }
 
-  private lose(satellite: Satellite, message: string): THREE.Vector3 {
+  /** Destroys a satellite with an explosion and a message; its wreck becomes debris. */
+  lose(satellite: Satellite, message: string): THREE.Vector3 {
     const { explosions, sound, hud } = this.deps;
     const point = this.fleet.destroy(satellite);
     explosions.spawnExplosion(point, 0.8, 'fire', satellite.velocity);
