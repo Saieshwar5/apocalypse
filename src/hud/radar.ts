@@ -60,6 +60,7 @@ export class Radar {
     planetRadius: number,
     range = SCANNER_RANGE,
     station: THREE.Vector3 | null = null,
+    blind = false,
   ): void {
     const context = this.context;
     const centreX = this.width / 2;
@@ -93,6 +94,22 @@ export class Radar {
     context.clearRect(0, 0, this.width, this.height);
     context.save();
     context.translate(centreX, centreY);
+    if (blind) {
+      // Solar flare: no contacts, only static.
+      this.drawDisc(context, radius);
+      context.fillStyle = 'rgba(255, 200, 120, 0.5)';
+      for (let index = 0; index < 60; index += 1) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.sqrt(Math.random()) * radius;
+        context.fillRect(Math.cos(angle) * distance, Math.sin(angle) * distance * SCANNER_TILT, 2, 1);
+      }
+      context.fillStyle = '#ffb347';
+      context.font = '700 12px ui-monospace, SFMono-Regular, Menlo, monospace';
+      context.textAlign = 'center';
+      context.fillText('NO SIGNAL', 0, -radius * SCANNER_TILT - 12);
+      context.restore();
+      return;
+    }
     // Things below the disc are drawn first so the disc overlaps them.
     if (!earth.above) {
       this.drawEarth(context, earth, earthSize);

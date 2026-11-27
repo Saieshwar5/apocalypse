@@ -234,6 +234,8 @@ export class PlaySession {
     this.scorches.update(deltaSeconds);
     this.feedback.update(deltaSeconds);
     this.visuals.update(deltaSeconds, ranked);
+    // A solar flare takes the path predictions away along with the scanner.
+    this.visuals.group.visible = !this.campaign.scannerBlind;
     this.dust.update(ship.position, ship.velocity);
     this.dust.lines.visible = !this.tactical;
     this.shield.update(deltaSeconds, ship.shield / ship.shieldCapacity);
@@ -384,7 +386,7 @@ export class PlaySession {
     });
     const range = this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2;
     const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
-    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null);
+    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null, this.campaign.scannerBlind);
     if (!showTargets || !this.shipActive || !this.targeting || this.stationOps.holdingShip) {
       overlay.clear();
       return;

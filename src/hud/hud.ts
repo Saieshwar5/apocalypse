@@ -188,7 +188,13 @@ export class Hud {
     }
   }
 
+  /** Called for urgent messages so mission control can read them aloud. */
+  onUrgent: ((text: string) => void) | null = null;
+
   showMessage(text: string, tone: MessageTone = 'info', seconds = 3): void {
+    if (tone === 'danger') {
+      this.onUrgent?.(text);
+    }
     this.message.textContent = text;
     this.message.dataset.tone = tone;
     this.message.classList.add('visible');

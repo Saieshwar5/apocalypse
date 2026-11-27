@@ -57,6 +57,9 @@ export class Campaign {
   private seconds = 0;
   /** Seconds until each harmless passer-by of the current field appears. */
   private passerByDelays: number[] = [];
+  /** Seconds until a solar flare starts in this field; Infinity when none is due. */
+  private flareIn = Infinity;
+  private flareRemaining = 0;
 
   constructor(private readonly deps: CampaignDependencies) {
     this.director = new WaveDirector(deps.rng);
@@ -71,6 +74,11 @@ export class Campaign {
     this.workshop = new WorkshopPanel(find('#workshop'), find('#workshop-credits'), find<HTMLOListElement>('#workshop-list'));
   }
 
+  /** True while a solar flare is blinding the scanner and path predictions. */
+  get scannerBlind(): boolean {
+    return this.flareRemaining > 0;
+  }
+
   get credits(): number {
     return this.deps.session.score - this.deps.session.spent;
   }
@@ -83,6 +91,8 @@ export class Campaign {
     this.orbitComplete = false;
     this.seconds = 0;
     this.passerByDelays = [];
+    this.flareIn = Infinity;
+    this.flareRemaining = 0;
     this.applyLoadout();
   }
 
@@ -91,6 +101,8 @@ export class Campaign {
     this.seconds += deltaSeconds;
     this.handleEvents(this.director.update(deltaSeconds, this.deps.field.threatCount));
     this.releasePassersBy(deltaSeconds);
+    this.updateFlare(deltaSeconds);
+    this.updateTension();
 
     const docked = stationOps.docking.state === 'docked';
     if (docked) {
@@ -151,6 +163,8 @@ export class Campaign {
         }
         const passersBy = Math.max(1, Math.round(plan.spawns.length * PASSER_BY_RATIO));
         this.passerByDelays = Array.from({ length: passersBy }, () => this.deps.rng() * plan.durationSeconds);
+        // Dense fields sometimes bring a solar flare that blinds the scanner for a while.
+        this.flareIn = event.sector.kind === 'dense' && this.deps.rng() < 0.6 ? 12 + this.deps.rng() * 25 : Infinity;
         if (plan.hasGiant) {
           hud.showMessage('Giant asteroid detected. Intercept it far out, or push it off course with missiles', 'danger', 6);
           sound.alarm();
@@ -174,6 +188,38 @@ export class Campaign {
         this.orbitComplete = true;
       }
     }
+  }
+
+  private updateFlare(deltaSeconds: number): void {
+    const { hud, sound } = this.deps;
+    if (this.flareRemaining > 0) {
+      this.flareRemaining -= deltaSeconds;
+      if (this.flareRemaining <= 0) {
+        hud.showMessage('Solar flare has passed. Scanner back online', 'success', 3);
+      }
+      return;
+    }
+    const before = this.flareIn;
+    this.flareIn -= deltaSeconds;
+    if (before > 5 && this.flareIn <= 5) {
+      hud.showMessage('Solar flare in 5 seconds. The scanner will go dark: note your targets', 'danger', 4.5);
+      sound.alarm();
+    } else if (this.flareIn <= 0) {
+      this.flareIn = Infinity;
+      this.flareRemaining = 8;
+      hud.showMessage('Solar flare: scanner and path predictions offline', 'warning', 4);
+    }
+  }
+
+  /** Music follows the most pressing identified danger. */
+  private updateTension(): void {
+    let tension = this.director.phase === 'field' ? 0.25 : 0;
+    for (const asteroid of this.deps.field.all) {
+      if (asteroid.timeToImpact !== null && asteroid.assessedDamage > 0) {
+        tension = Math.max(tension, Math.min(1, asteroid.assessedDamage / 16) * Math.max(0, 1 - asteroid.timeToImpact / 60));
+      }
+    }
+    this.deps.sound.setTension(tension);
   }
 
   /** Traffic that never threatens the planet, so the sky is not only incoming fire. */

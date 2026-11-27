@@ -18,6 +18,7 @@ import { Earth, loadEarthTextures, type EarthTextures } from '../scene/earth';
 import { generatePlanetTextures } from '../scene/proceduralPlanet';
 import { loadModels } from '../scene/modelLibrary';
 import { RenderPipeline } from '../scene/renderPipeline';
+import { createMoon } from '../scene/moon';
 import { createStarfield, createSun } from '../scene/spaceBackdrop';
 import { createShipModel, type ShipModel } from '../ship/shipModel';
 import { ShipController } from '../ship/shipController';
@@ -78,6 +79,7 @@ export class Game {
     this.pipeline = new RenderPipeline(canvas, this.scene, this.camera);
     this.input = new InputState(canvas);
     this.overlay = new TargetOverlay(overlayCanvas);
+    this.hud.onUrgent = (text) => this.sound.announce(text);
     this.radar = new Radar(radarCanvas);
     this.screens = new GameScreens({
       onStart: () => this.startRun(0),
@@ -118,6 +120,7 @@ export class Game {
       // Earth-shine: soft blue light from below, reflected off the planet.
       new THREE.HemisphereLight(0x1a2233, 0x2f5f9e, 0.9),
       this.earth.group,
+      createMoon(new THREE.Vector3(-0.55, 0.2, 0.8)),
       this.shipModel.group,
       this.explosions.group,
     );

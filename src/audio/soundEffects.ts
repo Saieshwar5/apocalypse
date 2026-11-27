@@ -1,3 +1,6 @@
+import { AmbientMusic } from './ambientMusic';
+import { RadioVoice } from './radioVoice';
+
 /**
  * Sound effects synthesised with the Web Audio API, so the prototype needs no
  * audio files. Recorded sounds and radio voice lines can replace these later
@@ -12,6 +15,8 @@ export class SoundEffects {
   private engineFilter: BiquadFilterNode | null = null;
   private atmosphereGain: GainNode | null = null;
   private muted = false;
+  private music: AmbientMusic | null = null;
+  private readonly voice = new RadioVoice();
 
   /** Call from a click or key handler. Safe to call more than once. */
   unlock(): void {
@@ -29,10 +34,25 @@ export class SoundEffects {
     this.master.connect(this.context.destination);
     this.noise = this.createNoiseBuffer(this.context);
     this.startEngine(this.context, this.master);
+    this.music = new AmbientMusic(this.context, this.master);
+  }
+
+  /** Background score intensity, 0 (calm) to 1 (severe threat close). */
+  setTension(level: number): void {
+    this.music?.setTension(level);
+  }
+
+  /** Mission control reads an urgent message aloud. */
+  announce(text: string): void {
+    this.voice.speak(text);
   }
 
   toggleMute(): boolean {
     this.muted = !this.muted;
+    this.voice.enabled = !this.muted;
+    if (this.muted) {
+      this.voice.stop();
+    }
     if (this.master && this.context) {
       this.master.gain.setTargetAtTime(this.muted ? 0 : 0.55, this.context.currentTime, 0.05);
     }
