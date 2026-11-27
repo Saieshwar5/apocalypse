@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { altitudeReadout, atmosphereZone, entryDamagePerSecond, entryHeat } from './atmosphere';
+import { altitudeReadout, atmosphereZone, entryDamagePerSecond, entryHeat,
+  needsPullUp,
+  pullUpComplete,
+} from './atmosphere';
 import { repairedHealth, siteCondition, siteDamage, siteTargetingChance, SITE_DEFINITIONS } from './prioritySites';
 import { projectToScanner, SCANNER_TILT } from './scannerProjection';
 import { rankThreats } from './threats';
@@ -52,24 +55,46 @@ describe('priority sites', () => {
 
 describe('atmosphere', () => {
   it('classifies altitude into zones', () => {
-    expect(atmosphereZone(5)).toBe('space');
-    expect(atmosphereZone(1.2)).toBe('warning');
-    expect(atmosphereZone(0.4)).toBe('atmosphere');
-    expect(atmosphereZone(0.1)).toBe('breakup');
+    expect(atmosphereZone(20)).toBe('space');
+    expect(atmosphereZone(5)).toBe('warning');
+    expect(atmosphereZone(1.5)).toBe('atmosphere');
+    expect(atmosphereZone(0.3)).toBe('breakup');
   });
 
   it('heats the ship more the deeper it goes', () => {
-    expect(entryDamagePerSecond(2)).toBe(0);
-    expect(entryHeat(0.6)).toBe(0);
-    expect(entryDamagePerSecond(0.6)).toBe(8);
-    expect(entryDamagePerSecond(0.4)).toBeCloseTo(38);
-    expect(entryHeat(0.1)).toBe(1);
+    expect(entryDamagePerSecond(12)).toBe(0);
+    expect(entryHeat(2.4)).toBe(0);
+    expect(entryDamagePerSecond(2.4)).toBe(3);
+    expect(entryDamagePerSecond(1.45)).toBeCloseTo(18);
+    expect(entryHeat(0.3)).toBe(1);
+  });
+
+  it('gives a shielded ship many seconds at the edge before it is in danger', () => {
+    // Shield 100 plus hull 100: more than a minute at the very top.
+    expect(200 / entryDamagePerSecond(2.4)).toBeGreaterThan(60);
+    expect(200 / entryDamagePerSecond(0.6)).toBeGreaterThan(5);
+  });
+
+  it('pulls up automatically when deep in the atmosphere or falling too fast to stop', () => {
+    expect(needsPullUp(1.2, 0)).toBe(true);
+    // The ship may skim the top of the atmosphere by its own choice.
+    expect(needsPullUp(2, 0)).toBe(false);
+    expect(needsPullUp(8, 0)).toBe(false);
+    // Sinking at 10 units a second from 8 up: 0.56 s from the top.
+    expect(needsPullUp(8, 10)).toBe(true);
+    expect(needsPullUp(8, 2)).toBe(false);
+    expect(needsPullUp(8, -10)).toBe(false);
+    expect(pullUpComplete(4, -5)).toBe(false);
+    expect(pullUpComplete(6, 3)).toBe(false);
+    expect(pullUpComplete(6, -3)).toBe(true);
   });
 
   it('reports distance from the centre, the surface and the atmosphere', () => {
-    const readout = altitudeReadout(17, 10);
-    expect(readout).toEqual({ fromCentre: 17, aboveSurface: 7, aboveAtmosphere: 6.4 });
-    expect(altitudeReadout(10.3, 10).aboveAtmosphere).toBeLessThan(0);
+    const readout = altitudeReadout(57, 40);
+    expect(readout.fromCentre).toBe(57);
+    expect(readout.aboveSurface).toBe(17);
+    expect(readout.aboveAtmosphere).toBeCloseTo(14.6);
+    expect(altitudeReadout(41, 40).aboveAtmosphere).toBeLessThan(0);
   });
 });
 

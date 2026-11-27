@@ -6,37 +6,52 @@ import {
   type DamageResult,
   type DefenseState,
 } from '../logic/shipDefense';
+import { stepVelocity } from '../logic/flightModel';
 import { FUEL_CAPACITY, fuelBurned, thrustScale } from '../logic/stationSupply';
 import { damping } from '../math/orientation';
 
 export interface FlightInput {
   /** Mouse movement in pixels since the last frame. */
   look: { x: number; y: number };
-  /** -1 (reverse) to 1 (forward). */
+  /** Keyboard steering, each -1 to 1: positive pitch lifts the nose, positive yaw turns right. */
+  pitch: number;
+  yaw: number;
+  /** 0 to 1: main engine. */
   thrust: number;
+  /** 0 to 1: retro thrusters. */
+  brake: number;
   /** -1 (left) to 1 (right). */
   strafe: number;
+  /** -1 (down) to 1 (up). */
+  lift: number;
   /** -1 (roll left) to 1 (roll right). */
   roll: number;
   boost: boolean;
 }
 
-export const IDLE_INPUT: FlightInput = { look: { x: 0, y: 0 }, thrust: 0, strafe: 0, roll: 0, boost: false };
+export const IDLE_INPUT: FlightInput = {
+  look: { x: 0, y: 0 },
+  pitch: 0,
+  yaw: 0,
+  thrust: 0,
+  brake: 0,
+  strafe: 0,
+  lift: 0,
+  roll: 0,
+  boost: false,
+};
 
 const LOOK_SENSITIVITY = 0.0022;
 const MAX_TURN_RATE = 2.6;
 const ROLL_RATE = 2.0;
-const THRUST = 16;
-const STRAFE_THRUST = 9;
-const BOOST_MULTIPLIER = 2.6;
-/** Arcade drag so the ship settles instead of drifting forever. */
-const DRAG = 0.55;
+/** Turn rate from the steering keys, radians per second. */
+const KEY_TURN_RATE = 1.5;
 const BOOST_DRAIN = 28;
 const BOOST_RECHARGE = 11;
 
 /**
- * Moves the interceptor: mouse steers pitch and yaw, keys thrust, strafe and
- * roll. Owns the ship's velocity, boost energy and hull; the caller owns the
+ * Moves the interceptor: the mouse or the arrow keys steer, keys thrust,
+ * brake, slide and roll. The rules of motion are in logic/flightModel. Owns the ship's velocity, boost energy and hull; the caller owns the
  * scene object passed in.
  */
 export class ShipController {
@@ -51,6 +66,10 @@ export class ShipController {
   /** Mouse steering multiplier from the settings. */
   lookSensitivity = 1;
   defense: DefenseState = createDefenseState();
+  /** Flight assist: cancels drift and gravity. Off gives pure physics. */
+  assist = true;
+  /** Set while an autopilot flies, which always uses the assist. */
+  assistOverride = false;
   /** 0..1 engine output, used for exhaust visuals and sound. */
   throttle = 0;
   boosting = false;
@@ -90,7 +109,6 @@ export class ShipController {
     this.defense = rechargeShield(this.defense, deltaSeconds, this.shieldCapacity);
     this.updateRotation(deltaSeconds, input);
     this.updateThrust(deltaSeconds, input);
-    this.velocity.multiplyScalar(Math.exp(-DRAG * deltaSeconds));
     this.object.position.addScaledVector(this.velocity, deltaSeconds);
   }
 
@@ -124,8 +142,10 @@ export class ShipController {
 
   private updateRotation(deltaSeconds: number, input: FlightInput): void {
     const safeDelta = Math.max(deltaSeconds, 1 / 240);
-    const targetPitch = THREE.MathUtils.clamp((-input.look.y * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
-    const targetYaw = THREE.MathUtils.clamp((-input.look.x * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
+    const mousePitch = (-input.look.y * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta;
+    const mouseYaw = (-input.look.x * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta;
+    const targetPitch = THREE.MathUtils.clamp(mousePitch + input.pitch * KEY_TURN_RATE, -MAX_TURN_RATE, MAX_TURN_RATE);
+    const targetYaw = THREE.MathUtils.clamp(mouseYaw - input.yaw * KEY_TURN_RATE, -MAX_TURN_RATE, MAX_TURN_RATE);
     const targetRoll = -input.roll * ROLL_RATE;
     this.angularVelocity.lerp(this.scratch.set(targetPitch, targetYaw, targetRoll), damping(14, deltaSeconds));
 
@@ -144,18 +164,31 @@ export class ShipController {
     const wantsBoost = input.boost && input.thrust > 0 && this.boostEnergy > 1 && this.fuel > 0;
     // An empty tank leaves weak reserve thrust, so the ship can still limp home.
     const power = thrustScale(this.fuel) * this.thrustMultiplier;
-    this.fuel = Math.max(0, this.fuel - fuelBurned(input.thrust, input.strafe, wantsBoost, deltaSeconds));
+    const mainEngines = Math.max(input.thrust, input.brake);
+    const sideEngines = Math.min(1, Math.abs(input.strafe) + Math.abs(input.lift));
+    this.fuel = Math.max(0, this.fuel - fuelBurned(mainEngines, sideEngines, wantsBoost, deltaSeconds));
     this.boosting = wantsBoost;
     this.boostEnergy = wantsBoost
       ? Math.max(0, this.boostEnergy - BOOST_DRAIN * deltaSeconds)
       : Math.min(100, this.boostEnergy + BOOST_RECHARGE * deltaSeconds);
 
-    const forwardThrust = input.thrust * THRUST * power * (wantsBoost ? BOOST_MULTIPLIER : 1);
     const quaternion = this.object.quaternion;
-    this.velocity.addScaledVector(this.scratch.set(0, 0, -1).applyQuaternion(quaternion), forwardThrust * deltaSeconds);
-    this.velocity.addScaledVector(this.scratch.set(1, 0, 0).applyQuaternion(quaternion), input.strafe * STRAFE_THRUST * power * deltaSeconds);
+    const next = stepVelocity(
+      {
+        velocity: this.velocity.toArray(),
+        forward: this.scratch.set(0, 0, -1).applyQuaternion(quaternion).toArray(),
+        right: this.scratch.set(1, 0, 0).applyQuaternion(quaternion).toArray(),
+        up: this.scratch.set(0, 1, 0).applyQuaternion(quaternion).toArray(),
+        position: this.object.position.toArray(),
+        assist: this.assist || this.assistOverride,
+        power,
+      },
+      { thrust: input.thrust, brake: input.brake, strafe: input.strafe, lift: input.lift, boost: wantsBoost },
+      deltaSeconds,
+    );
+    this.velocity.fromArray(next);
 
-    const targetThrottle = Math.max(0, input.thrust) * (wantsBoost ? 1 : 0.75) + 0.1;
+    const targetThrottle = Math.max(input.thrust * (wantsBoost ? 1 : 0.75), input.brake * 0.4) + 0.1;
     this.throttle = THREE.MathUtils.lerp(this.throttle, targetThrottle, damping(6, deltaSeconds));
   }
 }

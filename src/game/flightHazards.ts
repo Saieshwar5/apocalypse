@@ -8,6 +8,8 @@ import {
   atmosphereZone,
   entryDamagePerSecond,
   entryHeat,
+  needsPullUp,
+  pullUpComplete,
   type AtmosphereZone,
 } from '../logic/atmosphere';
 import { damping, orientationFromForward } from '../math/orientation';
@@ -35,6 +37,8 @@ export class FlightHazards {
   zone: AtmosphereZone = 'space';
   /** True while the autopilot is flying the ship back towards Earth. */
   returning = false;
+  /** True while the automatic pull-up is climbing out of the atmosphere. */
+  pullingUp = false;
   private readonly glow: THREE.Sprite;
   private readonly streak: THREE.Mesh;
   private beepTimer = 0;
@@ -78,15 +82,36 @@ export class FlightHazards {
     this.zone = 'space';
     this.lastZone = 'space';
     this.returning = false;
+    this.pullingUp = false;
     this.warnedFar = false;
     this.group.visible = false;
     this.deps.sound.setAtmosphere(0);
   }
 
-  /** Replaces the pilot's input while the autopilot is returning the ship. */
+  /** Replaces the pilot's input while an autopilot is flying the ship. */
   filterInput(input: FlightInput, deltaSeconds: number): FlightInput {
     const { ship, hud } = this.deps;
     const distance = ship.position.length();
+    const altitude = distance - EARTH_RADIUS;
+    const sinkRate = -ship.velocity.dot(ship.position) / Math.max(distance, 1e-6);
+
+    if (!this.pullingUp && needsPullUp(altitude, sinkRate)) {
+      this.pullingUp = true;
+      hud.showMessage('Too low. Automatic pull-up has the ship', 'danger', 3);
+    } else if (this.pullingUp && pullUpComplete(altitude, sinkRate)) {
+      this.pullingUp = false;
+      hud.showMessage('Clear of the atmosphere. You have the controls', 'success', 3);
+    }
+    if (this.pullingUp) {
+      // Climb at an angle, keeping the direction of travel, so the ship skims out.
+      const outward = ship.position.clone().normalize();
+      const along = ship.forward().addScaledVector(outward, -ship.forward().dot(outward));
+      const climb = outward.multiplyScalar(1.4).add(along.lengthSq() > 1e-6 ? along.normalize() : along).normalize();
+      ship.object.quaternion.slerp(orientationFromForward(climb, ship.up()), damping(3.5, deltaSeconds));
+      // Retro thrusters stop the fall first; the main engine then climbs away.
+      return { ...IDLE_INPUT, thrust: sinkRate > 0 ? 0 : 1, brake: sinkRate > 0 ? 1 : 0 };
+    }
+
     if (!this.returning && distance > DEFENCE_ZONE.limit) {
       this.returning = true;
       hud.showMessage('Outside the defence zone. Autopilot returning', 'danger', 4);
@@ -107,6 +132,11 @@ export class FlightHazards {
     return { ...IDLE_INPUT, thrust: 1, boost: true };
   }
 
+  /** True while either autopilot has the controls. */
+  get autopilot(): boolean {
+    return this.returning || this.pullingUp;
+  }
+
   update(deltaSeconds: number, active: boolean): void {
     const { ship, combat, sound, hud, cameraRig } = this.deps;
     const altitude = ship.position.length() - EARTH_RADIUS;
@@ -115,9 +145,9 @@ export class FlightHazards {
 
     if (this.zone !== this.lastZone) {
       if (this.zone === 'warning' && this.lastZone === 'space') {
-        hud.showMessage('Atmosphere ahead. Pull up', 'warning', 3);
+        hud.showMessage('Atmosphere below. Keep your nose up', 'warning', 3);
       } else if (this.zone === 'atmosphere') {
-        hud.showMessage('Entering the atmosphere. Hull heating: pull up now', 'danger', 4);
+        hud.showMessage('In the atmosphere: the hull is heating', 'danger', 4);
       }
       this.lastZone = this.zone;
     }
@@ -143,7 +173,7 @@ export class FlightHazards {
       return;
     }
     this.deps.sound.warningBeep(this.zone !== 'warning');
-    this.beepTimer = this.zone === 'warning' ? 0.7 : 0.25;
+    this.beepTimer = this.zone === 'warning' ? 1.4 : 0.3;
   }
 
   private updateGlow(heat: number): void {
