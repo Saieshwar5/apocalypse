@@ -17,6 +17,8 @@ export interface ShipModel {
   gunPorts: [THREE.Vector3, THREE.Vector3];
   /** Local position of the pilot's eye, for the cockpit camera. */
   cockpit: THREE.Vector3;
+  /** The hull's extent in the ship's own frame, for placing thrusters. */
+  bounds: THREE.Box3;
   setThrottle(level: number, boosting: boolean): void;
   /** Leans the hull into a turn; purely visual, so aiming is unaffected. */
   setBank(yawRate: number, deltaSeconds: number): void;
@@ -25,7 +27,11 @@ export interface ShipModel {
 
 interface Engine {
   plume: THREE.Mesh;
+  /** Short, white-hot inner flame. */
+  core: THREE.Mesh;
   glow: THREE.Sprite;
+  /** Bright knots in the exhaust (shock diamonds), only on main engines under boost. */
+  diamonds: THREE.Sprite[];
   baseRadius: number;
 }
 
@@ -50,6 +56,7 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint
   group.add(model);
   group.updateMatrixWorld(true);
 
+  const bounds = new THREE.Box3().setFromObject(model);
   const local = (name: string) => group.worldToLocal(requireNode(model, name).getWorldPosition(new THREE.Vector3()));
   const engineGlow = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 0.55, 1.1) });
   const navLights: THREE.MeshStandardMaterial[] = [];
@@ -108,11 +115,41 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint
         depthWrite: false,
       }),
     );
+    const coreGeometry = new THREE.ConeGeometry(baseRadius * 0.55, 1, 12, 1, true);
+    coreGeometry.translate(0, 0.5, 0);
+    coreGeometry.rotateX(Math.PI / 2);
+    const core = new THREE.Mesh(
+      coreGeometry,
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(2.2, 2.1, 2.4),
+        map: plumeTexture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    const diamonds = name.includes('main')
+      ? [0.18, 0.34, 0.5].map(() => {
+          const diamond = new THREE.Sprite(
+            new THREE.SpriteMaterial({
+              map: getGlowTexture(),
+              color: new THREE.Color(1.4, 1.6, 2.4),
+              transparent: true,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            }),
+          );
+          diamond.visible = false;
+          return diamond;
+        })
+      : [];
     const position = local(name);
     plume.position.copy(position);
+    core.position.copy(position);
     glow.position.copy(position);
-    group.add(plume, glow);
-    return { plume, glow, baseRadius };
+    group.add(plume, core, glow, ...diamonds);
+    return { plume, core, glow, diamonds, baseRadius };
   });
 
   let throttle = 0;
@@ -121,6 +158,7 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint
     group,
     gunPorts: [local('gun_L'), local('gun_R')],
     cockpit: local('cockpit'),
+    bounds,
     setBank(yawRate, deltaSeconds) {
       const target = THREE.MathUtils.clamp(yawRate * 0.28, -0.55, 0.55);
       model.rotation.z += (target - model.rotation.z) * (1 - Math.exp(-6 * deltaSeconds));
@@ -135,6 +173,15 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint
       for (const engine of engines) {
         engine.plume.scale.set(1, 1, length);
         (engine.plume.material as THREE.MeshBasicMaterial).opacity = 0.2 + throttle * 0.35;
+        engine.core.scale.set(1, 1, length * 0.35);
+        (engine.core.material as THREE.MeshBasicMaterial).opacity = 0.15 + throttle * 0.6;
+        // Shock diamonds: evenly spaced bright knots that appear at full boost.
+        engine.diamonds.forEach((diamond, index) => {
+          diamond.visible = boost && throttle > 0.6;
+          diamond.position.copy(engine.plume.position).add(new THREE.Vector3(0, 0, (index + 1) * 0.16 * length));
+          diamond.scale.setScalar(engine.baseRadius * (1.8 - index * 0.35) * flicker);
+          diamond.material.opacity = 0.5 - index * 0.12;
+        });
         engine.glow.scale.setScalar(engine.baseRadius * (2 + throttle * (boost ? 3 : 1.6)));
         engine.glow.material.opacity = 0.25 + throttle * 0.35;
       }
