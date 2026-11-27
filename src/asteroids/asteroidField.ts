@@ -27,6 +27,12 @@ export interface Asteroid {
   /** Seconds until it reaches the surface, or null when its path misses. */
   timeToImpact: number | null;
   alive: boolean;
+  /** 0..1 white-hot flash after a hit; decays quickly. */
+  hitFlash: number;
+  /** 0..1 heating from atmospheric entry. */
+  entryHeat: number;
+  /** The weapon that last hit it, for the kill confirmation. */
+  lastHitBy: 'laser' | 'missile' | null;
 }
 
 export interface PlanetImpact {
@@ -36,6 +42,11 @@ export interface PlanetImpact {
 }
 
 const SPAWN_DISTANCE: [number, number] = [165, 205];
+/** Asteroids start to glow inside this multiple of the planet radius. */
+const ENTRY_HEAT_START = 1.9;
+const HIT_FLASH_DECAY = 6;
+const HIT_FLASH_COLOR = new THREE.Color(1.2, 0.9, 0.6);
+const ENTRY_HEAT_COLOR = new THREE.Color(2.4, 0.7, 0.15);
 /** Asteroids aim inside this fraction of the radius so every path hits. */
 const AIM_SPREAD = 0.75;
 
@@ -97,6 +108,9 @@ export class AsteroidField {
       spinRate: randomBetween(this.rng, 0.1, 0.6) / Math.sqrt(radius),
       timeToImpact: null,
       alive: true,
+      hitFlash: 0,
+      entryHeat: 0,
+      lastHitBy: null,
     };
     this.nextId += 1;
     this.asteroids.push(asteroid);
@@ -111,6 +125,7 @@ export class AsteroidField {
       asteroid.mesh.position.addScaledVector(asteroid.velocity, deltaSeconds);
       asteroid.mesh.rotateOnAxis(asteroid.spinAxis, asteroid.spinRate * deltaSeconds);
       this.refreshTimeToImpact(asteroid);
+      this.updateGlow(asteroid, deltaSeconds);
       const surfaceDistance = asteroid.mesh.position.length() - this.planetRadius;
       if (surfaceDistance <= asteroid.radius * 0.25) {
         const point = this.scratch.copy(asteroid.mesh.position).setLength(this.planetRadius).clone();
@@ -124,11 +139,14 @@ export class AsteroidField {
   }
 
   /** Applies damage; returns true if this destroyed the asteroid. */
-  damage(asteroid: Asteroid, amount: number): boolean {
+  damage(asteroid: Asteroid, amount: number, weapon: 'laser' | 'missile'): boolean {
     if (!asteroid.alive) {
       return false;
     }
     asteroid.health -= amount;
+    asteroid.lastHitBy = weapon;
+    // Resisted hits (iron against lasers) flash less, so the player sees it.
+    asteroid.hitFlash = Math.min(1, asteroid.hitFlash + Math.min(1, amount / 12));
     if (asteroid.health > 0) {
       return false;
     }
@@ -144,12 +162,33 @@ export class AsteroidField {
     asteroid.alive = false;
     this.asteroids.splice(index, 1);
     this.group.remove(asteroid.mesh);
+    (asteroid.mesh.material as THREE.Material).dispose();
+    for (const child of [...asteroid.mesh.children]) {
+      asteroid.mesh.remove(child);
+    }
   }
 
   clear(): void {
     for (const asteroid of [...this.asteroids]) {
       this.remove(asteroid);
     }
+  }
+
+  private updateGlow(asteroid: Asteroid, deltaSeconds: number): void {
+    asteroid.hitFlash = Math.max(0, asteroid.hitFlash - HIT_FLASH_DECAY * deltaSeconds);
+    const distance = asteroid.mesh.position.length();
+    asteroid.entryHeat = THREE.MathUtils.clamp(
+      (this.planetRadius * ENTRY_HEAT_START - distance) / (this.planetRadius * (ENTRY_HEAT_START - 1)),
+      0,
+      1,
+    );
+    const material = asteroid.mesh.material as THREE.MeshStandardMaterial;
+    const heat = asteroid.entryHeat * asteroid.entryHeat;
+    material.emissive.setRGB(
+      HIT_FLASH_COLOR.r * asteroid.hitFlash + ENTRY_HEAT_COLOR.r * heat,
+      HIT_FLASH_COLOR.g * asteroid.hitFlash + ENTRY_HEAT_COLOR.g * heat,
+      HIT_FLASH_COLOR.b * asteroid.hitFlash + ENTRY_HEAT_COLOR.b * heat,
+    );
   }
 
   private refreshTimeToImpact(asteroid: Asteroid): void {

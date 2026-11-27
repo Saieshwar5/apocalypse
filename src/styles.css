@@ -85,7 +85,7 @@ body {
 .hud-threats {
   top: 16px;
   right: 16px;
-  width: 270px;
+  width: 290px;
 }
 
 .hud-systems {
@@ -171,6 +171,10 @@ body {
   background: var(--info);
 }
 
+.bar-fill.shield {
+  background: #5fd8ff;
+}
+
 #threat-list {
   list-style: none;
   margin: 0;
@@ -179,14 +183,21 @@ body {
 
 #threat-list li {
   display: grid;
-  grid-template-columns: 1fr auto 52px;
-  gap: 8px;
-  padding: 3px 0;
+  grid-template-columns: 1fr auto;
+  gap: 1px 8px;
+  padding: 4px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-#threat-list li span:last-child {
+#threat-list .threat-eta {
   text-align: right;
+  font-weight: 700;
+}
+
+#threat-list .threat-detail {
+  grid-column: 1 / -1;
+  color: var(--hud-dim);
+  font-size: 11px;
 }
 
 #threat-list li.urgent {

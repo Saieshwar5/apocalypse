@@ -83,7 +83,10 @@ export class InputState {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (event.code === 'Space' || event.code.startsWith('Arrow')) {
+    // In flight Tab opens the tactical map, so it must not move focus; in
+    // menus (mouse not captured) Tab keeps its normal keyboard navigation.
+    const flightTab = event.code === 'Tab' && this.pointerLocked;
+    if (event.code === 'Space' || flightTab || event.code.startsWith('Arrow')) {
       event.preventDefault();
     }
     if (!event.repeat) {

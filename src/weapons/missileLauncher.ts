@@ -11,7 +11,7 @@ const MAX_SPEED = 75;
 const ACCELERATION = 55;
 const TURN_RATE = 2.8;
 const LIFETIME = 7;
-const LOCK_RANGE = 170;
+export const LOCK_RANGE = 170;
 const LOCK_CONE = THREE.MathUtils.degToRad(14);
 const FIRE_INTERVAL = 0.45;
 
@@ -159,7 +159,7 @@ export class MissileLauncher {
       // A small proximity fuse makes near misses count.
       const point = segmentHitsSphere(this.previous, missile.group.position, asteroid.mesh.position, asteroid.radius + 0.35);
       if (point) {
-        return { asteroid, baseDamage: BASE_DAMAGE, point };
+        return { asteroid, baseDamage: BASE_DAMAGE, point, range: 0 };
       }
     }
     return null;

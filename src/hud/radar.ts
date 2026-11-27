@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import type { AsteroidSize } from '../logic/asteroidClasses';
+import { formatDistance } from '../logic/units';
 
 const RANGE = 240;
 const BLIP_SIZE: Record<AsteroidSize, number> = { small: 2, medium: 3, large: 4.5, giant: 6.5 };
@@ -15,6 +16,7 @@ export class Radar {
   private readonly context: CanvasRenderingContext2D;
   private readonly inverse = new THREE.Quaternion();
   private readonly local = new THREE.Vector3();
+  private readonly localVelocity = new THREE.Vector3();
   private sweep = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
@@ -28,6 +30,10 @@ export class Radar {
     canvas.width = size * ratio;
     canvas.height = size * ratio;
     context.scale(ratio, ratio);
+    const rangeLabel = document.querySelector('#radar-range');
+    if (rangeLabel) {
+      rangeLabel.textContent = formatDistance(RANGE);
+    }
   }
 
   draw(
@@ -71,6 +77,15 @@ export class Radar {
       context.beginPath();
       context.arc(x, y - elevation, BLIP_SIZE[asteroid.size], 0, Math.PI * 2);
       context.fill();
+      // Heading tick: direction of travel, longer for faster rocks.
+      this.localVelocity.copy(asteroid.velocity).applyQuaternion(this.inverse);
+      const flatSpeed = Math.hypot(this.localVelocity.x, this.localVelocity.z) || 1;
+      const tick = 4 + asteroid.velocity.length() * 2.2;
+      context.strokeStyle = colour;
+      context.beginPath();
+      context.moveTo(x, y - elevation);
+      context.lineTo(x + (this.localVelocity.x / flatSpeed) * tick, y - elevation + (this.localVelocity.z / flatSpeed) * tick);
+      context.stroke();
       if (asteroid.id === lockedId) {
         context.strokeStyle = '#7dffb0';
         context.globalAlpha = 1;

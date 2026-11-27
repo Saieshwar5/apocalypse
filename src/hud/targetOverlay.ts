@@ -1,31 +1,41 @@
 import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
+import { THREAT_COLORS, threatTone } from '../asteroids/threatTone';
+import type { TargetingInfo } from '../game/targeting';
 import type { AsteroidSize } from '../logic/asteroidClasses';
+import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
+import type { CombatFeedback } from './combatFeedback';
+import { drawReticle } from './reticle';
+import { ScreenProjector, type ScreenPoint } from './screenProjector';
 
 const SIZE_LABEL: Record<AsteroidSize, string> = { small: 'S', medium: 'M', large: 'L', giant: 'GIANT' };
 const MAX_LABELLED = 4;
 const MAX_ARROWS = 6;
+const MAX_IMPACT_TAGS = 3;
+const MAX_TACTICAL_LABELS = 8;
+const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 
-interface ScreenPoint {
-  x: number;
-  y: number;
-  /** True when in front of the camera and inside the viewport. */
-  visible: boolean;
-  /** Distance from the camera along its view direction. */
-  depth: number;
+export interface OverlayFrame {
+  camera: THREE.PerspectiveCamera;
+  aimPoint: THREE.Vector3;
+  overheated: boolean;
+  /** Every asteroid, most urgent first. */
+  ranked: readonly Asteroid[];
+  targeting: TargetingInfo;
+  feedback: CombatFeedback;
+  /** Zoomed-out planning view: label everything, no reticle. */
+  tactical: boolean;
+  shipPosition: THREE.Vector3;
 }
 
 /**
- * Screen-space markers drawn over the 3D view: the aiming reticle, brackets
- * on asteroids, the missile lock and edge arrows pointing at urgent threats
- * that are behind or beside the camera.
+ * Screen-space layer over the 3D view: brackets and labels on asteroids,
+ * health bars, missile lock, countdowns on predicted impact points, edge
+ * arrows for threats out of view, the reticle and hit feedback.
  */
 export class TargetOverlay {
   private readonly context: CanvasRenderingContext2D;
-  private width = 0;
-  private height = 0;
-  private readonly scratch = new THREE.Vector3();
-  private readonly cameraSpace = new THREE.Vector3();
+  private readonly projector = new ScreenProjector();
   private elapsed = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
@@ -39,87 +49,65 @@ export class TargetOverlay {
 
   resize(): void {
     const ratio = Math.min(window.devicePixelRatio, 2);
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
-    this.canvas.width = this.width * ratio;
-    this.canvas.height = this.height * ratio;
+    this.canvas.width = window.innerWidth * ratio;
+    this.canvas.height = window.innerHeight * ratio;
     this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
 
   clear(): void {
-    this.context.clearRect(0, 0, this.width, this.height);
+    this.context.clearRect(0, 0, window.innerWidth, window.innerHeight);
   }
 
-  draw(
-    deltaSeconds: number,
-    camera: THREE.PerspectiveCamera,
-    aimPoint: THREE.Vector3,
-    overheated: boolean,
-    rankedThreats: readonly Asteroid[],
-    lockedTarget: Asteroid | null,
-  ): void {
+  draw(deltaSeconds: number, frame: OverlayFrame): void {
     this.elapsed += deltaSeconds;
     this.clear();
+    this.projector.setFrame(frame.camera, window.innerWidth, window.innerHeight);
     const context = this.context;
-    context.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
     context.lineWidth = 1.5;
+    context.font = `600 11px ${MONO}`;
+    const lockedId = frame.targeting.target?.id ?? null;
 
-    rankedThreats.forEach((asteroid, rank) => {
-      const point = this.project(asteroid.mesh.position, camera);
-      const colour = threatColour(asteroid, rank);
+    frame.ranked.forEach((asteroid, rank) => {
+      const tone = threatTone(asteroid, rank);
+      const color = THREAT_COLORS[tone];
+      const point = this.projector.project(asteroid.mesh.position);
       if (point.visible) {
-        const size = Math.max(9, this.projectedRadius(asteroid.radius, point.depth, camera) * 1.15);
-        this.drawBracket(point.x, point.y, size, colour);
-        if (rank < MAX_LABELLED) {
-          this.drawLabel(asteroid, point.x + size + 6, point.y, colour, camera);
+        const size = Math.max(frame.tactical ? 5 : 9, this.projector.projectedRadius(asteroid.radius, point.depth) * 1.15);
+        this.drawBracket(point.x, point.y, size, color);
+        if (asteroid.id === lockedId || asteroid.health < asteroid.maxHealth) {
+          this.drawHealthBar(point.x, point.y + size + 6, Math.max(28, size * 1.6), asteroid, asteroid.id === lockedId);
+        }
+        if (rank < (frame.tactical ? MAX_TACTICAL_LABELS : MAX_LABELLED)) {
+          this.drawLabel(asteroid, point.x + size + 6, point.y, color, frame.shipPosition);
         }
       } else if (rank < MAX_ARROWS && asteroid.timeToImpact !== null) {
-        this.drawEdgeArrow(point, colour, asteroid);
+        this.drawEdgeArrow(point, color, asteroid);
+      }
+      if (rank < MAX_IMPACT_TAGS) {
+        this.drawImpactTag(asteroid, color);
       }
     });
 
-    if (lockedTarget?.alive) {
-      const point = this.project(lockedTarget.mesh.position, camera);
+    if (frame.targeting.target?.alive && !frame.tactical) {
+      const point = this.projector.project(frame.targeting.target.mesh.position);
       if (point.visible) {
-        this.drawLock(point.x, point.y, Math.max(14, this.projectedRadius(lockedTarget.radius, point.depth, camera) * 1.5));
+        const size = this.projector.projectedRadius(frame.targeting.target.radius, point.depth);
+        this.drawLock(point.x, point.y, Math.max(14, size * 1.5));
       }
     }
 
-    const aim = this.project(aimPoint, camera);
-    if (aim.visible) {
-      this.drawReticle(aim.x, aim.y, overheated);
+    frame.feedback.draw(context, this.projector);
+    if (frame.tactical) {
+      this.drawShipMarker(frame.shipPosition);
+    } else {
+      drawReticle(context, this.projector, frame.aimPoint, frame.targeting, frame.feedback, frame.overheated, this.elapsed);
     }
   }
 
-  private project(position: THREE.Vector3, camera: THREE.PerspectiveCamera): ScreenPoint {
-    this.cameraSpace.copy(position).applyMatrix4(camera.matrixWorldInverse);
-    const depth = -this.cameraSpace.z;
-    if (depth <= 0.01) {
-      // Behind the camera: report the direction so an edge arrow can point at it.
-      const length = Math.hypot(this.cameraSpace.x, this.cameraSpace.y) || 1;
-      return {
-        x: this.width / 2 + (this.cameraSpace.x / length) * this.width,
-        y: this.height / 2 - (this.cameraSpace.y / length) * this.height,
-        visible: false,
-        depth,
-      };
-    }
-    this.scratch.copy(position).project(camera);
-    const x = ((this.scratch.x + 1) / 2) * this.width;
-    const y = ((1 - this.scratch.y) / 2) * this.height;
-    const visible = x >= 0 && x <= this.width && y >= 0 && y <= this.height;
-    return { x, y, visible, depth };
-  }
-
-  private projectedRadius(radius: number, depth: number, camera: THREE.PerspectiveCamera): number {
-    const focal = this.height / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    return (radius / Math.max(depth, 0.01)) * focal;
-  }
-
-  private drawBracket(x: number, y: number, size: number, colour: string): void {
+  private drawBracket(x: number, y: number, size: number, color: string): void {
     const context = this.context;
     const arm = Math.max(4, size * 0.4);
-    context.strokeStyle = colour;
+    context.strokeStyle = color;
     context.beginPath();
     for (const [sx, sy] of [
       [-1, -1],
@@ -136,30 +124,62 @@ export class TargetOverlay {
     context.stroke();
   }
 
-  private drawLabel(asteroid: Asteroid, x: number, y: number, colour: string, camera: THREE.PerspectiveCamera): void {
-    const distance = Math.round(asteroid.mesh.position.distanceTo(camera.position));
-    const eta = asteroid.timeToImpact === null ? 'miss' : `${Math.ceil(asteroid.timeToImpact)}s`;
-    this.context.fillStyle = colour;
-    this.context.fillText(`${SIZE_LABEL[asteroid.size]} ${asteroid.material.toUpperCase()}`, x, y - 3);
-    this.context.fillText(`${distance}u  ${eta}`, x, y + 10);
+  private drawHealthBar(x: number, y: number, width: number, asteroid: Asteroid, locked: boolean): void {
+    const context = this.context;
+    const fraction = Math.max(0, asteroid.health / asteroid.maxHealth);
+    context.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    context.fillRect(x - width / 2 - 1, y - 1, width + 2, 6);
+    context.fillStyle = fraction > 0.5 ? '#7dffb0' : fraction > 0.25 ? '#ffb347' : '#ff5a4a';
+    context.fillRect(x - width / 2, y, width * fraction, 4);
+    if (locked) {
+      context.strokeStyle = '#7dffb0';
+      context.strokeRect(x - width / 2 - 1.5, y - 1.5, width + 3, 7);
+    }
   }
 
-  private drawEdgeArrow(point: ScreenPoint, colour: string, asteroid: Asteroid): void {
-    const centreX = this.width / 2;
-    const centreY = this.height / 2;
-    const angle = Math.atan2(point.y - centreY, point.x - centreX);
-    const marginX = this.width / 2 - 48;
-    const marginY = this.height / 2 - 48;
+  private drawLabel(asteroid: Asteroid, x: number, y: number, color: string, shipPosition: THREE.Vector3): void {
+    const context = this.context;
+    const distance = asteroid.mesh.position.distanceTo(shipPosition) - asteroid.radius;
+    const eta = asteroid.timeToImpact === null ? 'MISSES EARTH' : `IMPACT ${formatCountdown(asteroid.timeToImpact)}`;
+    context.fillStyle = color;
+    context.fillText(`${SIZE_LABEL[asteroid.size]} ${asteroid.material.toUpperCase()}  ${eta}`, x, y - 4);
+    context.fillStyle = 'rgba(232, 241, 255, 0.75)';
+    context.fillText(`${formatDistance(distance)} · ${formatSpeed(asteroid.velocity.length())}`, x, y + 9);
+  }
+
+  /** Countdown text next to the pulsing marker on the globe. */
+  private drawImpactTag(asteroid: Asteroid, color: string): void {
+    if (asteroid.timeToImpact === null) {
+      return;
+    }
+    const impact = asteroid.mesh.position.clone().addScaledVector(asteroid.velocity, asteroid.timeToImpact);
+    const point = this.projector.project(impact);
+    if (!point.visible) {
+      return;
+    }
+    const context = this.context;
+    context.fillStyle = color;
+    context.beginPath();
+    context.arc(point.x, point.y, 2.5, 0, Math.PI * 2);
+    context.fill();
+    context.fillText(`${SIZE_LABEL[asteroid.size]} ${formatCountdown(asteroid.timeToImpact)}`, point.x + 7, point.y + 4);
+  }
+
+  private drawEdgeArrow(point: ScreenPoint, color: string, asteroid: Asteroid): void {
+    const width = this.projector.width;
+    const height = this.projector.height;
+    const angle = Math.atan2(point.y - height / 2, point.x - width / 2);
+    const marginX = width / 2 - 48;
+    const marginY = height / 2 - 48;
     const scale = Math.min(marginX / Math.abs(Math.cos(angle) || 1e-6), marginY / Math.abs(Math.sin(angle) || 1e-6));
-    const x = centreX + Math.cos(angle) * scale;
-    const y = centreY + Math.sin(angle) * scale;
-    const pulse = 0.65 + 0.35 * Math.sin(this.elapsed * 6);
+    const x = width / 2 + Math.cos(angle) * scale;
+    const y = height / 2 + Math.sin(angle) * scale;
     const context = this.context;
     context.save();
     context.translate(x, y);
     context.rotate(angle);
-    context.globalAlpha = pulse;
-    context.fillStyle = colour;
+    context.globalAlpha = 0.65 + 0.35 * Math.sin(this.elapsed * 6);
+    context.fillStyle = color;
     context.beginPath();
     context.moveTo(14, 0);
     context.lineTo(-6, -9);
@@ -168,8 +188,8 @@ export class TargetOverlay {
     context.closePath();
     context.fill();
     context.restore();
-    context.fillStyle = colour;
-    const eta = asteroid.timeToImpact === null ? '' : `${Math.ceil(asteroid.timeToImpact)}s`;
+    context.fillStyle = color;
+    const eta = asteroid.timeToImpact === null ? '' : formatCountdown(asteroid.timeToImpact);
     context.fillText(`${SIZE_LABEL[asteroid.size]} ${eta}`, x - 14, y + 24);
   }
 
@@ -189,36 +209,23 @@ export class TargetOverlay {
     context.stroke();
     context.restore();
     context.fillStyle = '#7dffb0';
-    context.fillText('LOCK', x - 14, y - size - 8);
+    context.textAlign = 'right';
+    context.fillText('LOCK', x - size - 6, y + 4);
+    context.textAlign = 'left';
   }
 
-  private drawReticle(x: number, y: number, overheated: boolean): void {
-    const context = this.context;
-    context.strokeStyle = overheated ? '#ff5a4a' : 'rgba(180, 255, 220, 0.9)';
-    context.lineWidth = 1.5;
-    context.beginPath();
-    context.arc(x, y, 12, 0, Math.PI * 2);
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      context.moveTo(x + dx * 16, y + dy * 16);
-      context.lineTo(x + dx * 24, y + dy * 24);
+  private drawShipMarker(position: THREE.Vector3): void {
+    const point = this.projector.project(position);
+    if (!point.visible) {
+      return;
     }
+    const context = this.context;
+    context.strokeStyle = '#7dffb0';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.arc(point.x, point.y, 8 + Math.sin(this.elapsed * 4) * 2, 0, Math.PI * 2);
     context.stroke();
-    context.fillStyle = context.strokeStyle;
-    context.fillRect(x - 1, y - 1, 2, 2);
+    context.fillStyle = '#7dffb0';
+    context.fillText('YOU', point.x + 14, point.y + 4);
   }
-}
-
-function threatColour(asteroid: Asteroid, rank: number): string {
-  if (rank < 3 && asteroid.timeToImpact !== null) {
-    return '#ff5a4a';
-  }
-  if (asteroid.size === 'giant' || asteroid.size === 'large') {
-    return '#ffb347';
-  }
-  return 'rgba(232, 241, 255, 0.85)';
 }

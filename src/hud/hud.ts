@@ -1,6 +1,8 @@
+import type * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import { integrityLevel } from '../logic/planetDamage';
+import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import { MISSILE_CAPACITY } from '../weapons/missileLauncher';
 
 export interface HudSnapshot {
@@ -12,8 +14,10 @@ export interface HudSnapshot {
   overheated: boolean;
   missiles: number;
   boost: number;
+  shield: number;
   hull: number;
   speed: number;
+  shipPosition: THREE.Vector3;
 }
 
 export type MessageTone = 'info' | 'warning' | 'danger' | 'success';
@@ -41,6 +45,7 @@ export class Hud {
   private readonly missileValue = element<HTMLElement>('#missile-value');
   private readonly boostBar = element<HTMLDivElement>('#boost-bar');
   private readonly hullBar = element<HTMLDivElement>('#hull-bar');
+  private readonly shieldBar = element<HTMLDivElement>('#shield-bar');
   private readonly speedValue = element<HTMLElement>('#speed-value');
   private readonly message = element<HTMLDivElement>('#hud-message');
   private messageTimer = 0;
@@ -62,11 +67,12 @@ export class Hud {
     this.heatBar.dataset.level = snapshot.overheated ? 'critical' : snapshot.laserHeat > 70 ? 'damaged' : 'stable';
     this.missileValue.textContent = `${snapshot.missiles} / ${MISSILE_CAPACITY}`;
     this.boostBar.style.width = `${snapshot.boost}%`;
+    this.shieldBar.style.width = `${snapshot.shield}%`;
     this.hullBar.style.width = `${snapshot.hull}%`;
     this.hullBar.dataset.level = integrityLevel(snapshot.hull);
-    this.speedValue.textContent = snapshot.speed.toFixed(0);
+    this.speedValue.textContent = formatSpeed(snapshot.speed);
 
-    this.renderThreats(snapshot.threats);
+    this.renderThreats(snapshot);
 
     if (this.messageTimer > 0) {
       this.messageTimer -= deltaSeconds;
@@ -83,11 +89,14 @@ export class Hud {
     this.messageTimer = seconds;
   }
 
-  private renderThreats(threats: readonly Asteroid[]): void {
-    const rows = threats.slice(0, VISIBLE_THREATS).map((asteroid) => {
-      const eta = asteroid.timeToImpact === null ? 'miss' : `${Math.ceil(asteroid.timeToImpact)} s`;
+  private renderThreats(snapshot: HudSnapshot): void {
+    const rows = snapshot.threats.slice(0, VISIBLE_THREATS).map((asteroid) => {
+      const eta = asteroid.timeToImpact === null ? 'misses' : formatCountdown(asteroid.timeToImpact);
       const urgent = asteroid.timeToImpact !== null && asteroid.timeToImpact < 20;
-      return `<li class="${urgent ? 'urgent' : ''}"><span>${SIZE_NAME[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toLowerCase()}</span><span>-${asteroid.planetDamage.toFixed(0)}%</span><span>${eta}</span></li>`;
+      const distance = formatDistance(snapshot.shipPosition.distanceTo(asteroid.mesh.position) - asteroid.radius);
+      const name = `${SIZE_NAME[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toLowerCase()} · -${asteroid.planetDamage.toFixed(0)}%`;
+      const detail = `${distance} away · ${formatSpeed(asteroid.velocity.length())}`;
+      return `<li class="${urgent ? 'urgent' : ''}"><span>${name}</span><span class="threat-eta">${eta}</span><span class="threat-detail">${detail}</span></li>`;
     });
     const markup = rows.length > 0 ? rows.join('') : '<li class="empty">No contacts</li>';
     // Rewriting identical markup every frame would waste layout work.

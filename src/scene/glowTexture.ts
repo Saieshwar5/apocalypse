@@ -25,3 +25,25 @@ export function getGlowTexture(): THREE.CanvasTexture {
   cached = new THREE.CanvasTexture(canvas);
   return cached;
 }
+
+/**
+ * Vertical gradient for cone-shaped effects (engine plumes, entry fire).
+ * Cone UVs run 0 at the base to 1 at the tip and canvas textures are flipped,
+ * so stops are listed from the base of the cone to its tip.
+ */
+export function createConeGradientTexture(stops: readonly [number, string][]): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 4;
+  canvas.height = 128;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('2D canvas is not available for a gradient texture');
+  }
+  const gradient = context.createLinearGradient(0, 128, 0, 0);
+  for (const [offset, color] of stops) {
+    gradient.addColorStop(offset, color);
+  }
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 4, 128);
+  return new THREE.CanvasTexture(canvas);
+}

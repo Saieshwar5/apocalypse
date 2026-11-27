@@ -49,7 +49,9 @@ export class AsteroidMeshFactory {
   createMesh(size: AsteroidSize, material: AsteroidMaterial, radius: number): THREE.Mesh {
     const options = this.shapesFor(size);
     const geometry = options[Math.floor(this.rng() * options.length)];
-    const mesh = new THREE.Mesh(geometry, this.materials[material]);
+    // Each asteroid gets its own material copy so it can flash when hit and
+    // glow when entering the atmosphere. Copies share one compiled shader.
+    const mesh = new THREE.Mesh(geometry, this.materials[material].clone());
     // Uneven scaling makes shared shapes look less alike.
     mesh.scale.set(
       radius * (0.85 + this.rng() * 0.3),

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { getGlowTexture } from '../scene/glowTexture';
 
-export type ExplosionStyle = 'fire' | 'ice' | 'spark';
+export type ExplosionStyle = 'fire' | 'ice' | 'spark' | 'dust';
 
 interface Burst {
   points: THREE.Points;
@@ -27,6 +27,7 @@ interface Shockwave {
 }
 
 const STYLE_COLORS: Record<ExplosionStyle, THREE.Color> = {
+  dust: new THREE.Color(0.55, 0.5, 0.44),
   fire: new THREE.Color(5, 2.2, 0.7),
   ice: new THREE.Color(1.6, 3.2, 5),
   spark: new THREE.Color(6, 3.5, 1.5),
@@ -53,6 +54,11 @@ export class Explosions {
   /** Small spark burst where a bolt hits without destroying. */
   spawnHitSpark(point: THREE.Vector3): void {
     this.spawnBurst(point, 10, 6, 0.35, 'spark', 0.3);
+  }
+
+  /** Grey rock chips knocked off the surface by a hit. */
+  spawnRockChips(point: THREE.Vector3, amount = 1): void {
+    this.spawnBurst(point, Math.round(10 + amount * 14), 4 + amount * 3, 0.8, 'dust', 0.3 + amount * 0.2);
   }
 
   /** Flash and expanding ring lying on the planet's surface. */
@@ -136,7 +142,7 @@ export class Explosions {
       color: startColor.clone(),
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: style === 'dust' ? THREE.NormalBlending : THREE.AdditiveBlending,
     });
     const points = new THREE.Points(geometry, material);
     points.frustumCulled = false;

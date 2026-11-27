@@ -29,13 +29,13 @@
       </section>
 
       <section class="hud-panel hud-threats" aria-label="Incoming asteroids">
-        <div class="hud-label">Incoming <span class="hud-label-note">damage · impact</span></div>
+        <div class="hud-label">Incoming <span class="hud-label-note">most urgent first</span></div>
         <ol id="threat-list"></ol>
       </section>
 
       <section class="hud-radar" aria-label="Radar">
         <canvas id="radar"></canvas>
-        <div class="hud-caption">Radar · nose up</div>
+        <div class="hud-caption">Radar · nose up · <span id="radar-range">150,000 km</span></div>
       </section>
 
       <section class="hud-panel hud-systems" aria-label="Ship systems">
@@ -43,6 +43,8 @@
         <div class="bar"><div id="heat-bar" class="bar-fill" data-level="stable"></div></div>
         <div class="hud-label">Boost</div>
         <div class="bar"><div id="boost-bar" class="bar-fill boost"></div></div>
+        <div class="hud-label">Shield</div>
+        <div class="bar"><div id="shield-bar" class="bar-fill shield"></div></div>
         <div class="hud-label">Hull</div>
         <div class="bar"><div id="hull-bar" class="bar-fill" data-level="stable"></div></div>
         <div class="hud-row"><span>Missiles</span><strong id="missile-value">8 / 8</strong></div>
@@ -50,7 +52,7 @@
       </section>
 
       <div id="hud-message" class="hud-message" role="status" aria-live="polite"></div>
-      <div class="hud-hint">Mouse steer · Click fire · F missile · Shift boost · C camera · M sound · Esc pause</div>
+      <div class="hud-hint">Mouse steer · Click fire · F missile · Shift boost · Tab map · C camera · M sound · Esc pause</div>
     </div>
 
     <div id="loading" class="screen">
@@ -71,10 +73,11 @@
           <dt>A / D</dt><dd>Strafe</dd>
           <dt>Q / E</dt><dd>Roll</dd>
           <dt>Shift</dt><dd>Boost</dd>
+          <dt>Tab</dt><dd>Tactical map (slows time)</dd>
           <dt>C</dt><dd>Chase or cockpit camera</dd>
           <dt>Enter</dt><dd>Skip launch</dd>
         </dl>
-        <p class="screen-note">Small rocks dent the planet; giants can end it. Lasers split big rocks, missiles destroy them whole, and iron shrugs off lasers.</p>
+        <p class="screen-note">Small rocks dent the planet; giants can end it. Lasers hit hardest up close and fade with range; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not.</p>
       </div>
     </div>
 

@@ -1,4 +1,11 @@
 import * as THREE from 'three';
+import {
+  applyShipDamage,
+  createDefenseState,
+  rechargeShield,
+  type DamageResult,
+  type DefenseState,
+} from '../logic/shipDefense';
 import { damping } from '../math/orientation';
 
 export interface FlightInput {
@@ -35,7 +42,7 @@ const HULL_CLEARANCE = 0.9;
 export class ShipController {
   readonly velocity = new THREE.Vector3();
   boostEnergy = 100;
-  hull = 100;
+  defense: DefenseState = createDefenseState();
   /** 0..1 engine output, used for exhaust visuals and sound. */
   throttle = 0;
   boosting = false;
@@ -45,6 +52,14 @@ export class ShipController {
   private readonly turn = new THREE.Quaternion();
 
   constructor(readonly object: THREE.Object3D) {}
+
+  get hull(): number {
+    return this.defense.hull;
+  }
+
+  get shield(): number {
+    return this.defense.shield;
+  }
 
   get position(): THREE.Vector3 {
     return this.object.position;
@@ -59,6 +74,7 @@ export class ShipController {
   }
 
   update(deltaSeconds: number, input: FlightInput, planetRadius: number): void {
+    this.defense = rechargeShield(this.defense, deltaSeconds);
     this.updateRotation(deltaSeconds, input);
     this.updateThrust(deltaSeconds, input);
     this.velocity.multiplyScalar(Math.exp(-DRAG * deltaSeconds));
@@ -66,10 +82,11 @@ export class ShipController {
     this.keepAbovePlanet(planetRadius);
   }
 
-  /** Returns true when the hull is destroyed. */
-  applyHullDamage(amount: number): boolean {
-    this.hull = Math.max(0, this.hull - amount);
-    return this.hull === 0;
+  /** Shield first, then hull. The caller checks `hull` to see if the ship is lost. */
+  applyDamage(amount: number): DamageResult {
+    const result = applyShipDamage(this.defense, amount);
+    this.defense = result.state;
+    return result;
   }
 
   reset(position: THREE.Vector3, orientation: THREE.Quaternion, initialSpeed = 0): void {
@@ -78,7 +95,7 @@ export class ShipController {
     this.velocity.copy(this.forward()).multiplyScalar(initialSpeed);
     this.angularVelocity.set(0, 0, 0);
     this.boostEnergy = 100;
-    this.hull = 100;
+    this.defense = createDefenseState();
     this.throttle = 0;
     this.boosting = false;
   }

@@ -1,16 +1,20 @@
 import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
+import { LASER_RANGE } from '../logic/ballistics';
 import { segmentHitsSphere } from './collision';
 
 export interface WeaponHit {
   asteroid: Asteroid;
-  /** Base damage before the asteroid's material is taken into account. */
+  /** Base damage before range and the asteroid's material are taken into account. */
   baseDamage: number;
   point: THREE.Vector3;
+  /** Distance travelled from the gun, for laser falloff. */
+  range: number;
 }
 
-const BOLT_SPEED = 190;
-const BOLT_LIFETIME = 1.1;
+export const BOLT_SPEED = 190;
+/** Bolts dissipate at the laser's maximum range. */
+const BOLT_LIFETIME = LASER_RANGE.maximum / BOLT_SPEED;
 const FIRE_INTERVAL = 1 / 9;
 const BASE_DAMAGE = 10;
 const HEAT_PER_SHOT = 6.5;
@@ -23,6 +27,7 @@ const POOL_SIZE = 64;
 
 interface Bolt {
   mesh: THREE.Mesh;
+  origin: THREE.Vector3;
   velocity: THREE.Vector3;
   age: number;
   active: boolean;
@@ -55,7 +60,7 @@ export class LaserCannon {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.visible = false;
       this.group.add(mesh);
-      this.bolts.push({ mesh, velocity: new THREE.Vector3(), age: 0, active: false });
+      this.bolts.push({ mesh, origin: new THREE.Vector3(), velocity: new THREE.Vector3(), age: 0, active: false });
     }
   }
 
@@ -90,6 +95,7 @@ export class LaserCannon {
     const direction = target.sub(origin).normalize();
 
     bolt.mesh.position.copy(origin);
+    bolt.origin.copy(origin);
     bolt.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
     bolt.velocity.copy(direction).multiplyScalar(BOLT_SPEED).add(shipVelocity);
     bolt.age = 0;
@@ -119,10 +125,14 @@ export class LaserCannon {
         this.deactivate(bolt);
         continue;
       }
+      // Past optimal range the bolt visibly thins out as it loses energy.
+      const travelled = bolt.age * BOLT_SPEED;
+      const strength = travelled <= LASER_RANGE.optimal ? 1 : 1 - (travelled - LASER_RANGE.optimal) / (LASER_RANGE.maximum - LASER_RANGE.optimal);
+      bolt.mesh.scale.set(0.4 + strength * 0.6, 0.4 + strength * 0.6, 0.5 + strength * 0.5);
       for (const asteroid of asteroids) {
         const hitPoint = segmentHitsSphere(this.previous, bolt.mesh.position, asteroid.mesh.position, asteroid.radius);
         if (hitPoint) {
-          hits.push({ asteroid, baseDamage: BASE_DAMAGE, point: hitPoint });
+          hits.push({ asteroid, baseDamage: BASE_DAMAGE, point: hitPoint, range: hitPoint.distanceTo(bolt.origin) });
           this.deactivate(bolt);
           break;
         }

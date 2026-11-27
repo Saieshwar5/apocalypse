@@ -57,8 +57,39 @@ export class SoundEffects {
     this.tone({ type: 'sawtooth', from: 180, to: 520, duration: 0.5, volume: 0.04 });
   }
 
-  hit(): void {
-    this.noiseBurst({ duration: 0.06, volume: 0.08, filterFrom: 4000, filterTo: 2000 });
+  /** Each material sounds different, so the player hears what they hit. */
+  hit(material: 'rocky' | 'iron' | 'ice'): void {
+    if (material === 'iron') {
+      // Ricochet: a short metallic ping that says "this is not working".
+      this.tone({ type: 'triangle', from: 2400, to: 1700, duration: 0.14, volume: 0.06 });
+      this.tone({ type: 'sine', from: 3600, to: 3500, duration: 0.09, volume: 0.03 });
+    } else if (material === 'ice') {
+      this.noiseBurst({ duration: 0.08, volume: 0.1, filterFrom: 8000, filterTo: 3000 });
+      this.tone({ type: 'sine', from: 1800, to: 900, duration: 0.07, volume: 0.03 });
+    } else {
+      this.noiseBurst({ duration: 0.1, volume: 0.14, filterFrom: 1600, filterTo: 300 });
+      this.tone({ type: 'sine', from: 160, to: 70, duration: 0.1, volume: 0.08 });
+    }
+  }
+
+  killConfirm(): void {
+    this.tone({ type: 'triangle', from: 520, to: 520, duration: 0.08, volume: 0.05 });
+    this.tone({ type: 'triangle', from: 780, to: 780, duration: 0.12, volume: 0.05, delay: 0.07 });
+  }
+
+  shieldHit(): void {
+    this.tone({ type: 'sawtooth', from: 900, to: 180, duration: 0.3, volume: 0.07 });
+    this.noiseBurst({ duration: 0.25, volume: 0.1, filterFrom: 5000, filterTo: 800 });
+  }
+
+  hullHit(): void {
+    this.tone({ type: 'square', from: 120, to: 40, duration: 0.35, volume: 0.14 });
+    this.noiseBurst({ duration: 0.4, volume: 0.25, filterFrom: 1200, filterTo: 100 });
+  }
+
+  /** Short beep for proximity and collision warnings. */
+  warningBeep(urgent: boolean): void {
+    this.tone({ type: 'square', from: urgent ? 1320 : 990, to: urgent ? 1320 : 990, duration: 0.07, volume: 0.035 });
   }
 
   /** `size` from 0 (small) to 1 (giant). */
