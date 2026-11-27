@@ -35,6 +35,10 @@ export interface Satellite {
   readonly broken: boolean;
   /** 100 when undamaged; rough towing wears it down, and at 0 it breaks up. */
   readonly condition: number;
+  /** How far it has sunk below its orbit (after a solar storm swelled the atmosphere). */
+  readonly sink: number;
+  /** Units per second it is sinking; 0 when stable. */
+  readonly sinkRate: number;
 }
 
 export type SatelliteMode = 'orbit' | 'towed' | 'yard' | 'returning';
@@ -76,6 +80,8 @@ const DEFAULT_SUN_DIRECTION = new THREE.Vector3(1, 0.25, 0.45).normalize();
 
 interface LiveSatellite extends Satellite {
   alive: boolean;
+  sink: number;
+  sinkRate: number;
   mode: SatelliteMode;
   broken: boolean;
   condition: number;
@@ -119,6 +125,8 @@ export class SatelliteFleet {
   readonly debris: DebrisField;
   /** Seconds since the last reset; every orbit is a function of this clock. */
   private elapsed = 0;
+  /** Satellites sinking below this radius burn up (set to the top of the atmosphere). */
+  burnRadius = 0;
 
   /**
    * @param source the loaded satellites.glb scene (`models.satellites`)
@@ -202,9 +210,22 @@ export class SatelliteFleet {
     target.velocity.set(0, 0, 0);
   }
 
+  /** Starts a satellite sinking (the atmosphere swelled after a storm). */
+  startSinking(satellite: Satellite, rate: number): void {
+    this.find(satellite).sinkRate = rate;
+  }
+
+  /** The radius the satellite is orbiting at now, after any sinking. */
+  currentRadius(satellite: Satellite): number {
+    const target = this.find(satellite);
+    return target.orbit.radius - target.sink;
+  }
+
   /** Released in its slot: eases back onto its orbit. */
   returnToOrbit(satellite: Satellite): void {
     const target = this.find(satellite);
+    target.sink = 0;
+    target.sinkRate = 0;
     target.mode = 'returning';
     target.returnTimer = 0;
     target.returnFrom.copy(target.position);
@@ -242,6 +263,13 @@ export class SatelliteFleet {
       }
       satellite.faultLight.visible = satellite.broken && Math.sin(this.elapsed * 6) > 0;
       if (satellite.mode === 'orbit') {
+        satellite.sink += satellite.sinkRate * deltaSeconds;
+        if (satellite.orbit.radius - satellite.sink < this.burnRadius) {
+          // Sunk into the atmosphere: it burns up, leaving nothing in orbit.
+          satellite.alive = false;
+          satellite.object.removeFromParent();
+          continue;
+        }
         this.place(satellite);
       } else if (satellite.mode === 'towed') {
         satellite.position.addScaledVector(satellite.velocity, deltaSeconds);
@@ -346,6 +374,8 @@ export class SatelliteFleet {
       mode: 'orbit',
       broken: false,
       condition: 100,
+      sink: 0,
+      sinkRate: 0,
       returnTimer: 0,
       returnFrom: new THREE.Vector3(),
       holder: null,
@@ -384,7 +414,7 @@ export class SatelliteFleet {
   }
 
   private place(satellite: LiveSatellite): void {
-    const state = orbitState(satellite.orbit, this.elapsed);
+    const state = orbitState(satellite.sink > 0 ? { ...satellite.orbit, radius: satellite.orbit.radius - satellite.sink } : satellite.orbit, this.elapsed);
     satellite.position.fromArray(state.position);
     satellite.velocity.fromArray(state.velocity);
     // The model flies -Z first with +Y away from the planet, so its dish

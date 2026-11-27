@@ -10,13 +10,14 @@ import { randomUnitVector, type RandomSource } from '../logic/random';
 import { dodgeApproach, satelliteJobPay, type SatelliteJobKind } from '../logic/satelliteJobs';
 import { SATELLITE_JOB_PAY, YARD_REPAIR_SECONDS } from '../logic/stations';
 import { YARD_PARTS } from '../logic/stationEconomy';
+import { REBOOST_PAY, secondsUntilBurn } from '../logic/spaceWeather';
 import { TOW, isPlaced } from '../logic/towing';
 import { formatCountdown, formatDistance } from '../logic/units';
 import type { Satellite, SatelliteFleet } from '../satellites/satelliteFleet';
 import type { ShipController } from '../ship/shipController';
 import type { Outposts } from '../station/outposts';
 import type { TowEvent, TowLine } from './towLine';
-import { KIND_LABEL, asteroidGone, escapePoint, secondsToStrike, type JobRow, type OpenJob, type Waypoint } from './satelliteJobHelpers';
+import { KIND_LABEL, announceTowEvent, asteroidGone, escapePoint, secondsToStrike, type JobRow, type OpenJob, type Waypoint } from './satelliteJobHelpers';
 
 export type { JobRow, OpenJob, Waypoint };
 
@@ -100,13 +101,7 @@ export class SatelliteWork {
       return false;
     }
     this.deps.fleet.breakDown(satellite);
-    this.jobs.push({ id: this.nextId++, kind: 'repair-tow', satellite, pay: SATELLITE_JOB_PAY.repairTow, asteroid: null, repaired: false, clear: false, claimedBy: null });
-    this.deps.hud.showMessage(
-      `${KIND_LABEL[satellite.kind]} has a fault. Contract: tow it to Vulcan Yard for repair (${formatCredits(SATELLITE_JOB_PAY.repairTow)})`,
-      'info',
-      5,
-    );
-    this.deps.sound.chime();
+    this.addJob('repair-tow', satellite, SATELLITE_JOB_PAY.repairTow, null, `has a fault. Contract: tow it to Vulcan Yard for repair`);
     return true;
   }
 
@@ -121,13 +116,7 @@ export class SatelliteWork {
     const size = this.deps.rng() < 0.5 ? 'large' : 'medium';
     const asteroid = this.deps.field.spawnFragment(size, 'iron', new THREE.Vector3(...path.position), new THREE.Vector3(...path.velocity));
     asteroid.passerBy = true;
-    this.jobs.push({ id: this.nextId++, kind: 'dodge', satellite, pay: SATELLITE_JOB_PAY.dodge, asteroid, repaired: false, clear: false, claimedBy: null });
-    this.deps.hud.showMessage(
-      `Iron asteroid on course for ${KIND_LABEL[satellite.kind]}. Contract: tow it clear, or destroy the rock (${formatCredits(SATELLITE_JOB_PAY.dodge)})`,
-      'warning',
-      5,
-    );
-    this.deps.sound.alarm();
+    this.addJob('dodge', satellite, SATELLITE_JOB_PAY.dodge, asteroid, 'is in an iron rock\'s path. Contract: tow it clear, or destroy the rock');
     return true;
   }
 
@@ -287,7 +276,7 @@ export class SatelliteWork {
         title: rival ? `${this.title(job)} · ${pilotName(job.claimedBy ?? 'player')}` : this.title(job),
         detail: rival ? `claimed by ${pilotName(job.claimedBy ?? 'player')}` : this.stepText(job),
         pay: job.pay,
-        urgent: !rival && job.kind === 'dodge' && !job.clear,
+        urgent: !rival && ((job.kind === 'dodge' && !job.clear) || (job.kind === 'reboost' && job.satellite.mode === 'orbit')),
       };
     });
     // Threatened satellites first: they have a deadline.
@@ -323,31 +312,9 @@ export class SatelliteWork {
       this.handleRival(event, pilot);
       return;
     }
-    const { hud, sound } = this.deps;
-    const name = KIND_LABEL[event.satellite.kind];
-    if (event.type === 'out-of-reach') {
-      const tooFar = event.surfaceDistance > TOW.attachRange;
-      hud.showMessage(
-        tooFar ? `Get within ${formatDistance(TOW.attachRange)} of the ${name} to connect` : `Match its speed to connect: brake (S) until the gap stops closing`,
-        'warning',
-        2.5,
-      );
-      return;
+    if (announceTowEvent(event, this.deps.hud, this.deps.sound, this.deps.fleet)) {
+      this.placeReleased(event.satellite, pilot);
     }
-    if (event.type === 'attached') {
-      hud.showMessage(`Tow line connected to ${name}. Heavier now: brake early`, 'success', 3);
-      sound.dockClamp();
-      return;
-    }
-    if (event.type === 'snapped' || event.type === 'wrecked') {
-      hud.showMessage(event.type === 'snapped' ? 'Tow line snapped: you pulled too hard' : `${name} broke apart under the strain`, 'danger', 3);
-      if (event.type === 'wrecked') {
-        this.deps.fleet.destroy(event.satellite);
-      }
-      return;
-    }
-    sound.dockClamp();
-    this.placeReleased(event.satellite, pilot);
   }
 
   /** Rivals' tow events: no prompts for them, only the outcome. */
@@ -487,9 +454,29 @@ export class SatelliteWork {
       : { world: satellite.position.clone(), label: `CONNECT TO ${name} (T)` };
   }
 
+  /** A satellite sinking after a storm: tow it back up to its orbit slot before it burns up. */
+  postReboost(satellite: Satellite): boolean {
+    if (!satellite.alive || this.jobFor(satellite)) {
+      return false;
+    }
+    this.addJob('reboost', satellite, REBOOST_PAY, null, 'is sinking into the swollen atmosphere. Contract: tow it back up to its orbit slot');
+    return true;
+  }
+
+  private addJob(kind: SatelliteJobKind, satellite: Satellite, pay: number, asteroid: Asteroid | null, what: string): void {
+    // A reboost is ready to place from the start: there is no rock to wait for.
+    this.jobs.push({ id: this.nextId++, kind, satellite, pay, asteroid, repaired: false, clear: kind === 'reboost', claimedBy: null });
+    this.deps.hud.showMessage(`${KIND_LABEL[satellite.kind]} ${what} (${formatCredits(pay)})`, kind === 'repair-tow' ? 'info' : 'warning', 5);
+    if (kind === 'dodge') {
+      this.deps.sound.alarm();
+    } else {
+      this.deps.sound.chime();
+    }
+  }
+
   private title(job: Job): string {
     const name = KIND_LABEL[job.satellite.kind];
-    return job.kind === 'dodge' ? `Move ${name} clear` : `Repair tow: ${name}`;
+    return job.kind === 'dodge' ? `Move ${name} clear` : job.kind === 'reboost' ? `Reboost ${name}` : `Repair tow: ${name}`;
   }
 
   private stepText(job: Job): string {
@@ -497,7 +484,9 @@ export class SatelliteWork {
       const seconds = secondsToStrike(job.asteroid, job.satellite);
       return `Iron rock strikes in ${seconds === null ? '—' : formatCountdown(seconds)} · tow it clear or destroy the rock`;
     }
-    return this.destination(job)?.label.toLowerCase().replace(/\(t\)/g, '(T)') ?? '';
+    const sinking = job.kind === 'reboost' && job.satellite.mode === 'orbit' && job.satellite.sinkRate > 0;
+    const burn = sinking ? ` · burns up in ${formatCountdown(secondsUntilBurn(this.deps.fleet.currentRadius(job.satellite), this.deps.fleet.burnRadius))}` : '';
+    return (this.destination(job)?.label.toLowerCase().replace(/\(t\)/g, '(T)') ?? '') + burn;
   }
 
 

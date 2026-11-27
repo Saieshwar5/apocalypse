@@ -11,6 +11,11 @@ import type { ShipController } from '../ship/shipController';
 import { Outposts, type OutpostId } from '../station/outposts';
 import { SatelliteWork, type JobRow, type Waypoint } from './satelliteWork';
 import { TowLine } from './towLine';
+import { SpaceWeather } from './spaceWeather';
+import { CrewWork } from './crewWork';
+import { SUN_DIRECTION } from '../scene/sunDirection';
+import { EARTH_RADIUS } from '../scene/earth';
+import { ATMOSPHERE } from '../logic/atmosphere';
 import { StationMarket } from './stationMarket';
 import { OutpostBerths } from './outpostBerths';
 import { HaulWork } from './haulWork';
@@ -50,6 +55,8 @@ export interface OrbitServicesDependencies {
   radio: RadioNet;
   /** Aegis's own fuel and missile store, for the market; null once it is destroyed. */
   aegisStock: () => { fuel: number; missiles: number } | null;
+  /** Docked at Aegis: sheltered from solar storms. */
+  atStation: () => boolean;
 }
 
 export interface StationMarker {
@@ -77,6 +84,8 @@ export class OrbitServices {
   readonly market: StationMarket;
   readonly berths: OutpostBerths;
   readonly haul: HaulWork;
+  readonly weather: SpaceWeather;
+  readonly crew: CrewWork;
 
   constructor(private readonly deps: OrbitServicesDependencies) {
     this.outposts = new Outposts(deps.outpostModels);
@@ -121,6 +130,30 @@ export class OrbitServices {
       rng: deps.rng,
       radio: deps.radio,
     });
+    deps.fleet.burnRadius = EARTH_RADIUS + ATMOSPHERE.top + 0.5;
+    this.weather = new SpaceWeather({
+      ship: deps.ship,
+      combat: deps.combat,
+      fleet: deps.fleet,
+      work: this.work,
+      hud: deps.hud,
+      sound: deps.sound,
+      radio: deps.radio,
+      sunDirection: SUN_DIRECTION,
+      atStation: () => deps.atStation() || this.berths.holding,
+    });
+    this.crew = new CrewWork({
+      berths: this.berths,
+      fleet: deps.fleet,
+      ship: deps.ship,
+      haloPort: () => this.outposts.portPosition('halo'),
+      wallet: deps.walletOf('player'),
+      events: deps.session.events,
+      hud: deps.hud,
+      sound: deps.sound,
+      radio: deps.radio,
+      rng: deps.rng,
+    });
     deps.scene.add(this.outposts.group, this.tow.mesh, this.market.group);
     this.debris = new OrbitDebris({
       traffic: deps.traffic,
@@ -159,6 +192,8 @@ export class OrbitServices {
     this.market.reset();
     this.berths.reset();
     this.haul.reset();
+    this.weather.reset();
+    this.crew.reset();
   }
 
   /** `flying`: the pilot has the controls (not docked, not on the map, no autopilot). */
@@ -174,6 +209,8 @@ export class OrbitServices {
     this.haul.update();
     this.market.update(deltaSeconds);
     this.berths.update(deltaSeconds, active, pilotBusy);
+    this.weather.update(deltaSeconds, active);
+    this.crew.update(deltaSeconds, active);
     // The line groans as the pull nears the strain a satellite can take.
     this.deps.sound.towCreak(Math.min(1, this.tow.tension / (FRAGILE.safeTension * 1.4)));
     this.rivals.update(deltaSeconds, active);
@@ -199,14 +236,33 @@ export class OrbitServices {
   }
 
   jobRows(): JobRow[] {
-    return [...this.work.rows(), ...this.haul.rows(), ...this.debris.rows()];
+    return [...this.work.rows(), ...this.crew.rows(), ...this.haul.rows(), ...this.debris.rows()];
   }
 
   waypoint(): Waypoint | null {
     if (this.tow.rock) {
       return this.haul.waypoint();
     }
-    return this.work.waypoint() ?? this.haul.waypoint();
+    return this.crew.waypoint() ?? this.work.waypoint() ?? this.haul.waypoint();
+  }
+
+  /** The hint line: berthing first, then any storm warning. */
+  get hint(): string | null {
+    return this.berths.hint ?? this.weather.hint;
+  }
+
+  /** Work posted in a calm zone besides satellite jobs: hauls, crew calls, sometimes a storm. */
+  calmZoneWork(): void {
+    const { rng, radio } = this.deps;
+    if (rng() < 0.6 && this.haul.post()) {
+      radio.moment('haul-posted');
+    }
+    if (rng() < 0.4) {
+      this.crew.post();
+    }
+    if (rng() < 0.3) {
+      this.weather.warn();
+    }
   }
 
   /** T: the haul rock if it is the nearest thing to tow, otherwise satellite work. */
