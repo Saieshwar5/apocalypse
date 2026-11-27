@@ -24,16 +24,16 @@ describe('waveComposition', () => {
 });
 
 describe('chooseMaterial', () => {
-  it('uses only rock in the first wave', () => {
+  it('keeps iron and ice out of the first wave', () => {
     const rng = createSeededRandom(7);
-    const materials = new Set(Array.from({ length: 200 }, () => chooseMaterial(1, rng)));
-    expect(materials).toEqual(new Set(['rocky']));
+    const materials = new Set(Array.from({ length: 300 }, () => chooseMaterial(1, rng)));
+    expect(materials).toEqual(new Set(['rocky', 'rubble', 'carbon']));
   });
 
   it('introduces iron and ice in later waves', () => {
     const rng = createSeededRandom(7);
     const materials = new Set(Array.from({ length: 500 }, () => chooseMaterial(6, rng)));
-    expect(materials).toEqual(new Set(['rocky', 'iron', 'ice']));
+    expect(materials).toEqual(new Set(['rocky', 'iron', 'ice', 'rubble', 'carbon']));
   });
 });
 

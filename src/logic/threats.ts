@@ -25,6 +25,8 @@ export function timeToImpact(position: Vec3Tuple, velocity: Vec3Tuple, planetRad
 export interface ThreatCandidate {
   timeToImpact: number | null;
   planetDamage: number;
+  /** What the pilot knows so far; used in place of planetDamage when present. */
+  assessedDamage?: number;
   /** True when the predicted impact would damage a priority site. */
   threatensSite?: boolean;
 }
@@ -38,7 +40,7 @@ export function threatUrgency(threat: ThreatCandidate): number {
     return 0;
   }
   const weight = threat.threatensSite ? SITE_THREAT_WEIGHT : 1;
-  return (threat.planetDamage * weight) / Math.max(threat.timeToImpact, 1);
+  return ((threat.assessedDamage ?? threat.planetDamage) * weight) / Math.max(threat.timeToImpact, 1);
 }
 
 /** Most urgent first. Does not modify the input array. */

@@ -10,6 +10,8 @@ export class GameSession {
   totalImpacts = 0;
   wavesCleared = 0;
   sitesLost = 0;
+  /** Asteroids that burned up harmlessly in the atmosphere. */
+  burnUps = 0;
   /** Credits spent on upgrades; credits available are score minus this. */
   spent = 0;
 
@@ -31,6 +33,7 @@ export class GameSession {
     this.totalImpacts = 0;
     this.wavesCleared = 0;
     this.sitesLost = 0;
+    this.burnUps = 0;
     this.spent = 0;
   }
 }

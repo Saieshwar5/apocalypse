@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AsteroidField, type Asteroid } from '../asteroids/asteroidField';
+import { updateIdentification } from '../asteroids/identification';
 import { ThreatVisuals } from '../asteroids/threatVisuals';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { CameraRig } from '../camera/cameraRig';
@@ -222,6 +223,7 @@ export class PlaySession {
     }
     this.campaign.update(deltaSeconds);
 
+    updateIdentification(deltaSeconds, ship.position, ship.forward(), this.field.all, this.sites.isStanding('radar'), flying, this.feedback);
     this.sites.updateThreats(this.field.all);
     this.stationOps.updateThreats();
     const ranked = rankThreats(this.field.all);

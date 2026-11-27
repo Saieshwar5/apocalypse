@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { TargetingInfo } from '../game/targeting';
+import { MATERIAL_TRAITS } from '../logic/asteroidClasses';
 import { formatCountdown, formatDistance } from '../logic/units';
 import type { CombatFeedback } from './combatFeedback';
 import type { ScreenProjector } from './screenProjector';
@@ -93,7 +94,13 @@ function drawTargetPanel(
   const lines: [string, string][] = [];
   if (target) {
     const health = Math.max(0, Math.ceil((target.health / target.maxHealth) * 100));
-    lines.push([`TARGET  ${target.size.toUpperCase()} ${target.material.toUpperCase()}  ·  ${health}% INTACT`, '#e8f1ff']);
+    const kind = target.identified ? MATERIAL_TRAITS[target.material].label.toUpperCase() : 'UNIDENTIFIED';
+    lines.push([`TARGET  ${target.size.toUpperCase()} ${kind}  ·  ${health}% INTACT`, '#e8f1ff']);
+    if (target.identified) {
+      lines.push([MATERIAL_TRAITS[target.material].advice, '#8fd3ff']);
+    } else {
+      lines.push(['Hold the reticle on it to identify', '#8fd3ff']);
+    }
     lines.push([`${formatDistance(targeting.distance)}  ·  ${rangeLabel}${targeting.onTarget ? '  ·  ON TARGET' : ''}`, color]);
   }
   if (overheated) {

@@ -72,6 +72,32 @@ export class AsteroidMeshFactory {
           innerGlow: new THREE.Color(0.07, 0.13, 0.2),
         },
       ),
+      // Rubble pile: pale, dusty and soft-edged, like loosely packed gravel.
+      rubble: createRockMaterial(
+        { color: new THREE.Color(0.66, 0.62, 0.55), roughness: 1, metalness: 0 },
+        {
+          detailMap: getRockDetailTexture('rocky'),
+          tiling: [1.1, 3.2],
+          bump: [0.8, 1.3],
+          darkTint: new THREE.Color(0.52, 0.47, 0.4),
+          glossSmoothing: 0,
+          glossMetal: 0,
+          innerGlow: new THREE.Color(0, 0, 0),
+        },
+      ),
+      // Carbon-rich: almost black, sooty and matte.
+      carbon: createRockMaterial(
+        { color: new THREE.Color(0.13, 0.125, 0.12), roughness: 0.98, metalness: 0 },
+        {
+          detailMap: getRockDetailTexture('rocky'),
+          tiling: [0.7, 2.4],
+          bump: [1.2, 0.8],
+          darkTint: new THREE.Color(0.08, 0.075, 0.07),
+          glossSmoothing: 0.05,
+          glossMetal: 0,
+          innerGlow: new THREE.Color(0, 0, 0),
+        },
+      ),
     };
   }
 

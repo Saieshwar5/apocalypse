@@ -3,7 +3,8 @@ import type { Asteroid } from '../asteroids/asteroidField';
 import { THREAT_COLORS, threatTone } from '../asteroids/threatTone';
 import type { TargetingInfo } from '../game/targeting';
 import type { SiteLabel } from '../sites/siteMarkers';
-import type { AsteroidSize } from '../logic/asteroidClasses';
+import { RATING_COLOR, RATING_LABEL, ratingOf } from '../asteroids/identification';
+import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { CombatFeedback } from './combatFeedback';
 import { drawReticle } from './reticle';
@@ -228,9 +229,21 @@ export class TargetOverlay {
     const context = this.context;
     const distance = asteroid.mesh.position.distanceTo(shipPosition) - asteroid.radius;
     const where = asteroid.targetSite ? `→ ${asteroid.targetSite.toUpperCase()}` : 'IMPACT';
-    const eta = asteroid.timeToImpact === null ? 'MISSES EARTH' : `${where} ${formatCountdown(asteroid.timeToImpact)}`;
+    const eta = asteroid.timeToImpact === null ? 'MISSES' : `${where} ${formatCountdown(asteroid.timeToImpact)}`;
     context.fillStyle = color;
-    context.fillText(`${SIZE_LABEL[asteroid.size]} ${asteroid.material.toUpperCase()}  ${eta}`, x, y - 4);
+    if (asteroid.identified) {
+      const rating = ratingOf(asteroid);
+      context.fillText(`${SIZE_LABEL[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toUpperCase()}  ${eta}`, x, y - 4);
+      context.fillStyle = RATING_COLOR[rating];
+      context.fillText(RATING_LABEL[rating], x, y + 22);
+    } else {
+      context.fillText(`${SIZE_LABEL[asteroid.size]} UNIDENTIFIED  ${eta}`, x, y - 4);
+      // Scan progress: aim at the contact to fill it.
+      context.fillStyle = 'rgba(232, 241, 255, 0.25)';
+      context.fillRect(x, y + 15, 70, 3);
+      context.fillStyle = '#8fd3ff';
+      context.fillRect(x, y + 15, 70 * Math.min(1, asteroid.scanProgress), 3);
+    }
     context.fillStyle = 'rgba(232, 241, 255, 0.75)';
     context.fillText(`${formatDistance(distance)} · ${formatSpeed(asteroid.velocity.length())}`, x, y + 9);
   }

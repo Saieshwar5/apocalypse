@@ -17,7 +17,7 @@ import {
 import { ASTEROID_CLASSES } from '../logic/asteroidClasses';
 import { blastDamage, laserRangeMultiplier } from '../logic/ballistics';
 import { deflectionScore, hitSpeedChange } from '../logic/impulse';
-import { applyPlanetDamage, craterAngularRadius } from '../logic/planetDamage';
+import { applyPlanetDamage, burnsUp, craterAngularRadius } from '../logic/planetDamage';
 import { randomUnitVector, type RandomSource } from '../logic/random';
 import { destroyScore } from '../logic/scoring';
 import { COLLISION_DAMAGE, MISSILE_BLAST, SHRAPNEL } from '../logic/shipDefense';
@@ -106,13 +106,26 @@ export class CombatResolver {
   resolvePlanetImpacts(impacts: readonly PlanetImpact[], listenerPosition: THREE.Vector3): void {
     const { earth, explosions, sound, hud, cameraRig, session } = this.deps;
     for (const { asteroid, point } of impacts) {
+      if (burnsUp(asteroid.size, asteroid.material)) {
+        // Too small or too loose to reach the ground: a shooting star, no damage.
+        const high = point.clone().multiplyScalar(1.035);
+        explosions.spawnExplosion(high, Math.min(asteroid.radius, 1.2) * 0.6, 'fire', asteroid.velocity.clone().multiplyScalar(0.3));
+        explosions.spawnHitSpark(high);
+        session.burnUps += 1;
+        if (asteroid.size !== 'small') {
+          hud.showMessage(`${MATERIAL_TRAITS[asteroid.material].label} asteroid burned up in the atmosphere`, 'info', 2.5);
+        }
+        continue;
+      }
       session.integrity = applyPlanetDamage(session.integrity, asteroid.planetDamage);
       session.impactsThisWave += 1;
       session.totalImpacts += 1;
       earth.addImpact(point, craterAngularRadius(asteroid.size));
       this.deps.plumes.add(point, craterAngularRadius(asteroid.size));
       explosions.spawnSurfaceImpact(point, asteroid.radius);
-      const siteHits = this.deps.sites.applyImpact(point, asteroid.size);
+      // Light bodies do less to a site than a dense one of the same size.
+      const siteStrength = Math.min(1, MATERIAL_TRAITS[asteroid.material].planetDamageMultiplier);
+      const siteHits = this.deps.sites.applyImpact(point, asteroid.size, siteStrength);
       const weight = SIZE_WEIGHT[asteroid.size];
       sound.planetImpact(weight);
       const distance = listenerPosition.distanceTo(point);
@@ -216,11 +229,11 @@ export class CombatResolver {
 
     if (!destroyed) {
       const wasOnCourse = asteroid.timeToImpact !== null;
-      field.applyImpulse(asteroid, direction, hitSpeedChange(weapon, asteroid.radius));
+      field.applyImpulse(asteroid, direction, hitSpeedChange(weapon, asteroid.radius, MATERIAL_TRAITS[asteroid.material].density));
       if (wasOnCourse && asteroid.timeToImpact === null) {
         hud.showMessage('Knocked off course: it will now miss the planet', 'success', 3);
       }
-      sound.hit(asteroid.material);
+      sound.hit(asteroid.material === 'iron' || asteroid.material === 'ice' ? asteroid.material : 'rocky');
       scorches.add(asteroid.mesh, point, resisted ? 0.35 : 0.6);
       if (resisted) {
         explosions.spawnHitSpark(point);
@@ -317,7 +330,7 @@ export class CombatResolver {
       const outward = new THREE.Vector3(...randomUnitVector(this.deps.rng));
       const position = parent.mesh.position.clone().addScaledVector(outward, parent.radius * 0.6);
       const velocity = parent.velocity.clone().addScaledVector(outward, 0.35 + this.deps.rng() * 0.5);
-      this.deps.field.spawnFragment(fragments.size, parent.material, position, velocity);
+      this.deps.field.spawnFragment(fragments.size, parent.material, position, velocity).identified = true;
     }
     this.deps.hud.showMessage(
       `${SIZE_NAME[parent.size]} asteroid split into ${fragments.count} fragments. Missiles destroy it whole`,

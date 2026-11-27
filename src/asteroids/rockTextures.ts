@@ -20,12 +20,15 @@ interface SurfaceLayers {
 
 const cache = new Map<AsteroidMaterial, THREE.DataTexture>();
 
+/** The painted surfaces; other asteroid types reuse one with different tints. */
+export type DetailRecipe = 'rocky' | 'iron' | 'ice';
+
 /**
  * Tiling detail texture for one asteroid type, built once and shared by
  * every asteroid of that type. Channels: RG = tangent-space normal XY,
  * B = albedo shade, A = gloss. Sampled triplanar, so it needs no UVs.
  */
-export function getRockDetailTexture(material: AsteroidMaterial): THREE.DataTexture {
+export function getRockDetailTexture(material: DetailRecipe): THREE.DataTexture {
   let texture = cache.get(material);
   if (!texture) {
     // Fixed seeds: the look should not change between sessions.
@@ -36,7 +39,7 @@ export function getRockDetailTexture(material: AsteroidMaterial): THREE.DataText
   return texture;
 }
 
-const RECIPES: Record<AsteroidMaterial, (rng: RandomSource) => SurfaceLayers> = {
+const RECIPES: Record<DetailRecipe, (rng: RandomSource) => SurfaceLayers> = {
   rocky: paintRegolith,
   iron: paintIron,
   ice: paintIce,

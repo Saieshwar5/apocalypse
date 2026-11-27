@@ -79,7 +79,8 @@ export class SiteDefence {
     for (const asteroid of asteroids) {
       asteroid.targetSite = null;
       asteroid.threatensSite = false;
-      if (asteroid.timeToImpact === null) {
+      // Known burn-ups never reach the ground, so they threaten no site.
+      if (asteroid.timeToImpact === null || (asteroid.identified && asteroid.assessedDamage === 0)) {
         continue;
       }
       const impact = asteroid.mesh.position.clone().addScaledVector(asteroid.velocity, asteroid.timeToImpact);
@@ -94,14 +95,14 @@ export class SiteDefence {
   }
 
   /** Applies an impact at a world-space surface point to every site in reach. */
-  applyImpact(worldPoint: THREE.Vector3, size: AsteroidSize): SiteHit[] {
+  applyImpact(worldPoint: THREE.Vector3, size: AsteroidSize, strength = 1): SiteHit[] {
     const local = this.earth.worldToLocalDirection(worldPoint);
     const hits: SiteHit[] = [];
     for (const site of this.sites) {
       if (site.health <= 0) {
         continue;
       }
-      const damage = siteDamage(local.angleTo(site.localDirection), size);
+      const damage = siteDamage(local.angleTo(site.localDirection), size) * strength;
       if (damage > 0) {
         site.health = Math.max(0, site.health - damage);
         hits.push({ site, damage, destroyed: site.health === 0 });

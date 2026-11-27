@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import type { AltitudeReadout, AtmosphereZone } from '../logic/atmosphere';
-import { integrityLevel } from '../logic/planetDamage';
+import { integrityLevel, threatRating } from '../logic/planetDamage';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { SiteState } from '../sites/siteDefence';
 import { SitePanel } from './sitePanel';
@@ -198,10 +198,14 @@ export class Hud {
   private renderThreats(snapshot: HudSnapshot): void {
     const rows = snapshot.threats.slice(0, VISIBLE_THREATS).map((asteroid) => {
       const eta = asteroid.timeToImpact === null ? 'misses' : formatCountdown(asteroid.timeToImpact);
-      const urgent = asteroid.timeToImpact !== null && (asteroid.timeToImpact < 20 || asteroid.threatensSite);
+      const harmless = asteroid.identified && asteroid.assessedDamage === 0;
+      const urgent = !harmless && asteroid.timeToImpact !== null && (asteroid.timeToImpact < 20 || asteroid.threatensSite);
       const distance = formatDistance(snapshot.shipPosition.distanceTo(asteroid.mesh.position) - asteroid.radius);
-      const target = asteroid.targetSite ? ` → ${asteroid.targetSite.toUpperCase()}` : ` · -${asteroid.planetDamage.toFixed(0)}%`;
-      const name = `${SIZE_NAME[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toLowerCase()}${target}`;
+      const rating = threatRating(asteroid.size, asteroid.material, asteroid.timeToImpact === null);
+      const what = asteroid.identified
+        ? `${SIZE_NAME[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toLowerCase()} · ${rating}`
+        : `${SIZE_NAME[asteroid.size]} unidentified`;
+      const name = `${what}${asteroid.targetSite ? ` → ${asteroid.targetSite.toUpperCase()}` : ''}`;
       const detail = `${distance} away · ${formatSpeed(asteroid.velocity.length())}`;
       return `<li class="${urgent ? 'urgent' : ''}"><span>${name}</span><span class="threat-eta">${eta}</span><span class="threat-detail">${detail}</span></li>`;
     });

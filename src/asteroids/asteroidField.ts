@@ -36,6 +36,14 @@ export interface Asteroid {
   /** Name of the priority site its impact would damage, if any. */
   targetSite: string | null;
   threatensSite: boolean;
+  /** False until the pilot scans it or hits it: its type is unknown before then. */
+  identified: boolean;
+  /** 0..1 progress of the scan. */
+  scanProgress: number;
+  /** Damage the pilot should plan for: the true figure once identified, the class average before. */
+  assessedDamage: number;
+  /** Spawned on a path that never threatens the planet. */
+  passerBy: boolean;
 }
 
 export interface PlanetImpact {
@@ -96,7 +104,7 @@ export class AsteroidField {
     aimAt?: (flightSeconds: number) => THREE.Vector3,
   ): Asteroid {
     const definition = ASTEROID_CLASSES[size];
-    const radius = randomBetween(this.rng, ...definition.radius);
+    const radius = randomBetween(this.rng, ...definition.radius) * MATERIAL_TRAITS[material].radiusMultiplier;
     const speed =
       randomBetween(this.rng, ...definition.speed) * MATERIAL_TRAITS[material].speedMultiplier * speedScale;
     const aim = aimAt
@@ -128,9 +136,41 @@ export class AsteroidField {
       lastHitBy: null,
       targetSite: null,
       threatensSite: false,
+      identified: false,
+      scanProgress: 0,
+      assessedDamage: definition.planetDamage,
+      passerBy: false,
     };
     this.nextId += 1;
     this.asteroids.push(asteroid);
+    this.refreshTimeToImpact(asteroid);
+    return asteroid;
+  }
+
+  /** Asteroids that could still threaten the planet; passers-by do not hold up a field. */
+  get threatCount(): number {
+    return this.asteroids.reduce((count, asteroid) => count + (asteroid.passerBy ? 0 : 1), 0);
+  }
+
+  /**
+   * An asteroid that only passes through the neighbourhood: either crossing
+   * well clear of the planet or already heading away from it.
+   */
+  spawnPasserBy(size: AsteroidSize, material: AsteroidMaterial): Asteroid {
+    const outbound = this.rng() < 0.35;
+    const from = new THREE.Vector3(...randomUnitVector(this.rng));
+    const position = from.clone().multiplyScalar(outbound ? randomBetween(this.rng, 35, 70) : randomBetween(this.rng, 150, 190));
+    const asteroid = this.spawnAt(size, material, position);
+    const speed = asteroid.velocity.length();
+    if (outbound) {
+      asteroid.velocity.copy(from).multiplyScalar(speed);
+    } else {
+      // Aim at a point well to one side of the planet, so the path clears it.
+      const side = new THREE.Vector3(...randomUnitVector(this.rng)).cross(from).normalize();
+      const missPoint = side.multiplyScalar(this.planetRadius * randomBetween(this.rng, 2.2, 6));
+      asteroid.velocity.copy(missPoint.sub(position).normalize().multiplyScalar(speed));
+    }
+    asteroid.passerBy = true;
     this.refreshTimeToImpact(asteroid);
     return asteroid;
   }
@@ -195,6 +235,8 @@ export class AsteroidField {
     }
     asteroid.health -= amount;
     asteroid.lastHitBy = weapon;
+    // Seeing how it reacts to a hit tells the pilot what it is made of.
+    asteroid.identified = true;
     // Resisted hits (iron against lasers) flash less, so the player sees it.
     asteroid.hitFlash = Math.min(1, asteroid.hitFlash + Math.min(1, amount / 12));
     if (asteroid.health > 0) {

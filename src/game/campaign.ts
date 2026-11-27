@@ -10,7 +10,7 @@ import { siteTargetingChance } from '../logic/prioritySites';
 import { randomUnitVector, type RandomSource } from '../logic/random';
 import { waveClearBonus } from '../logic/scoring';
 import { UPGRADES, loadoutFor, noUpgrades, purchase, type UpgradeLevels } from '../logic/upgrades';
-import type { AsteroidSpawnPlan } from '../logic/waves';
+import { PASSER_BY_RATIO, chooseMaterial, type AsteroidSpawnPlan } from '../logic/waves';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import type { ShipController } from '../ship/shipController';
 import type { SiteDefence } from '../sites/siteDefence';
@@ -55,6 +55,8 @@ export class Campaign {
   private readonly orbitMap: OrbitMap;
   private readonly workshop: WorkshopPanel;
   private seconds = 0;
+  /** Seconds until each harmless passer-by of the current field appears. */
+  private passerByDelays: number[] = [];
 
   constructor(private readonly deps: CampaignDependencies) {
     this.director = new WaveDirector(deps.rng);
@@ -80,13 +82,15 @@ export class Campaign {
     }
     this.orbitComplete = false;
     this.seconds = 0;
+    this.passerByDelays = [];
     this.applyLoadout();
   }
 
   update(deltaSeconds: number): void {
     const { input, hud, stationOps } = this.deps;
     this.seconds += deltaSeconds;
-    this.handleEvents(this.director.update(deltaSeconds, this.deps.field.count));
+    this.handleEvents(this.director.update(deltaSeconds, this.deps.field.threatCount));
+    this.releasePassersBy(deltaSeconds);
 
     const docked = stationOps.docking.state === 'docked';
     if (docked) {
@@ -139,14 +143,19 @@ export class Campaign {
       if (event.type === 'sector-started') {
         session.impactsThisWave = 0;
         session.destroyedThisWave = 0;
-        if (!event.plan) {
+        const plan = event.plan;
+        if (!plan) {
           const dock = stationOps.present ? ` Dock at ${STATION_NAME} to refuel and upgrade.` : '';
           hud.showMessage(`Calm zone.${dock} Enter moves on when ready`, 'info', 5);
-        } else if (event.plan.hasGiant) {
+          continue;
+        }
+        const passersBy = Math.max(1, Math.round(plan.spawns.length * PASSER_BY_RATIO));
+        this.passerByDelays = Array.from({ length: passersBy }, () => this.deps.rng() * plan.durationSeconds);
+        if (plan.hasGiant) {
           hud.showMessage('Giant asteroid detected. Intercept it far out, or push it off course with missiles', 'danger', 6);
           sound.alarm();
         } else {
-          hud.showMessage(`${SECTOR_LABEL[event.sector.kind]}: ${event.plan.spawns.length} contacts`, 'warning', 3.5);
+          hud.showMessage(`${SECTOR_LABEL[event.sector.kind]}: ${plan.spawns.length} contacts. Scan them to see which matter`, 'warning', 4);
         }
       } else if (event.type === 'spawn') {
         this.spawnAsteroid(event.spawn);
@@ -165,6 +174,19 @@ export class Campaign {
         this.orbitComplete = true;
       }
     }
+  }
+
+  /** Traffic that never threatens the planet, so the sky is not only incoming fire. */
+  private releasePassersBy(deltaSeconds: number): void {
+    const { rng, field } = this.deps;
+    this.passerByDelays = this.passerByDelays.map((delay) => delay - deltaSeconds);
+    for (const delay of this.passerByDelays) {
+      if (delay <= 0) {
+        const roll = rng();
+        field.spawnPasserBy(roll < 0.5 ? 'small' : roll < 0.85 ? 'medium' : 'large', chooseMaterial(Math.max(1, this.director.wave), rng));
+      }
+    }
+    this.passerByDelays = this.passerByDelays.filter((delay) => delay > 0);
   }
 
   /** Aims some later-wave asteroids at a standing site, allowing for Earth's rotation. */

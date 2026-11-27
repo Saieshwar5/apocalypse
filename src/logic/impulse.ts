@@ -6,8 +6,8 @@ const WEAPON_IMPULSE: Record<WeaponKind, number> = { laser: 0.5, missile: 30 };
 const MAX_SPEED_CHANGE = 2.5;
 
 /** Asteroids are treated as uniform spheres, so mass grows with the cube of radius. */
-export function asteroidMass(radius: number): number {
-  return radius * radius * radius;
+export function asteroidMass(radius: number, density = 1): number {
+  return radius * radius * radius * density;
 }
 
 /**
@@ -16,8 +16,8 @@ export function asteroidMass(radius: number): number {
  * enough off course to miss the planet, which is how big threats are
  * deflected rather than destroyed.
  */
-export function hitSpeedChange(weapon: WeaponKind, radius: number): number {
-  return Math.min(MAX_SPEED_CHANGE, WEAPON_IMPULSE[weapon] / asteroidMass(Math.max(radius, 0.05)));
+export function hitSpeedChange(weapon: WeaponKind, radius: number, density = 1): number {
+  return Math.min(MAX_SPEED_CHANGE, WEAPON_IMPULSE[weapon] / asteroidMass(Math.max(radius, 0.05), density));
 }
 
 /** Points for pushing an asteroid onto a path that misses the planet. */
