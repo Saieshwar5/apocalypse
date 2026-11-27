@@ -4,6 +4,7 @@ import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
 import { formatCredits } from '../logic/contracts';
 import type { Wallet } from '../logic/economy';
+import type { GameEvents } from './gameEvents';
 import { pilotName, type PilotId } from '../logic/rivals';
 import { randomUnitVector, type RandomSource } from '../logic/random';
 import { dodgeApproach, satelliteJobPay, type SatelliteJobKind } from '../logic/satelliteJobs';
@@ -45,6 +46,7 @@ export interface SatelliteWorkDependencies {
   ship: ShipController;
   field: AsteroidField;
   walletOf: (pilot: PilotId) => Wallet;
+  events: GameEvents;
   hud: Hud;
   sound: SoundEffects;
   rng: RandomSource;
@@ -413,7 +415,9 @@ export class SatelliteWork {
     this.deps.walletOf(pilot).earn(paid);
     this.jobs = this.jobs.filter((candidate) => candidate !== job);
     this.completed[pilot] = (this.completed[pilot] ?? 0) + 1;
-    if (pilot !== 'player') {
+    if (pilot === 'player') {
+      this.deps.events.emit({ type: 'satellite-job-completed' });
+    } else {
       this.deps.hud.showMessage(`${pilotName(pilot)} finished the ${this.title(job).toLowerCase()} (${formatCredits(paid)})`, 'info', 3.5);
       return;
     }
@@ -423,6 +427,9 @@ export class SatelliteWork {
   }
 
   private fail(job: Job, message: string): void {
+    if (job.claimedBy === 'player') {
+      this.deps.events.emit({ type: 'satellite-job-failed' });
+    }
     this.jobs = this.jobs.filter((candidate) => candidate !== job);
     if (this.inYard === job.satellite) {
       this.inYard = null;

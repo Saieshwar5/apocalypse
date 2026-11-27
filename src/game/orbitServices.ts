@@ -38,6 +38,8 @@ export interface OrbitServicesDependencies {
   session: GameSession;
   playerProjectiles: THREE.Group[];
   station: () => { position: THREE.Vector3; velocity: THREE.Vector3 } | null;
+  /** Rivals give way to a pilot in good standing, and stop once the licence is under review. */
+  playerGoodStanding: () => boolean;
 }
 
 export interface StationMarker {
@@ -73,6 +75,7 @@ export class OrbitServices {
       ship: deps.ship,
       field: deps.field,
       walletOf: deps.walletOf,
+      events: deps.session.events,
       hud: deps.hud,
       sound: deps.sound,
       rng: deps.rng,
@@ -102,6 +105,7 @@ export class OrbitServices {
       sound: deps.sound,
       playerProjectiles: deps.playerProjectiles,
       station: deps.station,
+      playerGoodStanding: deps.playerGoodStanding,
     });
   }
 

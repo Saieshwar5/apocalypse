@@ -39,6 +39,8 @@ export interface RivalWorld {
   station: { position: THREE.Vector3; velocity: THREE.Vector3 } | null;
   /** The player's ship, so a rival does not race a pilot who is already there. */
   playerPosition: THREE.Vector3;
+  /** False while the player's licence is under review: rivals then race for everything. */
+  yieldToPlayer: boolean;
 }
 
 export type RivalSay = (line: 'hunt-big' | 'hunt' | 'satellite' | 'refuel' | 'beaten') => void;
@@ -196,7 +198,7 @@ export class RivalPilot {
         travelSeconds: travelTime(distance - LASER_RANGE.optimal, 0, speed, FLIGHT.thrust * 1.5),
         deadlineSeconds: asteroid.timeToImpact ?? 0,
         bigGame: asteroid.size === 'large' || asteroid.size === 'giant' || asteroid.material === 'iron',
-        someoneCloser: playerDistance < distance * 0.35 && playerDistance < 40,
+        someoneCloser: world.yieldToPlayer && playerDistance < distance * 0.35 && playerDistance < 40,
       });
       if (score > bestScore) {
         best = { kind: 'hunt', asteroid };
@@ -211,7 +213,7 @@ export class RivalPilot {
         travelSeconds: travelTime(distance, 0, speed, FLIGHT.thrust * 1.5),
         deadlineSeconds: job.deadline,
         bigGame: false,
-        someoneCloser: job.satellite.position.distanceTo(world.playerPosition) < Math.min(distance * 0.35, 20),
+        someoneCloser: world.yieldToPlayer && job.satellite.position.distanceTo(world.playerPosition) < Math.min(distance * 0.35, 20),
       });
       if (score > bestScore) {
         best = { kind: 'satellite', jobId: job.id, satellite: job.satellite };

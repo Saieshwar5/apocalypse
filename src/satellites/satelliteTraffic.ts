@@ -76,6 +76,7 @@ export class SatelliteTraffic {
       const struck = this.fleet.findOverlap(ship.position, SHIP_RADIUS, this.shipIgnores);
       if (struck) {
         const point = this.lose(struck, 'You flew into a satellite');
+        session.events.emit({ type: 'satellite-destroyed-by-player' });
         ship.velocity.addScaledVector(ship.position.clone().sub(point).normalize(), 6);
         combat.applyEnvironmentDamage(SATELLITE_COLLISION_DAMAGE, 'The interceptor was destroyed in a collision with a satellite');
       }
@@ -103,6 +104,7 @@ export class SatelliteTraffic {
         const hit = this.fleet.findHit(start, current);
         projectile.userData.lastSatelliteCheck = current.clone();
         if (hit) {
+          session.events.emit({ type: 'satellite-destroyed-by-player' });
           const fined = session.wallet.fine(SATELLITE_LOSS_PENALTY);
           this.lose(hit, `You shot a satellite. Operator's fine: ${formatCredits(fined)}`);
         }
