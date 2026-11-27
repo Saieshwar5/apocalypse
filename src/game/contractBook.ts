@@ -113,6 +113,15 @@ export class ContractBook {
     return value;
   }
 
+  /** Line under the board: this field's earnings, or a note during calm. */
+  summary(inField: boolean): string {
+    if (!inField) {
+      return 'Calm zone: defence contracts post when the next field arrives';
+    }
+    const lost = this.fieldLost > 0 ? ` · lost ${formatCredits(this.fieldLost)}` : '';
+    return `This field: earned ${formatCredits(this.fieldEarned)}${lost}`;
+  }
+
   /** Forget asteroids that left without anyone being paid. */
   forget(asteroid: Asteroid): void {
     this.values.delete(asteroid.id);

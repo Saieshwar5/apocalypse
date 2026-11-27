@@ -30,12 +30,13 @@ import { SiteDefence } from '../sites/siteDefence';
 import { SiteMarkers } from '../sites/siteMarkers';
 import { CombatResolver } from './combatResolver';
 import { ContractBook } from './contractBook';
-import { formatCredits } from '../logic/contracts';
 import { FlightHazards } from './flightHazards';
 import type { GameSession } from './gameSession';
 import { computeGuidance, type Guidance } from './guidance';
 import { computeTargeting, type TargetingInfo } from './targeting';
 import { Campaign } from './campaign';
+import { OrbitServices } from './orbitServices';
+import type { OutpostId } from '../station/outposts';
 
 /** After the ship is destroyed, play continues this long so the player sees it. */
 const SHIP_LOST_SECONDS = 2.5;
@@ -63,6 +64,7 @@ export interface PlaySessionDependencies {
   /** The Blender station model. */
   stationModel: THREE.Object3D;
   satellitesModel: THREE.Object3D;
+  outpostModels: Record<OutpostId, THREE.Object3D>;
   ship: ShipController;
   /** Shows or hides the cockpit frame overlay. */
   setCockpitFrame: (visible: boolean) => void;
@@ -92,6 +94,7 @@ export class PlaySession {
   private readonly hazards: FlightHazards;
   readonly stationOps: StationOperations;
   readonly satellites: SatelliteTraffic;
+  readonly services: OrbitServices;
   /** Why the mission failed because of the ship, once the loss has played out. */
   shipFailure: string | null = null;
   private lostCause: string | null = null;
@@ -165,6 +168,18 @@ export class PlaySession {
       session: deps.session,
       projectiles: [this.laser.group, this.missiles.group],
     });
+    this.services = new OrbitServices({
+      scene: deps.scene,
+      outpostModels: deps.outpostModels,
+      fleet: this.satellites.fleet,
+      ship: deps.ship,
+      field: this.field,
+      wallet: deps.session.wallet,
+      hud: deps.hud,
+      sound: deps.sound,
+      input: deps.input,
+      rng: deps.rng,
+    });
     this.campaign = new Campaign({
       field: this.field,
       sites: this.sites,
@@ -179,6 +194,7 @@ export class PlaySession {
       laser: this.laser,
       missiles: this.missiles,
       contracts: this.contracts,
+      work: this.services.work,
     });
   }
 
@@ -202,6 +218,7 @@ export class PlaySession {
     this.hazards.reset();
     this.stationOps.reset();
     this.satellites.reset();
+    this.services.reset();
     this.shipFailure = null;
     this.lostCause = null;
     this.lostTimer = 0;
@@ -239,7 +256,9 @@ export class PlaySession {
         this.shipFailure = this.lostCause;
       }
     }
-    const pilotBusy = input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || this.deps.input.firingPrimary;
+    // The docking guides will not take a ship with a load on its tow line.
+    const pilotBusy =
+      input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || this.deps.input.firingPrimary || this.services.tow.load !== null;
     this.stationOps.update(deltaSeconds, active, this.tactical, pilotBusy);
     shipModel.group.updateMatrixWorld();
     this.hazards.update(deltaSeconds, active);
@@ -250,7 +269,9 @@ export class PlaySession {
     this.combat.resolveWeaponHits(this.missiles.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'missile');
     this.combat.resolveShipCollisions();
     this.combat.resolveEscaped(this.field.collectEscaped());
+    this.satellites.shipIgnores = this.services.work.towed;
     this.satellites.update(deltaSeconds, active);
+    this.services.update(deltaSeconds, flying && !this.hazards.autopilot);
     const lostCause = this.combat.consumeShipLost();
     if (lostCause && active) {
       this.destroyShip(lostCause);
@@ -397,15 +418,6 @@ export class PlaySession {
     cameraRig.place(position, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), deltaSeconds);
   }
 
-  private contractSummary(): string {
-    const { fieldEarned, fieldLost } = this.contracts;
-    if (this.campaign.director.phase !== 'field') {
-      return 'Calm zone: contracts post when the next field arrives';
-    }
-    const lost = fieldLost > 0 ? ` · lost ${formatCredits(fieldLost)}` : '';
-    return `This field: earned ${formatCredits(fieldEarned)}${lost}`;
-  }
-
   private destroyShip(cause: string): void {
     const { explosions, sound, cameraRig, hud, ship } = this.deps;
     explosions.spawnExplosion(ship.position, 1.6, 'fire');
@@ -428,7 +440,8 @@ export class PlaySession {
       balance: session.wallet.balance,
       earned: session.wallet.earned,
       contracts: this.contracts.listings(ranked),
-      contractSummary: this.contractSummary(),
+      jobs: this.services.jobRows(),
+      contractSummary: this.contracts.summary(this.campaign.director.phase === 'field'),
       laserHeat: this.laser.heat,
       overheated: this.laser.overheated,
       missiles: this.missiles.ammunition,
@@ -448,11 +461,12 @@ export class PlaySession {
         autopilot: this.hazards.pullingUp ? 'AUTO PULL-UP' : this.hazards.returning ? 'AUTOPILOT RETURNING' : null,
         thrusting: this.deps.input.isDown('KeyW'),
         braking: this.deps.input.isDown('KeyS'),
+        towing: this.services.work.towStatus(),
       },
     });
     const range = (this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * this.satellites.scannerBonus;
     const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
-    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null, this.campaign.scannerBlind, this.satellites.positions());
+    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null, this.campaign.scannerBlind, this.satellites.positions(), this.services.radarContacts());
     if (!showTargets || !this.shipActive || !this.targeting || this.stationOps.holdingShip) {
       overlay.clear();
       return;
@@ -468,7 +482,7 @@ export class PlaySession {
       tactical: this.tactical,
       shipPosition: ship.position,
       sites: this.siteMarkers.visibleLabels(camera.position),
-      stationMarkers: this.stationOps.markers(),
+      stationMarkers: [...this.stationOps.markers(), ...this.services.markers()],
       guidance: {
         guidance: this.guidance,
         satellites: this.satellites.all,
@@ -476,6 +490,7 @@ export class PlaySession {
         shipVelocity: ship.velocity,
         showDrift: !ship.assist,
         priorityPay: this.guidance.priority ? this.contracts.offerFor(this.guidance.priority.item) : 0,
+        waypoint: this.services.waypoint(),
         priorityEstimate: this.guidance.priority ? !this.guidance.priority.item.identified : false,
       },
     });

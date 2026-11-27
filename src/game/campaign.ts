@@ -14,6 +14,7 @@ import { PASSER_BY_RATIO, chooseMaterial, type AsteroidSpawnPlan } from '../logi
 import { formatCredits } from '../logic/contracts';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import type { ContractBook } from './contractBook';
+import type { SatelliteWork } from './satelliteWork';
 import type { ShipController } from '../ship/shipController';
 import type { SiteDefence } from '../sites/siteDefence';
 import { STATION_NAME, type StationOperations } from '../station/stationOperations';
@@ -44,6 +45,8 @@ export interface CampaignDependencies {
   laser: LaserCannon;
   missiles: MissileLauncher;
   contracts: ContractBook;
+  /** Satellite contracts: posted in calm zones, sometimes during fields. */
+  work: SatelliteWork;
 }
 
 /**
@@ -62,6 +65,8 @@ export class Campaign {
   private passerByDelays: number[] = [];
   /** Seconds until a solar flare starts in this field; Infinity when none is due. */
   private flareIn = Infinity;
+  /** Seconds until a satellite dodge threat is posted; Infinity when none is due. */
+  private dodgeIn = Infinity;
   private flareRemaining = 0;
 
   constructor(private readonly deps: CampaignDependencies) {
@@ -96,6 +101,7 @@ export class Campaign {
     this.passerByDelays = [];
     this.flareIn = Infinity;
     this.flareRemaining = 0;
+    this.dodgeIn = Infinity;
     this.applyLoadout();
   }
 
@@ -105,6 +111,7 @@ export class Campaign {
     this.handleEvents(this.director.update(deltaSeconds, this.deps.field.threatCount));
     this.releasePassersBy(deltaSeconds);
     this.updateFlare(deltaSeconds);
+    this.updateSatelliteJobs(deltaSeconds);
     this.updateTension();
 
     const docked = stationOps.docking.state === 'docked';
@@ -163,11 +170,14 @@ export class Campaign {
         if (!plan) {
           const dock = stationOps.present ? ` Dock at ${STATION_NAME} to refuel and upgrade.` : '';
           hud.showMessage(`Calm zone.${dock} Enter moves on when ready`, 'info', 5);
+          // Calm stretches are when satellite operators post work.
+          this.calmZoneJobs();
           continue;
         }
         const passersBy = Math.max(1, Math.round(plan.spawns.length * PASSER_BY_RATIO));
         this.passerByDelays = Array.from({ length: passersBy }, () => this.deps.rng() * plan.durationSeconds);
         // Dense fields sometimes bring a solar flare that blinds the scanner for a while.
+        this.dodgeIn = this.deps.rng() < 0.25 ? 10 + this.deps.rng() * plan.durationSeconds * 0.5 : Infinity;
         this.flareIn = event.sector.kind === 'dense' && this.deps.rng() < 0.6 ? 12 + this.deps.rng() * 25 : Infinity;
         if (plan.hasGiant) {
           hud.showMessage('Giant asteroid detected. Intercept it far out, or push it off course with missiles', 'danger', 6);
@@ -193,6 +203,24 @@ export class Campaign {
       } else {
         this.orbitComplete = true;
       }
+    }
+  }
+
+  private calmZoneJobs(): void {
+    const { work, rng } = this.deps;
+    if (!work.yardBusy && rng() < 0.75) {
+      work.postRepairTow();
+    }
+    if (rng() < 0.5) {
+      this.dodgeIn = 6 + rng() * 6;
+    }
+  }
+
+  private updateSatelliteJobs(deltaSeconds: number): void {
+    this.dodgeIn -= deltaSeconds;
+    if (this.dodgeIn <= 0) {
+      this.dodgeIn = Infinity;
+      this.deps.work.postDodge();
     }
   }
 

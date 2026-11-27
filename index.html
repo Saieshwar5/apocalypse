@@ -83,11 +83,12 @@
 
       <div id="hud-message" class="hud-message" role="status" aria-live="polite"></div>
       <div id="control-status" class="control-status" aria-label="Control status">
-        <span id="steer-status" data-state="off">CLICK TO STEER WITH THE MOUSE</span>
+        <span id="steer-status" data-state="off">CLICK FOR MOUSE STEERING</span>
         <span id="assist-status" data-state="on">FLIGHT ASSIST ON</span>
         <span id="motion-status" data-state="on">COASTING</span>
+        <span id="tow-status" data-state="on" hidden></span>
       </div>
-      <div id="hud-hint" class="hud-hint">W thrust · S brake · A/D/R/V slide · Shift boost · Click or Space fire · F missile · Z assist · Tab map</div>
+      <div id="hud-hint" class="hud-hint">W thrust · S brake · A/D/R/V slide · Shift boost · Click/Space fire · F missile · T tow · Z assist · Tab map</div>
       <div id="damage-flash" aria-hidden="true"></div>
     </div>
 
@@ -118,6 +119,7 @@
           <dt>Shift</dt><dd>Boost</dd>
           <dt>Left click / Space</dt><dd>Laser (short range: fly close)</dd>
           <dt>F / Right click</dt><dd>Missile at locked target</dd>
+          <dt>T</dt><dd>Connect the tow line to a contract satellite, or release it</dd>
           <dt>Z</dt><dd>Flight assist on or off (off: pure drift and gravity)</dd>
           <dt>Fly slowly to Aegis</dt><dd>Brake near it and let go to dock. Fuel, missiles and repairs cost money (W launches)</dd>
           <dt>1 to 8 while docked</dt><dd>Buy upgrades with your earnings</dd>

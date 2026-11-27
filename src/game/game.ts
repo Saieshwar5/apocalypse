@@ -141,6 +141,7 @@ export class Game {
       shipModel: this.shipModel,
       stationModel: models.station,
       satellitesModel: models.satellites,
+      outpostModels: { vulcan: models.vulcan, ceres: models.ceres, halo: models.halo },
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
     });
