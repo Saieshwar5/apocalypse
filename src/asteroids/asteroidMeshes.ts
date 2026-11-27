@@ -3,46 +3,75 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SimplexNoise } from 'three/addons/math/SimplexNoise.js';
 import type { AsteroidMaterial, AsteroidSize } from '../logic/asteroidClasses';
 import { createSeededRandom, randomUnitVector, type RandomSource } from '../logic/random';
+import { RockSurfaceMaterial, type RockSurfaceLook } from './rockSurfaceMaterial';
+import { getRockDetailTexture } from './rockTextures';
 
 const SHAPES_PER_SIZE = 6;
 
 /** Surface detail per size: more vertices where the rock fills more of the screen. */
-const DETAIL_BY_SIZE: Record<AsteroidSize, number> = { small: 2, medium: 3, large: 4, giant: 5 };
+const DETAIL_BY_SIZE: Record<AsteroidSize, number> = { small: 3, medium: 4, large: 4, giant: 5 };
 
+/**
+ * Surface texture repeats relative to the rock's size. A pebble shows a few
+ * big features, a giant many small ones, so craters keep a believable
+ * absolute size.
+ */
+const DETAIL_SCALE_BY_SIZE: Record<AsteroidSize, number> = { small: 0.55, medium: 0.75, large: 1, giant: 1.3 };
 
 /**
  * Shared geometry and materials for asteroids. Each size has several unit
  * radius shapes made from layered noise and craters; meshes scale them to
  * their radius. Vertex colours darken crevices so the rock reads as solid;
- * the material colour tints them per type (rock, iron, ice).
+ * a procedural detail texture per type (rock, iron, ice) adds the small
+ * craters, boulders and gloss that the coarse geometry cannot carry.
  */
 export class AsteroidMeshFactory {
   private readonly shapes = new Map<AsteroidSize, THREE.BufferGeometry[]>();
-  private readonly materials: Record<AsteroidMaterial, THREE.MeshStandardMaterial>;
+  private readonly materials: Record<AsteroidMaterial, RockSurfaceMaterial>;
   private readonly rng: RandomSource;
 
   constructor(seed = 2026) {
     this.rng = createSeededRandom(seed);
     this.materials = {
-      rocky: new THREE.MeshStandardMaterial({
-        color: new THREE.Color(0.42, 0.37, 0.32),
-        vertexColors: true,
-        roughness: 0.95,
-        metalness: 0.02,
-      }),
-      iron: new THREE.MeshStandardMaterial({
-        color: new THREE.Color(0.34, 0.31, 0.29),
-        vertexColors: true,
-        roughness: 0.45,
-        metalness: 0.75,
-      }),
-      ice: new THREE.MeshStandardMaterial({
-        color: new THREE.Color(0.72, 0.84, 0.95),
-        vertexColors: true,
-        roughness: 0.25,
-        metalness: 0.05,
-        emissive: new THREE.Color(0.02, 0.06, 0.1),
-      }),
+      // Dusty grey-brown regolith: matte, heavily cratered, strewn with boulders.
+      rocky: createRockMaterial(
+        { color: new THREE.Color(0.5, 0.45, 0.4), roughness: 0.97, metalness: 0 },
+        {
+          detailMap: getRockDetailTexture('rocky'),
+          tiling: [0.55, 1.9],
+          bump: [1.5, 0.9],
+          darkTint: new THREE.Color(0.42, 0.35, 0.29),
+          glossSmoothing: 0.1,
+          glossMetal: 0,
+          innerGlow: new THREE.Color(0, 0, 0),
+        },
+      ),
+      // Dark nickel-iron: mostly dull, with polished hollows that catch the sun.
+      iron: createRockMaterial(
+        { color: new THREE.Color(0.36, 0.33, 0.32), roughness: 0.74, metalness: 0.72 },
+        {
+          detailMap: getRockDetailTexture('iron'),
+          tiling: [0.5, 1.7],
+          bump: [1.3, 0.7],
+          darkTint: new THREE.Color(0.4, 0.27, 0.2),
+          glossSmoothing: 0.46,
+          glossMetal: 0.28,
+          innerGlow: new THREE.Color(0, 0, 0),
+        },
+      ),
+      // Pale blue-white ice: glossy sheets, frost patches and a faint cold glow.
+      ice: createRockMaterial(
+        { color: new THREE.Color(0.86, 0.92, 0.98), roughness: 0.6, metalness: 0 },
+        {
+          detailMap: getRockDetailTexture('ice'),
+          tiling: [0.45, 1.5],
+          bump: [1.3, 0.6],
+          darkTint: new THREE.Color(0.58, 0.74, 0.92),
+          glossSmoothing: 0.36,
+          glossMetal: 0,
+          innerGlow: new THREE.Color(0.07, 0.13, 0.2),
+        },
+      ),
     };
   }
 
@@ -50,8 +79,11 @@ export class AsteroidMeshFactory {
     const options = this.shapesFor(size);
     const geometry = options[Math.floor(this.rng() * options.length)];
     // Each asteroid gets its own material copy so it can flash when hit and
-    // glow when entering the atmosphere. Copies share one compiled shader.
-    const mesh = new THREE.Mesh(geometry, this.materials[material].clone());
+    // glow when entering the atmosphere. Copies share textures and one
+    // compiled shader.
+    const surface = this.materials[material].clone();
+    surface.detailScale.value = DETAIL_SCALE_BY_SIZE[size] * (0.9 + this.rng() * 0.2);
+    const mesh = new THREE.Mesh(geometry, surface);
     // Uneven scaling makes shared shapes look less alike.
     mesh.scale.set(
       radius * (0.85 + this.rng() * 0.3),
@@ -70,6 +102,15 @@ export class AsteroidMeshFactory {
     }
     return list;
   }
+}
+
+function createRockMaterial(
+  parameters: THREE.MeshStandardMaterialParameters,
+  look: RockSurfaceLook,
+): RockSurfaceMaterial {
+  const material = new RockSurfaceMaterial({ ...parameters, vertexColors: true });
+  material.look = look;
+  return material;
 }
 
 function createRockGeometry(detail: number, rng: RandomSource): THREE.BufferGeometry {
