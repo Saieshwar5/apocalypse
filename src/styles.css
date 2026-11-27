@@ -122,8 +122,12 @@ body {
   color: #5fd8ff;
 }
 
+#station-health-value[data-alert='true'] {
+  color: var(--danger);
+}
+
 .hud-sites {
-  top: 258px;
+  top: 276px;
   left: 16px;
   width: 336px;
 }

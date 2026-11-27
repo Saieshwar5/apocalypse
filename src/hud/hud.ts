@@ -22,7 +22,15 @@ export interface HudSnapshot {
   speed: number;
   shipPosition: THREE.Vector3;
   fuel: number;
-  station: { distance: number | null; docked: boolean; stock: { fuel: number; missiles: number } };
+  station: {
+    distance: number | null;
+    docked: boolean;
+    destroyed: boolean;
+    stock: { fuel: number; missiles: number };
+    shield: number;
+    health: number;
+    threatenedIn: number | null;
+  };
   altitude: AltitudeReadout;
   zone: AtmosphereZone;
   sites: readonly SiteState[];
@@ -66,6 +74,7 @@ export class Hud {
   private readonly fuelBar = element<HTMLDivElement>('#fuel-bar');
   private readonly stationValue = element<HTMLElement>('#station-value');
   private readonly stockValue = element<HTMLElement>('#stock-value');
+  private readonly stationHealthValue = element<HTMLElement>('#station-health-value');
   private readonly centreValue = element<HTMLElement>('#centre-value');
   private readonly surfaceValue = element<HTMLElement>('#surface-value');
   private readonly atmosphereValue = element<HTMLElement>('#atmosphere-value');
@@ -97,8 +106,17 @@ export class Hud {
     this.fuelBar.style.width = `${snapshot.fuel}%`;
     this.fuelBar.dataset.level = snapshot.fuel <= 0 ? 'critical' : snapshot.fuel < 25 ? 'damaged' : 'stable';
     const { station } = snapshot;
-    this.stationValue.textContent = station.docked ? 'DOCKED' : station.distance === null ? '—' : formatDistance(station.distance);
-    this.stockValue.textContent = `${Math.round(station.stock.fuel)} fuel · ${Math.floor(station.stock.missiles)} missiles`;
+    this.stationValue.textContent = station.destroyed
+      ? 'DESTROYED'
+      : station.docked
+        ? 'DOCKED'
+        : station.distance === null
+          ? '—'
+          : formatDistance(station.distance);
+    this.stockValue.textContent = station.destroyed ? '—' : `${Math.round(station.stock.fuel)} fuel · ${Math.floor(station.stock.missiles)} missiles`;
+    const threat = station.threatenedIn !== null ? ` · HIT IN ${formatCountdown(station.threatenedIn)}` : '';
+    this.stationHealthValue.textContent = station.destroyed ? '—' : `shield ${Math.round(station.shield)} · hull ${Math.round(station.health)}${threat}`;
+    this.stationHealthValue.dataset.alert = String(station.threatenedIn !== null || station.health < 60);
     this.shieldBar.style.width = `${snapshot.shield}%`;
     this.hullBar.style.width = `${snapshot.hull}%`;
     this.hullBar.dataset.level = integrityLevel(snapshot.hull);

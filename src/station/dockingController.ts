@@ -10,6 +10,7 @@ import {
   dockingReadiness,
   drawFromStock,
 } from '../logic/stationSupply';
+import { stationService } from '../logic/stationDamage';
 import { formatSpeed } from '../logic/units';
 import type { ShipController } from '../ship/shipController';
 import { MISSILE_CAPACITY, type MissileLauncher } from '../weapons/missileLauncher';
@@ -72,6 +73,17 @@ export class DockingController {
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
     if (!shipActive) {
       this.state = 'free';
+      this.hint = null;
+      return;
+    }
+    if (this.deps.station.destroyed || !this.deps.station.group.visible) {
+      if (this.state !== 'free') {
+        // Thrown clear as the station breaks up.
+        const { ship, station } = this.deps;
+        ship.velocity.copy(station.velocity).addScaledVector(ship.forward(), LAUNCH_SPEED * 1.5);
+        ship.applyDamage(60);
+        this.state = 'free';
+      }
       this.hint = null;
       return;
     }
@@ -157,19 +169,20 @@ export class DockingController {
     ship.object.quaternion.copy(pose.orientation);
     ship.velocity.copy(station.velocity);
 
-    const fuel = drawFromStock(station.stock.fuel, Math.min(SERVICE_RATE.fuel * deltaSeconds, FUEL_CAPACITY - ship.fuel));
+    const service = stationService(station.defence.health);
+    const fuel = drawFromStock(station.stock.fuel, Math.min(SERVICE_RATE.fuel * service.rate * deltaSeconds, FUEL_CAPACITY - ship.fuel));
     ship.fuel += fuel;
     station.stock.fuel -= fuel;
-    this.missileProgress += SERVICE_RATE.missilesPerSecond * deltaSeconds;
-    if (this.missileProgress >= 1 && missiles.ammunition < MISSILE_CAPACITY && station.stock.missiles >= 1) {
+    this.missileProgress += SERVICE_RATE.missilesPerSecond * service.rate * deltaSeconds;
+    if (service.missiles && this.missileProgress >= 1 && missiles.ammunition < MISSILE_CAPACITY && station.stock.missiles >= 1) {
       this.missileProgress = 0;
       station.stock.missiles -= missiles.resupply(1);
       sound.warningBeep(false);
     }
-    ship.repair(SERVICE_RATE.hull * deltaSeconds, SERVICE_RATE.shield * deltaSeconds);
+    ship.repair(SERVICE_RATE.hull * service.rate * deltaSeconds, SERVICE_RATE.shield * deltaSeconds);
 
     const fuelDone = ship.fuel >= FUEL_CAPACITY - 0.01 || station.stock.fuel <= 0;
-    const missilesDone = missiles.ammunition >= MISSILE_CAPACITY || station.stock.missiles < 1;
+    const missilesDone = missiles.ammunition >= MISSILE_CAPACITY || station.stock.missiles < 1 || !service.missiles;
     const done = fuelDone && missilesDone && ship.hull >= HULL_CAPACITY && ship.shield >= SHIELD_CAPACITY;
     const status = `fuel ${Math.round(ship.fuel)}% · missiles ${missiles.ammunition}/${MISSILE_CAPACITY} · hull ${Math.round(ship.hull)}%`;
     this.hint = done ? `Service complete (${status}). Press W to launch` : `Docked: ${status}. Press W to launch early`;

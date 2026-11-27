@@ -29,7 +29,7 @@ export interface OverlayFrame {
   shipPosition: THREE.Vector3;
   /** Priority sites on the side of Earth facing the camera. */
   sites: readonly SiteLabel[];
-  station: { world: THREE.Vector3; name: string } | null;
+  stationMarkers: readonly { world: THREE.Vector3; name: string; ghost: boolean }[];
 }
 
 const SITE_LABEL_COLOR = { intact: '#7dffb0', damaged: '#ffb347', critical: '#ff5a4a', destroyed: '#7f8c9e' } as const;
@@ -73,8 +73,8 @@ export class TargetOverlay {
     context.font = `600 11px ${MONO}`;
     const lockedId = frame.targeting.target?.id ?? null;
     this.drawSiteLabels(frame.sites);
-    if (frame.station) {
-      this.drawStation(frame.station, frame.shipPosition);
+    for (const marker of frame.stationMarkers) {
+      this.drawStation(marker, frame.shipPosition);
     }
 
     frame.ranked.forEach((asteroid, rank) => {
@@ -146,7 +146,7 @@ export class TargetOverlay {
   }
 
   /** Cyan marker on the station, or an arrow at the screen edge towards it. */
-  private drawStation(station: { world: THREE.Vector3; name: string }, shipPosition: THREE.Vector3): void {
+  private drawStation(station: { world: THREE.Vector3; name: string; ghost: boolean }, shipPosition: THREE.Vector3): void {
     const context = this.context;
     const point = this.projector.project(station.world);
     const label = `${station.name} ${formatDistance(station.world.distanceTo(shipPosition))}`;
@@ -154,6 +154,17 @@ export class TargetOverlay {
     context.strokeStyle = '#5fd8ff';
     context.fillStyle = '#5fd8ff';
     context.font = `700 11px ${MONO}`;
+    if (station.ghost) {
+      // Destinations and supply rockets: a dashed marker, and no edge arrow.
+      if (point.visible) {
+        context.globalAlpha = 0.75;
+        context.setLineDash([3, 3]);
+        context.strokeRect(point.x - 7, point.y - 7, 14, 14);
+        context.fillText(station.name, point.x + 12, point.y + 4);
+      }
+      context.restore();
+      return;
+    }
     if (point.visible) {
       context.strokeRect(point.x - 9, point.y - 9, 18, 18);
       context.fillText(label, point.x + 14, point.y + 4);
