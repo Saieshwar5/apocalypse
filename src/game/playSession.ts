@@ -216,11 +216,10 @@ export class PlaySession {
       combat: this.combat,
       session: deps.session,
       playerProjectiles: [this.laser.group, this.missiles.group],
-      station: () => this.stationOps.whereabouts(),
+      stationOps: this.stationOps,
+      explosions: deps.explosions,
       playerGoodStanding: () => this.licence.inGoodStanding,
       radio: deps.radio,
-      aegisStock: () => (this.stationOps.present ? this.stationOps.station.stock : null),
-      atStation: () => this.stationOps.holdingShip,
     });
     this.campaign = new Campaign({
       field: this.field,

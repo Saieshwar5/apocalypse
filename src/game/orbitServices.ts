@@ -13,6 +13,10 @@ import { SatelliteWork, type JobRow, type Waypoint } from './satelliteWork';
 import { TowLine } from './towLine';
 import { SpaceWeather } from './spaceWeather';
 import { CrewWork } from './crewWork';
+import { RescueWork } from './rescueWork';
+import { EscortWork } from './escortWork';
+import type { StationOperations } from '../station/stationOperations';
+import type { Explosions } from '../effects/explosions';
 import { SUN_DIRECTION } from '../scene/sunDirection';
 import { EARTH_RADIUS } from '../scene/earth';
 import { ATMOSPHERE } from '../logic/atmosphere';
@@ -49,14 +53,12 @@ export interface OrbitServicesDependencies {
   combat: CombatResolver;
   session: GameSession;
   playerProjectiles: THREE.Group[];
-  station: () => { position: THREE.Vector3; velocity: THREE.Vector3 } | null;
+  /** Aegis: its whereabouts, store, docking and supply rocket. */
+  stationOps: StationOperations;
+  explosions: Explosions;
   /** Rivals give way to a pilot in good standing, and stop once the licence is under review. */
   playerGoodStanding: () => boolean;
   radio: RadioNet;
-  /** Aegis's own fuel and missile store, for the market; null once it is destroyed. */
-  aegisStock: () => { fuel: number; missiles: number } | null;
-  /** Docked at Aegis: sheltered from solar storms. */
-  atStation: () => boolean;
 }
 
 export interface StationMarker {
@@ -86,12 +88,14 @@ export class OrbitServices {
   readonly haul: HaulWork;
   readonly weather: SpaceWeather;
   readonly crew: CrewWork;
+  readonly rescue: RescueWork;
+  readonly escort: EscortWork;
 
   constructor(private readonly deps: OrbitServicesDependencies) {
     this.outposts = new Outposts(deps.outpostModels);
     this.market = new StationMarket({
-      positionOf: (station) => (station === 'aegis' ? (deps.station()?.position ?? null) : this.outposts.get(station).position),
-      aegisStock: deps.aegisStock,
+      positionOf: (station) => (station === 'aegis' ? (deps.stationOps.whereabouts()?.position ?? null) : this.outposts.get(station).position),
+      aegisStock: () => (deps.stationOps.present ? deps.stationOps.station.stock : null),
       aegisMissileCapacity: STATION_STOCK.capacity.missiles,
     });
     this.tow = new TowLine(deps.ship, deps.fleet);
@@ -140,13 +144,37 @@ export class OrbitServices {
       sound: deps.sound,
       radio: deps.radio,
       sunDirection: SUN_DIRECTION,
-      atStation: () => deps.atStation() || this.berths.holding,
+      atStation: () => deps.stationOps.holdingShip || this.berths.holding,
     });
     this.crew = new CrewWork({
       berths: this.berths,
       fleet: deps.fleet,
       ship: deps.ship,
       haloPort: () => this.outposts.portPosition('halo'),
+      wallet: deps.walletOf('player'),
+      events: deps.session.events,
+      hud: deps.hud,
+      sound: deps.sound,
+      radio: deps.radio,
+      rng: deps.rng,
+    });
+    this.rescue = new RescueWork({
+      scene: deps.scene,
+      ship: deps.ship,
+      tow: this.tow,
+      outposts: this.outposts,
+      explosions: deps.explosions,
+      wallet: deps.walletOf('player'),
+      events: deps.session.events,
+      hud: deps.hud,
+      sound: deps.sound,
+      radio: deps.radio,
+      rng: deps.rng,
+    });
+    this.escort = new EscortWork({
+      field: deps.field,
+      rocket: () => (deps.stationOps.present ? deps.stationOps.rocket : null),
+      explosions: deps.explosions,
       wallet: deps.walletOf('player'),
       events: deps.session.events,
       hud: deps.hud,
@@ -178,7 +206,7 @@ export class OrbitServices {
       hud: deps.hud,
       sound: deps.sound,
       playerProjectiles: deps.playerProjectiles,
-      station: deps.station,
+      station: () => deps.stationOps.whereabouts(),
       playerGoodStanding: deps.playerGoodStanding,
       radio: deps.radio,
     });
@@ -194,6 +222,8 @@ export class OrbitServices {
     this.haul.reset();
     this.weather.reset();
     this.crew.reset();
+    this.rescue.reset();
+    this.escort.reset();
   }
 
   /** `flying`: the pilot has the controls (not docked, not on the map, no autopilot). */
@@ -211,6 +241,8 @@ export class OrbitServices {
     this.berths.update(deltaSeconds, active, pilotBusy);
     this.weather.update(deltaSeconds, active);
     this.crew.update(deltaSeconds, active);
+    this.rescue.update(deltaSeconds);
+    this.escort.update();
     // The line groans as the pull nears the strain a satellite can take.
     this.deps.sound.towCreak(Math.min(1, this.tow.tension / (FRAGILE.safeTension * 1.4)));
     this.rivals.update(deltaSeconds, active);
@@ -236,14 +268,14 @@ export class OrbitServices {
   }
 
   jobRows(): JobRow[] {
-    return [...this.work.rows(), ...this.crew.rows(), ...this.haul.rows(), ...this.debris.rows()];
+    return [...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.crew.rows(), ...this.haul.rows(), ...this.debris.rows()];
   }
 
   waypoint(): Waypoint | null {
-    if (this.tow.rock) {
-      return this.haul.waypoint();
+    if (this.tow.body) {
+      return this.rescue.carrying ? this.rescue.waypoint() : this.haul.waypoint();
     }
-    return this.crew.waypoint() ?? this.work.waypoint() ?? this.haul.waypoint();
+    return this.rescue.waypoint() ?? this.crew.waypoint() ?? this.work.waypoint() ?? this.haul.waypoint();
   }
 
   /** The hint line: berthing first, then any storm warning. */
@@ -262,13 +294,23 @@ export class OrbitServices {
     }
     if (rng() < 0.3) {
       this.weather.warn();
+    } else if (rng() < 0.35) {
+      this.rescue.post();
     }
   }
 
   /** T: the haul rock if it is the nearest thing to tow, otherwise satellite work. */
   private toggleTow(): void {
-    if (this.tow.rock) {
-      this.haul.release();
+    if (this.tow.body) {
+      if (this.rescue.carrying) {
+        this.rescue.release();
+      } else {
+        this.haul.release();
+      }
+      return;
+    }
+    if (!this.tow.load && this.rescue.podNear(this.deps.ship.position)) {
+      this.rescue.connect();
       return;
     }
     if (!this.tow.load && this.haul.rockNear(this.deps.ship.position)) {

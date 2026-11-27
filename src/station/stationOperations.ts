@@ -43,7 +43,7 @@ export class StationOperations {
   readonly station: SpaceStation;
   readonly docking: DockingController;
   private readonly defence: StationDefence;
-  private readonly rocket: SupplyRocket;
+  readonly rocket: SupplyRocket;
   private fuelWarned = false;
 
   constructor(private readonly deps: StationOperationsDependencies) {

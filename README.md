@@ -49,6 +49,20 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 7b: protecting people
+
+- **Rescue** (sometimes, in calm zones): an ore carrier has ejected an
+  escape pod that is falling towards the atmosphere, strobe blinking. Catch
+  it with the tow line (T) before it burns up (the board counts down) and
+  release it at Halo's crew port: 600 cr. A pod left to fall costs a little
+  reputation; one lost on your own line counts as losing a crew.
+- **Launch escort**: sometimes the supply rocket climbing to Aegis has two
+  rocks on a path to cross it about 18 s after launch. Destroy or push them
+  away: if the rocket arrives the escort pays 300 cr; if it is hit, Aegis's
+  supplies are lost. The rocket now flies for 32 s and is larger, so it can
+  be found and escorted.
+- The tow line now hauls any body (rocks and escape pods), not only rocks.
+
 ## Stage 7a: satellite and station care
 
 - **Solar storms** (sometimes, in calm zones): Capcom calls a 30-second
