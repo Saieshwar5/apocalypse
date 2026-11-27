@@ -242,7 +242,7 @@ export class CombatResolver {
     session.score += score;
     session.asteroidsDestroyed += 1;
     session.destroyedThisWave += 1;
-    explosions.spawnExplosion(position, asteroid.radius, asteroid.material === 'ice' ? 'ice' : 'fire');
+    explosions.spawnExplosion(position, asteroid.radius, asteroid.material === 'ice' ? 'ice' : 'fire', asteroid.velocity);
     explosions.spawnRockChips(position, 1 + SIZE_WEIGHT[asteroid.size] * 3);
     sound.explosion(SIZE_WEIGHT[asteroid.size]);
     sound.killConfirm();

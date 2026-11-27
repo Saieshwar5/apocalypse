@@ -53,8 +53,12 @@ Then open the address Vite prints (usually http://localhost:5173) and click
   Blender from scripts in `art/blender` (see below).
 - Free flight with a chase camera and a cockpit camera.
 - Asteroids in four sizes (small, medium, large, giant) and three materials:
-  rock, iron (resists lasers) and ice (fast and fragile). Their shapes are
-  generated, with craters.
+  rock, iron (resists lasers) and ice (fast and fragile). Shapes and surfaces
+  are generated: cratered grey-brown regolith, dark glinting iron and glossy
+  blue-white ice, with no downloaded textures.
+- Explosions: a core flash, a fireball that cools into smoke, tumbling rock
+  debris that carries the asteroid's momentum, and lingering dust. Ice
+  shatters into shards and glitter.
 - Damage scaled by size: impacts leave glowing craters, black out city lights
   nearby and report the coordinates.
 - Laser with heat and range: full damage within about 32,000 km, weaker
