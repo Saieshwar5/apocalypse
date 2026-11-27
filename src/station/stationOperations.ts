@@ -4,6 +4,7 @@ import type { SoundEffects } from '../audio/soundEffects';
 import type { CameraRig } from '../camera/cameraRig';
 import type { Explosions } from '../effects/explosions';
 import type { Hud } from '../hud/hud';
+import type { Wallet } from '../logic/economy';
 import type { InputState } from '../input/inputState';
 import { LOW_FUEL } from '../logic/stationSupply';
 import { damping } from '../math/orientation';
@@ -29,6 +30,7 @@ export interface StationOperationsDependencies {
   hud: Hud;
   cameraRig: CameraRig;
   input: InputState;
+  wallet: Wallet;
 }
 
 /**
@@ -52,6 +54,7 @@ export class StationOperations {
       sound: deps.sound,
       hud: deps.hud,
       cameraRig: deps.cameraRig,
+      wallet: deps.wallet,
     });
     this.defence = new StationDefence({
       station: this.station,
