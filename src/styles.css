@@ -259,6 +259,68 @@ body {
   white-space: nowrap;
 }
 
+/* Launch cinematic */
+
+#cinematic {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.letterbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #000;
+}
+
+.letterbox-top {
+  top: 0;
+}
+
+.letterbox-bottom {
+  bottom: 0;
+}
+
+#cinematic-caption {
+  position: absolute;
+  left: 50%;
+  bottom: calc(9vh + 22px);
+  max-width: min(720px, calc(100vw - 32px));
+  margin: 0;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+#cinematic-caption.visible {
+  opacity: 1;
+}
+
+.cinematic-skip {
+  position: absolute;
+  right: 20px;
+  bottom: calc(9vh - 30px);
+  margin: 0;
+  color: var(--hud-dim);
+  font-size: 12px;
+}
+
+#fade {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Screens */
 
 .screen {

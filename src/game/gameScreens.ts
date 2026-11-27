@@ -28,6 +28,9 @@ export class GameScreens {
   private readonly cockpit = element<HTMLDivElement>('#cockpit-frame');
   private readonly startButton = element<HTMLButtonElement>('#start-button');
   private readonly summary = element<HTMLDListElement>('#run-summary');
+  private readonly cinematic = element<HTMLDivElement>('#cinematic');
+  private readonly caption = element<HTMLParagraphElement>('#cinematic-caption');
+  private readonly fade = element<HTMLDivElement>('#fade');
 
   constructor(actions: ScreenActions) {
     this.startButton.addEventListener('click', () => actions.onStart());
@@ -73,6 +76,24 @@ export class GameScreens {
     this.menu.hidden = true;
     this.pause.hidden = true;
     this.gameOver.hidden = true;
+  }
+
+  /** Letterbox bars, captions and the skip hint during the launch. */
+  setCinematic(visible: boolean): void {
+    this.cinematic.hidden = !visible;
+    if (!visible) {
+      this.setCaption('');
+    }
+  }
+
+  setCaption(text: string): void {
+    this.caption.textContent = text;
+    this.caption.classList.toggle('visible', text.length > 0);
+  }
+
+  /** White fade used for the cut from the pad to orbit (0..1). */
+  setFade(opacity: number): void {
+    this.fade.style.opacity = String(opacity);
   }
 
   setCockpitFrame(visible: boolean): void {

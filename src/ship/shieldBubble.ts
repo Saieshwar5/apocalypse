@@ -67,7 +67,8 @@ export class ShieldBubble {
         side: THREE.DoubleSide,
       }),
     );
-    this.mesh.scale.set(1.05, 0.55, 1.15);
+    // Sized to the Blender interceptor: about 1 unit wide and 2 long.
+    this.mesh.scale.set(0.72, 0.42, 1.2);
     this.mesh.visible = false;
   }
 

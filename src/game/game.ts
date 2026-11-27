@@ -7,13 +7,17 @@ import { Radar } from '../hud/radar';
 import { TargetOverlay } from '../hud/targetOverlay';
 import { InputState } from '../input/inputState';
 import { createSeededRandom } from '../logic/random';
+import { GroundScene } from '../launch/groundScene';
+import { LaunchCinematic } from '../launch/launchCinematic';
+import { LAUNCH_SITE, OrbitInsertion, orbitPose } from '../launch/orbitInsertion';
+import { RocketEffects } from '../launch/rocketEffects';
 import { Earth, loadEarthTextures } from '../scene/earth';
+import { loadModels } from '../scene/modelLibrary';
 import { RenderPipeline } from '../scene/renderPipeline';
 import { createStarfield, createSun } from '../scene/spaceBackdrop';
 import { createShipModel, type ShipModel } from '../ship/shipModel';
 import { ShipController } from '../ship/shipController';
 import { GameSession } from './gameSession';
-import { LAUNCH_SITE, LaunchSequence } from './launchSequence';
 import { GameScreens } from './gameScreens';
 import { PlaySession } from './playSession';
 
@@ -45,13 +49,14 @@ export class Game {
   private readonly radar: Radar;
   private readonly screens: GameScreens;
   private readonly explosions = new Explosions();
-  private readonly shipModel: ShipModel = createShipModel();
-  private readonly ship = new ShipController(this.shipModel.group);
+  private shipModel!: ShipModel;
+  private ship!: ShipController;
   private earth!: Earth;
   private play!: PlaySession;
-  private launch!: LaunchSequence;
+  private launch!: LaunchCinematic;
+  private ground!: GroundScene;
+  private rocketEffects!: RocketEffects;
   private menuAngle = 0.8;
-  private lastCountdown = -1;
 
   constructor(private readonly options: GameOptions) {
     const canvas = document.querySelector<HTMLCanvasElement>('#scene');
@@ -72,9 +77,22 @@ export class Game {
   }
 
   async load(): Promise<void> {
-    const textures = await loadEarthTextures(this.pipeline.renderer);
+    const [textures, models] = await Promise.all([loadEarthTextures(this.pipeline.renderer), loadModels()]);
     this.earth = new Earth(textures, SUN_DIRECTION);
-    this.launch = new LaunchSequence(this.earth, this.shipModel.group, this.cameraRig);
+    this.shipModel = createShipModel(models.interceptor);
+    this.ship = new ShipController(this.shipModel.group);
+    this.cameraRig.setCockpitOffset(this.shipModel.cockpit);
+    this.ground = new GroundScene(models, this.pipeline.renderer);
+    const effects = new RocketEffects();
+    effects.setViewportHeight(window.innerHeight);
+    this.rocketEffects = effects;
+    const orbit = new OrbitInsertion(models, this.earth, this.shipModel.group, this.cameraRig, effects);
+    this.scene.add(orbit.booster);
+    this.launch = new LaunchCinematic(this.ground, effects, orbit, this.cameraRig, this.camera, this.sound, {
+      caption: (text) => this.screens.setCaption(text),
+      fade: (opacity) => this.screens.setFade(opacity),
+      useScene: (which) => this.pipeline.setScene(which === 'ground' ? this.ground.scene : this.scene),
+    });
 
     const sun = createSun(SUN_DIRECTION);
     this.scene.environment = this.pipeline.createSpaceEnvironment(SUN_DIRECTION);
@@ -83,6 +101,8 @@ export class Game {
       createStarfield(),
       sun.group,
       new THREE.AmbientLight(0x6a86b0, 0.15),
+      // Earth-shine: soft blue light from below, reflected off the planet.
+      new THREE.HemisphereLight(0x1a2233, 0x2f5f9e, 0.9),
       this.earth.group,
       this.shipModel.group,
       this.explosions.group,
@@ -124,15 +144,15 @@ export class Game {
     this.play.reset();
     this.explosions.clear();
     this.earth.reset(this.sunriseSpinAngle());
-    this.lastCountdown = -1;
     this.shipModel.group.visible = true;
     this.cameraRig.view = 'chase';
     this.screens.setCockpitFrame(false);
     this.screens.hideAll();
-    this.hud.setVisible(true);
     this.capturePointer();
     this.launch.start();
     this.phase = 'launch';
+    this.hud.setVisible(false);
+    this.screens.setCinematic(true);
     if (this.options.skipLaunch) {
       this.launch.skip();
     }
@@ -215,30 +235,25 @@ export class Game {
     }
     this.earth.update(deltaSeconds);
     this.launch.update(deltaSeconds);
-    this.shipModel.setThrottle(this.launch.throttle, this.launch.phase === 'ascent');
+    const throttle = this.launch.phase === 'orbit' ? 1 : 0;
+    this.shipModel.setThrottle(throttle, throttle > 0);
     this.shipModel.update(this.timer.getElapsed());
-    this.sound.setEngine(this.launch.throttle, this.launch.phase === 'ascent');
-
-    const countdown = this.launch.countdown;
-    if (this.launch.phase === 'countdown' && countdown !== this.lastCountdown) {
-      this.lastCountdown = countdown;
-      this.hud.showMessage(`Launch in ${countdown}`, 'info', 1.1);
-    } else if (this.launch.phase === 'ascent' && this.lastCountdown !== 0) {
-      this.lastCountdown = 0;
-      this.hud.showMessage('Liftoff. Interceptor climbing to orbit', 'success', 3);
-      this.cameraRig.addShake(0.7);
-    }
     this.play.updateHudOnly(deltaSeconds);
-
-    if (this.launch.phase === 'complete') {
-      const pose = this.launch.finalPose();
-      this.ship.reset(pose.position, pose.orientation, 2);
-      this.cameraRig.snap();
-      this.phase = 'playing';
-      this.play.beginDefence(6);
-      this.hud.showMessage('Orbit reached. Defend Earth', 'success', 4);
-      this.sound.chime();
+    if (this.launch.done) {
+      this.handOverControl();
     }
+  }
+
+  /** End of the launch: the player flies from the final orbit pose. */
+  private handOverControl(): void {
+    const pose = orbitPose(this.earth, 1);
+    this.ship.reset(pose.position, pose.orientation, 2);
+    this.cameraRig.snap();
+    this.phase = 'playing';
+    this.screens.setCinematic(false);
+    this.hud.setVisible(true);
+    this.play.beginDefence(6);
+    this.hud.showMessage('In orbit. Defend Earth', 'success', 4);
   }
 
   private updatePlaying(deltaSeconds: number): void {
@@ -266,6 +281,7 @@ export class Game {
   private readonly onResize = (): void => {
     this.pipeline.resize();
     this.overlay.resize();
+    this.rocketEffects.setViewportHeight(window.innerHeight);
   };
 
   private readonly onPointerLockChange = (): void => {

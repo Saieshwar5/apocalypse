@@ -3,8 +3,7 @@ import { damping } from '../math/orientation';
 
 export type CameraView = 'chase' | 'cockpit';
 
-const CHASE_OFFSET = new THREE.Vector3(0, 0.75, 3.4);
-const COCKPIT_OFFSET = new THREE.Vector3(0, 0.17, -0.3);
+const CHASE_OFFSET = new THREE.Vector3(0, 1.3, 4.6);
 const FIELD_OF_VIEW: Record<CameraView, number> = { chase: 62, cockpit: 74 };
 
 /**
@@ -19,8 +18,14 @@ export class CameraRig {
   private readonly smoothRotation = new THREE.Quaternion();
   private readonly scratch = new THREE.Vector3();
   private initialised = false;
+  /** Pilot's eye position in the ship's frame; set from the model's cockpit socket. */
+  private readonly cockpitOffset = new THREE.Vector3(0, 0.17, -0.3);
 
   constructor(private readonly camera: THREE.PerspectiveCamera) {}
+
+  setCockpitOffset(offset: THREE.Vector3): void {
+    this.cockpitOffset.copy(offset);
+  }
 
   toggleView(): CameraView {
     this.view = this.view === 'chase' ? 'cockpit' : 'chase';
@@ -37,7 +42,7 @@ export class CameraRig {
   }
 
   follow(target: THREE.Object3D, deltaSeconds: number, boosting: boolean): void {
-    const offset = this.view === 'chase' ? CHASE_OFFSET : COCKPIT_OFFSET;
+    const offset = this.view === 'chase' ? CHASE_OFFSET : this.cockpitOffset;
     const desired = this.scratch.copy(offset);
     if (this.view === 'chase' && boosting) {
       desired.z += 0.9;

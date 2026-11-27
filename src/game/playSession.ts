@@ -24,7 +24,7 @@ import { LaserCannon } from '../weapons/laserCannon';
 import { MissileLauncher } from '../weapons/missileLauncher';
 import { CombatResolver } from './combatResolver';
 import type { GameSession } from './gameSession';
-import { LAUNCH_SITE, ORBIT_ALTITUDE, ORBIT_NOSE_DOWN } from './launchSequence';
+import { LAUNCH_SITE, ORBIT_ALTITUDE, ORBIT_NOSE_DOWN } from '../launch/orbitInsertion';
 import { computeTargeting, type TargetingInfo } from './targeting';
 import { WaveDirector, type WaveEvent } from './waveDirector';
 

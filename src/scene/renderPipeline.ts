@@ -14,6 +14,7 @@ export class RenderPipeline {
   readonly renderer: THREE.WebGLRenderer;
   private readonly composer: EffectComposer;
   private readonly bloom: UnrealBloomPass;
+  private readonly renderPass: RenderPass;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -24,10 +25,14 @@ export class RenderPipeline {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Only the launch-pad scene has shadow-casting lights.
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
     const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(this.renderer, target);
-    this.composer.addPass(new RenderPass(scene, camera));
+    this.renderPass = new RenderPass(scene, camera);
+    this.composer.addPass(this.renderPass);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.6, 0.45, 1.0);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -43,6 +48,11 @@ export class RenderPipeline {
     this.renderer.setSize(width, height, false);
     this.composer.setPixelRatio(this.renderer.getPixelRatio());
     this.composer.setSize(width, height);
+  }
+
+  /** Switches between the orbital scene and the launch-pad scene. */
+  setScene(scene: THREE.Scene): void {
+    this.renderPass.scene = scene;
   }
 
   render(): void {
