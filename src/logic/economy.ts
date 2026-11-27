@@ -1,3 +1,5 @@
+import { LOAN } from './reputation';
+
 /**
  * What the pilot pays at a station. Fuel and missiles are bought, the hull
  * is repaired for a fee, and the shield recharges free. The station's stock
@@ -50,10 +52,28 @@ export class Wallet {
   spent = 0;
   fines = 0;
 
+  /** Still owed on the emergency loan; a share of every payment goes to it. */
+  loanOwed = 0;
+  /** True once the career's one loan has been taken. */
+  loanTaken = false;
+
   earn(amount: number): void {
     const paid = Math.max(0, amount);
-    this.balance += paid;
     this.earned += paid;
+    const repayment = Math.min(this.loanOwed, paid * LOAN.repaymentShare);
+    this.loanOwed -= repayment;
+    this.balance += paid - repayment;
+  }
+
+  /** Takes the career's one emergency loan. Returns false if it was already used. */
+  borrow(): boolean {
+    if (this.loanTaken) {
+      return false;
+    }
+    this.loanTaken = true;
+    this.balance += LOAN.amount;
+    this.loanOwed = LOAN.owed;
+    return true;
   }
 
   /** Returns false (and charges nothing) when the pilot cannot afford it. */
@@ -79,5 +99,7 @@ export class Wallet {
     this.earned = 0;
     this.spent = 0;
     this.fines = 0;
+    this.loanOwed = 0;
+    this.loanTaken = false;
   }
 }
