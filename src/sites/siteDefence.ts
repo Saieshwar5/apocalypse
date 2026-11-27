@@ -3,7 +3,6 @@ import type { Asteroid } from '../asteroids/asteroidField';
 import type { AsteroidSize } from '../logic/asteroidClasses';
 import {
   IMPACT_REACH,
-  SITE_DEFINITIONS,
   SITE_MAX_HEALTH,
   repairedHealth,
   siteDamage,
@@ -34,10 +33,18 @@ export interface SiteHit {
  * each impact does to them.
  */
 export class SiteDefence {
-  readonly sites: SiteState[];
+  /** Replaced as a whole when the star system changes. */
+  sites: SiteState[] = [];
 
-  constructor(private readonly earth: Earth) {
-    this.sites = SITE_DEFINITIONS.map((definition) => ({
+  constructor(
+    private readonly earth: Earth,
+    definitions: readonly SiteDefinition[],
+  ) {
+    this.setDefinitions(definitions);
+  }
+
+  setDefinitions(definitions: readonly SiteDefinition[]): void {
+    this.sites = definitions.map((definition) => ({
       definition,
       localDirection: latLonToLocalDirection(definition.latitude, definition.longitude),
       health: SITE_MAX_HEALTH,

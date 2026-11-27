@@ -169,6 +169,14 @@ export class Earth {
     return new THREE.Vector3(0, 1, 0).applyQuaternion(this.group.quaternion);
   }
 
+  /** Swaps the surface maps, for example to show a colony world in another system. */
+  setTextures(textures: EarthTextures): void {
+    this.surfaceUniforms.dayMap.value = textures.day;
+    this.surfaceUniforms.nightMap.value = textures.night;
+    this.surfaceUniforms.detailMap.value = textures.detail;
+    (this.clouds.material as THREE.ShaderMaterial).uniforms.detailMap.value = textures.detail;
+  }
+
   /** Clears craters and sets the planet's rotation (radians). */
   reset(spinAngle = 0): void {
     this.spin.rotation.y = spinAngle;

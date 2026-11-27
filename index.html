@@ -21,8 +21,8 @@
     </div>
 
     <div id="hud" hidden>
-      <section class="hud-panel hud-status" aria-label="Earth status">
-        <div class="hud-label">Earth integrity <span id="integrity-value">100%</span></div>
+      <section class="hud-panel hud-status" aria-label="Planet status">
+        <div class="hud-label"><span id="planet-label">Earth integrity</span> <span id="integrity-value">100%</span></div>
         <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div>
         <div class="hud-row"><span>Score</span><strong id="score-value">0</strong></div>
         <div class="hud-row"><span>Credits</span><strong id="credits-value">0</strong></div>
@@ -31,7 +31,7 @@
 
       <section class="hud-panel hud-position" aria-label="Ship position">
         <div class="hud-label">Position <span id="zone-value" class="zone-value">Space</span></div>
-        <div class="hud-row"><span>From Earth centre</span><strong id="centre-value">0 km</strong></div>
+        <div class="hud-row"><span>From planet centre</span><strong id="centre-value">0 km</strong></div>
         <div class="hud-row"><span>Above surface</span><strong id="surface-value">0 km</strong></div>
         <div class="hud-row"><span>Above atmosphere</span><strong id="atmosphere-value">0 km</strong></div>
         <div class="hud-row station-row"><span>Aegis station</span><strong id="station-value">—</strong></div>
@@ -134,7 +134,11 @@
         <p id="failure-reason" class="eyebrow">Earth has fallen</p>
         <h2 id="outcome-heading">Mission failed</h2>
         <dl id="run-summary" class="summary"></dl>
+        <button id="next-button" type="button" hidden>Travel to the next system</button>
         <button id="restart-button" type="button">Launch again</button>
+        <button id="share-button" type="button" class="secondary">Copy result</button>
+        <h3 class="best-heading">Best runs on this device</h3>
+        <ol id="best-runs" class="best-runs"></ol>
       </div>
     </div>
 

@@ -29,6 +29,19 @@ export class SiteMarkers {
     private readonly earth: Earth,
     private readonly defence: SiteDefence,
   ) {
+    this.rebuild();
+  }
+
+  /** Recreates the rings; call after the site list changes. */
+  rebuild(): void {
+    for (const marker of this.rings.values()) {
+      for (const mesh of [marker.outer, marker.dot]) {
+        mesh.parent?.remove(mesh);
+        (mesh.material as THREE.Material).dispose();
+      }
+    }
+    this.rings.clear();
+    const { earth, defence } = this;
     const ringGeometry = new THREE.RingGeometry(0.2, 0.26, 40);
     const dotGeometry = new THREE.CircleGeometry(0.07, 20);
     for (const site of defence.sites) {

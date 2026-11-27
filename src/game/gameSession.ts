@@ -13,6 +13,15 @@ export class GameSession {
   /** Credits spent on upgrades; credits available are score minus this. */
   spent = 0;
 
+  /** New star system in the same campaign: the planet is fresh, the score carries on. */
+  resetForNextSystem(): void {
+    const { score, spent, asteroidsDestroyed } = this;
+    this.reset();
+    this.score = score;
+    this.spent = spent;
+    this.asteroidsDestroyed = asteroidsDestroyed;
+  }
+
   reset(): void {
     this.integrity = MAX_PLANET_INTEGRITY;
     this.score = 0;

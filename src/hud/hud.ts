@@ -87,6 +87,7 @@ export class Hud {
   private readonly damageFlash = element<HTMLDivElement>('#damage-flash');
   private readonly defaultHint = this.hint.textContent ?? '';
   private sitePanel: SitePanel | null = null;
+  private sitePanelSites: readonly SiteState[] | null = null;
   private flash = 0;
   private messageTimer = 0;
   private lastThreatMarkup = '';
@@ -129,7 +130,11 @@ export class Hud {
 
     this.renderThreats(snapshot);
     this.renderPosition(snapshot);
-    this.sitePanel ??= new SitePanel(element<HTMLOListElement>('#site-list'), snapshot.sites);
+    if (!this.sitePanel || this.sitePanelSites !== snapshot.sites) {
+      // The site list is replaced when the star system changes.
+      this.sitePanel = new SitePanel(element<HTMLOListElement>('#site-list'), snapshot.sites);
+      this.sitePanelSites = snapshot.sites;
+    }
     this.sitePanel.update(snapshot.sites);
     if (this.flash > 0) {
       this.flash = Math.max(0, this.flash - deltaSeconds * 1.8);

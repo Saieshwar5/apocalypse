@@ -193,7 +193,7 @@ export class CombatResolver {
       session.asteroidsDestroyed += 1;
       session.destroyedThisWave += 1;
       feedback.kill(asteroid.mesh.position, score, 'DEFLECTED');
-      hud.showMessage(`${SIZE_NAME[asteroid.size]} asteroid deflected: it will miss Earth. +${score}`, 'success', 3.5);
+      hud.showMessage(`${SIZE_NAME[asteroid.size]} asteroid deflected: it will miss the planet. +${score}`, 'success', 3.5);
       sound.killConfirm();
     }
   }
@@ -218,7 +218,7 @@ export class CombatResolver {
       const wasOnCourse = asteroid.timeToImpact !== null;
       field.applyImpulse(asteroid, direction, hitSpeedChange(weapon, asteroid.radius));
       if (wasOnCourse && asteroid.timeToImpact === null) {
-        hud.showMessage('Knocked off course: it will now miss Earth', 'success', 3);
+        hud.showMessage('Knocked off course: it will now miss the planet', 'success', 3);
       }
       sound.hit(asteroid.material);
       scorches.add(asteroid.mesh, point, resisted ? 0.35 : 0.6);

@@ -23,7 +23,7 @@ import { WaveDirector, type WaveEvent } from './waveDirector';
 /** Hints shown in the first minute: [from second, to second, text]. */
 const TIPS: readonly [number, number, string][] = [
   [1, 9, 'Tip: the 3D scanner shows contacts on stalks. Stalk up means above you'],
-  [9, 17, 'Tip: red rings on Earth mark where asteroids will land. Guard the labelled sites'],
+  [9, 17, 'Tip: red rings on the planet mark where asteroids will land. Guard the labelled sites'],
   [17, 25, 'Tip: press Tab for the tactical map. Time slows while it is open'],
   [25, 33, 'Tip: stay out of the atmosphere. Watch "Above atmosphere" on the left'],
 ];
@@ -73,9 +73,11 @@ export class Campaign {
     return this.deps.session.score - this.deps.session.spent;
   }
 
-  reset(difficulty = 0): void {
+  reset(difficulty = 0, keepUpgrades = false): void {
     this.director.reset(difficulty);
-    this.levels = noUpgrades();
+    if (!keepUpgrades) {
+      this.levels = noUpgrades();
+    }
     this.orbitComplete = false;
     this.seconds = 0;
     this.applyLoadout();
@@ -152,7 +154,7 @@ export class Campaign {
         const bonus = waveClearBonus(event.wave, session.destroyedThisWave, session.impactsThisWave);
         session.score += bonus;
         session.wavesCleared += 1;
-        const clean = session.impactsThisWave === 0 ? ' Earth untouched.' : '';
+        const clean = session.impactsThisWave === 0 ? ' No impacts.' : '';
         const reward = bonus > 0 ? ` +${bonus} points.` : '';
         sites.repairSurvivors(loadoutFor(this.levels).siteRepairMultiplier);
         const launchSite = sites.sites.find((site) => site.definition.kind === 'launch' && site.health > 0);

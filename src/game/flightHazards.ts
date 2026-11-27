@@ -89,14 +89,14 @@ export class FlightHazards {
     const distance = ship.position.length();
     if (!this.returning && distance > DEFENCE_ZONE.limit) {
       this.returning = true;
-      hud.showMessage('Outside the defence zone. Autopilot returning to Earth', 'danger', 4);
+      hud.showMessage('Outside the defence zone. Autopilot returning', 'danger', 4);
     } else if (this.returning && distance < DEFENCE_ZONE.warning) {
       this.returning = false;
       hud.showMessage('Back in the defence zone. You have the controls', 'success', 3);
     }
     if (!this.returning) {
       if (distance > DEFENCE_ZONE.warning && !this.warnedFar) {
-        hud.showMessage('Leaving the defence zone. Turn back towards Earth', 'warning', 4);
+        hud.showMessage('Leaving the defence zone. Turn back', 'warning', 4);
       }
       this.warnedFar = distance > DEFENCE_ZONE.warning;
       return input;

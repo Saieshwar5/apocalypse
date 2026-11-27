@@ -104,7 +104,27 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 - One ship: if it is destroyed the mission fails. Hits flash red on the side
   of the screen they came from; a failing hull sparks, smokes and sounds an
   alarm. Flying too far out hands control to an autopilot that returns.
-- Waves from one to three attack fronts, with a giant every fifth wave.
+- The orbit: a play-through is one orbit of 14 sectors, with debris fields
+  (light, dense, giant) separated by calm zones for docking and repairs. A
+  forecast strip at the top shows what is coming; Enter leaves a calm zone
+  early. Clearing the final giant completes the orbit, rated one to three
+  stars.
+- Station workshop: while docked, keys 1 to 8 spend credits on eight
+  upgrades (fuel tank, engines, laser power and cooling, missile rack, ship
+  shield, station shield, repair crews).
+- The station can be damaged and destroyed by asteroids, moved along its
+  orbit from the tactical map (Q and E), and is restocked by a supply rocket
+  you can watch climb from the Launch Complex.
+- Physics: hits push and spin asteroids according to their mass, so missiles
+  can deflect a giant into missing the planet; fragments keep their parent's
+  momentum; the ship banks into turns.
+- Star systems: after Earth, travel to Tau Ceti to defend the Meridian colony,
+  a generated world with its own settlements, harder fields and your score
+  and upgrades carried over.
+- Best runs are kept in this browser, and a result line can be copied to
+  share. There is no online leaderboard yet.
+- Asteroids come from one to three attack fronts, with giants in the marked
+  sectors.
   Missiles are only reloaded at the station.
 - Synthesised sound effects (no audio files yet).
 
@@ -198,7 +218,7 @@ Collisions use simple sphere tests; there is no physics engine.
 src/
   logic/      Game rules with no graphics: asteroid classes, waves, damage, scoring,
               threats, ballistics (range, aim-ahead, blasts), ship defence, units
-  game/       Game phases, play session, wave timing, targeting, combat, screens
+  game/       Game phases, play session, campaign (orbit, upgrades), targeting, combat, screens
   launch/     Launch cinematic: pad scene, rocket effects, orbit insertion
   scene/      Renderer, Earth and its shaders, stars and sun
   ship/       Interceptor model wrapper, shield and flight controller

@@ -23,6 +23,7 @@ import type { ShipModel } from '../ship/shipModel';
 import { LaserCannon } from '../weapons/laserCannon';
 import { MissileLauncher } from '../weapons/missileLauncher';
 import { StationOperations } from '../station/stationOperations';
+import { STAR_SYSTEMS, type StarSystem } from '../logic/starSystems';
 import { SiteDefence } from '../sites/siteDefence';
 import { SiteMarkers } from '../sites/siteMarkers';
 import { CombatResolver } from './combatResolver';
@@ -96,7 +97,7 @@ export class PlaySession {
   constructor(private readonly deps: PlaySessionDependencies) {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
     deps.shipModel.group.add(this.shield.mesh);
-    this.sites = new SiteDefence(deps.earth);
+    this.sites = new SiteDefence(deps.earth, STAR_SYSTEMS[0].sites);
     this.siteMarkers = new SiteMarkers(deps.earth, this.sites);
     this.plumes = new ImpactPlumes(deps.earth);
     deps.scene.add(this.field.group, this.visuals.group, this.dust.lines, this.laser.group, this.missiles.group);
@@ -159,15 +160,17 @@ export class PlaySession {
     return this.lostCause === null;
   }
 
-  reset(): void {
+  /** `keepUpgrades` carries the workshop upgrades into the next star system. */
+  reset(system: StarSystem = STAR_SYSTEMS[0], keepUpgrades = false): void {
+    this.sites.setDefinitions(system.sites);
+    this.siteMarkers.rebuild();
     this.field.clear();
     this.visuals.clear();
     this.scorches.clear();
     this.feedback.clear();
     this.laser.reset();
     this.missiles.reset();
-    this.campaign.reset();
-    this.sites.reset();
+    this.campaign.reset(system.difficulty, keepUpgrades);
     this.plumes.clear();
     this.hazards.reset();
     this.stationOps.reset();

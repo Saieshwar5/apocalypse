@@ -668,3 +668,40 @@ button:disabled {
 #game-over[data-outcome='victory'] h2 {
   color: var(--accent);
 }
+
+#game-over button + button {
+  margin-top: 8px;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--hud-text);
+  border: 1px solid var(--hud-border);
+}
+
+.best-heading {
+  margin: 18px 0 6px;
+  color: var(--hud-dim);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.best-runs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: left;
+}
+
+.best-runs li {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.best-runs li.current {
+  color: var(--accent);
+}
