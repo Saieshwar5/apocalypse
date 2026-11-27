@@ -1,4 +1,5 @@
 import type { RunRecord } from '../logic/bestRuns';
+import { formatCredits } from '../logic/contracts';
 import { orbitRating } from '../logic/orbitPlan';
 
 export interface ScreenActions {
@@ -10,7 +11,11 @@ export interface ScreenActions {
 }
 
 export interface RunSummary {
-  score: number;
+  earned: number;
+  spent: number;
+  balance: number;
+  contractsCompleted: number;
+  contractsLost: number;
   wavesCleared: number;
   asteroidsDestroyed: number;
   impacts: number;
@@ -73,7 +78,11 @@ export class GameScreens {
 
   showGameOver(summary: RunSummary): void {
     const rows: [string, string][] = [
-      ['Score', summary.score.toLocaleString()],
+      ['Earned', formatCredits(summary.earned)],
+      ['Spent at the station', formatCredits(summary.spent)],
+      ['Balance', formatCredits(summary.balance)],
+      ['Contracts completed', String(summary.contractsCompleted)],
+      ['Contracts lost to impacts', String(summary.contractsLost)],
       [`${summary.planet} integrity`, `${Math.max(0, Math.round(summary.integrity))}%`],
       ['Fields cleared', String(summary.wavesCleared)],
       ['Asteroids destroyed', String(summary.asteroidsDestroyed)],
@@ -103,12 +112,12 @@ export class GameScreens {
     element<HTMLOListElement>('#best-runs').replaceChildren(
       ...summary.bestRuns.map((run) => {
         const row = document.createElement('li');
-        const isCurrent = run.score === summary.current.score && run.date === summary.current.date && run.planet === summary.current.planet;
+        const isCurrent = run.earned === summary.current.earned && run.date === summary.current.date && run.planet === summary.current.planet;
         row.className = isCurrent ? 'current' : '';
         const what = document.createElement('span');
         what.textContent = `${run.date} · ${run.planet}${run.victory ? ` ${'★'.repeat(run.stars)}` : ''}`;
         const score = document.createElement('span');
-        score.textContent = run.score.toLocaleString();
+        score.textContent = formatCredits(run.earned);
         row.append(what, score);
         return row;
       }),

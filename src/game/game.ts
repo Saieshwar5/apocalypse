@@ -343,7 +343,7 @@ export class Game {
     const system = STAR_SYSTEMS[this.systemIndex];
     const { citiesStanding, cityCount } = this.play.sites;
     this.lastRun = {
-      score: this.session.score,
+      earned: this.session.wallet.earned,
       planet: system.planet,
       victory,
       stars: orbitRating(this.session.integrity, citiesStanding, cityCount),
@@ -357,7 +357,11 @@ export class Game {
       nextStar: next?.star ?? null,
       bestRuns: saveRun(this.lastRun),
       current: this.lastRun,
-      score: this.session.score,
+      earned: this.session.wallet.earned,
+      spent: this.session.wallet.spent,
+      balance: this.session.wallet.balance,
+      contractsCompleted: this.play.contracts.contractsCompleted,
+      contractsLost: this.play.contracts.contractsLost,
       wavesCleared: this.session.wavesCleared,
       asteroidsDestroyed: this.session.asteroidsDestroyed,
       impacts: this.session.totalImpacts,

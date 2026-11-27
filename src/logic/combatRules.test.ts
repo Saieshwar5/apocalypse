@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { asteroidHealth, fragmentsOnDestroy, weaponDamage } from './asteroidClasses';
 import { applyPlanetDamage, burnsUp, impactDamage, integrityLevel, threatRating } from './planetDamage';
-import { destroyScore, waveClearBonus } from './scoring';
+import { waveClearBonus } from './scoring';
 
 describe('planet damage', () => {
   it('scales with asteroid size so one small hit is not fatal', () => {
@@ -51,13 +51,7 @@ describe('weapons against materials', () => {
   });
 });
 
-describe('scoring', () => {
-  it('rewards deep intercepts and missiles on big targets', () => {
-    expect(destroyScore('small', 'laser', 20)).toBe(10);
-    expect(destroyScore('small', 'laser', 80)).toBe(15);
-    expect(destroyScore('giant', 'missile', 20)).toBe(625);
-  });
-
+describe('field bonus', () => {
   it('scales the wave bonus by the share destroyed and doubles it when Earth took no hits', () => {
     expect(waveClearBonus(3, 6, 2)).toBe(225);
     expect(waveClearBonus(3, 8, 0)).toBe(600);
