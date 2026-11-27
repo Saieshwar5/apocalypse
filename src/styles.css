@@ -118,26 +118,34 @@ body {
   color: var(--danger);
 }
 
-.hud-sites {
-  top: 222px;
-  left: 16px;
-  width: 230px;
+.station-row strong {
+  color: #5fd8ff;
 }
 
+.hud-sites {
+  top: 258px;
+  left: 16px;
+  width: 336px;
+}
+
+/* Two columns keep thirteen sites short enough to clear the scanner. */
 #site-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 14px;
 }
 
 #site-list li {
   display: grid;
-  grid-template-columns: 114px 1fr 34px;
-  white-space: nowrap;
+  grid-template-columns: 86px 1fr 26px;
   align-items: center;
-  gap: 6px;
-  padding: 2px 0;
-  font-size: 11px;
+  gap: 5px;
+  line-height: 15px;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 #site-list .site-status {
@@ -569,7 +577,7 @@ button:disabled {
   }
 }
 
-@media (max-height: 700px) {
+@media (max-height: 640px) {
   .hud-sites {
     display: none;
   }

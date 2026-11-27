@@ -12,7 +12,7 @@ export interface SiteDefinition {
   population: number;
 }
 
-/** One city per inhabited continent, plus the two installations. */
+/** Eleven major cities across every inhabited continent, plus the two installations. */
 export const SITE_DEFINITIONS: readonly SiteDefinition[] = [
   { id: 'mumbai', name: 'Mumbai', kind: 'city', latitude: 19.08, longitude: 72.88, population: 21 },
   { id: 'new-york', name: 'New York', kind: 'city', latitude: 40.71, longitude: -74.01, population: 19 },
@@ -20,8 +20,13 @@ export const SITE_DEFINITIONS: readonly SiteDefinition[] = [
   { id: 'lagos', name: 'Lagos', kind: 'city', latitude: 6.52, longitude: 3.38, population: 15 },
   { id: 'london', name: 'London', kind: 'city', latitude: 51.51, longitude: -0.13, population: 9 },
   { id: 'sydney', name: 'Sydney', kind: 'city', latitude: -33.87, longitude: 151.21, population: 5 },
+  { id: 'tokyo', name: 'Tokyo', kind: 'city', latitude: 35.68, longitude: 139.69, population: 37 },
+  { id: 'shanghai', name: 'Shanghai', kind: 'city', latitude: 31.23, longitude: 121.47, population: 29 },
+  { id: 'cairo', name: 'Cairo', kind: 'city', latitude: 30.04, longitude: 31.24, population: 22 },
+  { id: 'mexico-city', name: 'Mexico City', kind: 'city', latitude: 19.43, longitude: -99.13, population: 22 },
+  { id: 'moscow', name: 'Moscow', kind: 'city', latitude: 55.76, longitude: 37.62, population: 13 },
   { id: 'launch', name: 'Launch Complex', kind: 'launch', latitude: 13.72, longitude: 80.23, population: 0 },
-  { id: 'radar', name: 'Deep-Space Radar', kind: 'radar', latitude: -77.85, longitude: 166.67, population: 0 },
+  { id: 'radar', name: 'Radar Station', kind: 'radar', latitude: -77.85, longitude: 166.67, population: 0 },
 ];
 
 export const SITE_MAX_HEALTH = 100;

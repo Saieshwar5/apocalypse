@@ -21,6 +21,8 @@ export interface HudSnapshot {
   hull: number;
   speed: number;
   shipPosition: THREE.Vector3;
+  fuel: number;
+  station: { distance: number | null; docked: boolean; stock: { fuel: number; missiles: number } };
   altitude: AltitudeReadout;
   zone: AtmosphereZone;
   sites: readonly SiteState[];
@@ -61,6 +63,9 @@ export class Hud {
   private readonly shieldBar = element<HTMLDivElement>('#shield-bar');
   private readonly speedValue = element<HTMLElement>('#speed-value');
   private readonly message = element<HTMLDivElement>('#hud-message');
+  private readonly fuelBar = element<HTMLDivElement>('#fuel-bar');
+  private readonly stationValue = element<HTMLElement>('#station-value');
+  private readonly stockValue = element<HTMLElement>('#stock-value');
   private readonly centreValue = element<HTMLElement>('#centre-value');
   private readonly surfaceValue = element<HTMLElement>('#surface-value');
   private readonly atmosphereValue = element<HTMLElement>('#atmosphere-value');
@@ -89,6 +94,11 @@ export class Hud {
     this.heatBar.dataset.level = snapshot.overheated ? 'critical' : snapshot.laserHeat > 70 ? 'damaged' : 'stable';
     this.missileValue.textContent = `${snapshot.missiles} / ${MISSILE_CAPACITY}`;
     this.boostBar.style.width = `${snapshot.boost}%`;
+    this.fuelBar.style.width = `${snapshot.fuel}%`;
+    this.fuelBar.dataset.level = snapshot.fuel <= 0 ? 'critical' : snapshot.fuel < 25 ? 'damaged' : 'stable';
+    const { station } = snapshot;
+    this.stationValue.textContent = station.docked ? 'DOCKED' : station.distance === null ? '—' : formatDistance(station.distance);
+    this.stockValue.textContent = `${Math.round(station.stock.fuel)} fuel · ${Math.floor(station.stock.missiles)} missiles`;
     this.shieldBar.style.width = `${snapshot.shield}%`;
     this.hullBar.style.width = `${snapshot.hull}%`;
     this.hullBar.dataset.level = integrityLevel(snapshot.hull);

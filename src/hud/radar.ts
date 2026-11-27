@@ -12,6 +12,8 @@ interface Contact {
   color: string;
   size: number;
   locked: boolean;
+  /** Drawn as a square: the station. */
+  square?: boolean;
 }
 
 /**
@@ -57,6 +59,7 @@ export class Radar {
     lockedId: number | null,
     planetRadius: number,
     range = SCANNER_RANGE,
+    station: THREE.Vector3 | null = null,
   ): void {
     const context = this.context;
     const centreX = this.width / 2;
@@ -79,6 +82,10 @@ export class Radar {
         locked: asteroid.id === lockedId,
       };
     });
+    if (station) {
+      this.local.copy(station).sub(ship.position).applyQuaternion(this.inverse);
+      contacts.push({ point: projectToScanner(this.local.toArray(), range, radius), color: '#5fd8ff', size: 3.5, locked: false, square: true });
+    }
     this.local.copy(ship.position).negate().applyQuaternion(this.inverse);
     const earth = projectToScanner(this.local.toArray(), range, radius);
     const earthSize = THREE.MathUtils.clamp((planetRadius / Math.max(this.local.length(), planetRadius)) * radius * 0.5, 5, 13);
@@ -162,7 +169,11 @@ export class Radar {
     context.ellipse(point.baseX, point.baseY, 2.5, 2.5 * SCANNER_TILT, 0, 0, Math.PI * 2);
     context.stroke();
     context.beginPath();
-    context.arc(point.x, point.y, size, 0, Math.PI * 2);
+    if (contact.square) {
+      context.rect(point.x - size, point.y - size, size * 2, size * 2);
+    } else {
+      context.arc(point.x, point.y, size, 0, Math.PI * 2);
+    }
     if (point.above) {
       context.fillStyle = color;
       context.fill();

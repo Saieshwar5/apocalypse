@@ -6,6 +6,7 @@ import {
   type DamageResult,
   type DefenseState,
 } from '../logic/shipDefense';
+import { FUEL_CAPACITY, fuelBurned, thrustScale } from '../logic/stationSupply';
 import { damping } from '../math/orientation';
 
 export interface FlightInput {
@@ -41,6 +42,8 @@ const BOOST_RECHARGE = 11;
 export class ShipController {
   readonly velocity = new THREE.Vector3();
   boostEnergy = 100;
+  /** Burned by thrust and boost; refilled at the station. */
+  fuel = FUEL_CAPACITY;
   defense: DefenseState = createDefenseState();
   /** 0..1 engine output, used for exhaust visuals and sound. */
   throttle = 0;
@@ -87,12 +90,22 @@ export class ShipController {
     return result;
   }
 
+  /** Station repairs: the only way the hull recovers. */
+  repair(hull: number, shield: number): void {
+    this.defense = {
+      ...this.defense,
+      hull: Math.min(100, this.defense.hull + hull),
+      shield: Math.min(100, this.defense.shield + shield),
+    };
+  }
+
   reset(position: THREE.Vector3, orientation: THREE.Quaternion, initialSpeed = 0): void {
     this.object.position.copy(position);
     this.object.quaternion.copy(orientation);
     this.velocity.copy(this.forward()).multiplyScalar(initialSpeed);
     this.angularVelocity.set(0, 0, 0);
     this.boostEnergy = 100;
+    this.fuel = FUEL_CAPACITY;
     this.defense = createDefenseState();
     this.throttle = 0;
     this.boosting = false;
@@ -117,16 +130,19 @@ export class ShipController {
   }
 
   private updateThrust(deltaSeconds: number, input: FlightInput): void {
-    const wantsBoost = input.boost && input.thrust > 0 && this.boostEnergy > 1;
+    const wantsBoost = input.boost && input.thrust > 0 && this.boostEnergy > 1 && this.fuel > 0;
+    // An empty tank leaves weak reserve thrust, so the ship can still limp home.
+    const power = thrustScale(this.fuel);
+    this.fuel = Math.max(0, this.fuel - fuelBurned(input.thrust, input.strafe, wantsBoost, deltaSeconds));
     this.boosting = wantsBoost;
     this.boostEnergy = wantsBoost
       ? Math.max(0, this.boostEnergy - BOOST_DRAIN * deltaSeconds)
       : Math.min(100, this.boostEnergy + BOOST_RECHARGE * deltaSeconds);
 
-    const forwardThrust = input.thrust * THRUST * (wantsBoost ? BOOST_MULTIPLIER : 1);
+    const forwardThrust = input.thrust * THRUST * power * (wantsBoost ? BOOST_MULTIPLIER : 1);
     const quaternion = this.object.quaternion;
     this.velocity.addScaledVector(this.scratch.set(0, 0, -1).applyQuaternion(quaternion), forwardThrust * deltaSeconds);
-    this.velocity.addScaledVector(this.scratch.set(1, 0, 0).applyQuaternion(quaternion), input.strafe * STRAFE_THRUST * deltaSeconds);
+    this.velocity.addScaledVector(this.scratch.set(1, 0, 0).applyQuaternion(quaternion), input.strafe * STRAFE_THRUST * power * deltaSeconds);
 
     const targetThrottle = Math.max(0, input.thrust) * (wantsBoost ? 1 : 0.75) + 0.1;
     this.throttle = THREE.MathUtils.lerp(this.throttle, targetThrottle, damping(6, deltaSeconds));

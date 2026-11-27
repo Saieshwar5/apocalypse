@@ -5,8 +5,11 @@ import { projectToScanner, SCANNER_TILT } from './scannerProjection';
 import { rankThreats } from './threats';
 
 describe('priority sites', () => {
-  it('has one city on each inhabited continent plus two installations', () => {
-    expect(SITE_DEFINITIONS.filter((site) => site.kind === 'city')).toHaveLength(6);
+  it('has eleven cities, including Tokyo and Shanghai, plus two installations', () => {
+    const cities = SITE_DEFINITIONS.filter((site) => site.kind === 'city').map((site) => site.name);
+    expect(cities).toHaveLength(11);
+    expect(cities).toEqual(expect.arrayContaining(['Mumbai', 'Tokyo', 'Shanghai', 'New York', 'Lagos', 'Sydney']));
+    expect(new Set(SITE_DEFINITIONS.map((site) => site.id)).size).toBe(SITE_DEFINITIONS.length);
     expect(SITE_DEFINITIONS.map((site) => site.kind)).toContain('launch');
     expect(SITE_DEFINITIONS.map((site) => site.kind)).toContain('radar');
   });

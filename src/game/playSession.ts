@@ -26,6 +26,9 @@ import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipC
 import type { ShipModel } from '../ship/shipModel';
 import { LaserCannon } from '../weapons/laserCannon';
 import { MissileLauncher } from '../weapons/missileLauncher';
+import { DockingController } from '../station/dockingController';
+import { SpaceStation } from '../station/spaceStation';
+import { LOW_FUEL } from '../logic/stationSupply';
 import { SiteDefence } from '../sites/siteDefence';
 import { SiteMarkers } from '../sites/siteMarkers';
 import { CombatResolver } from './combatResolver';
@@ -44,7 +47,7 @@ const TIPS: readonly [number, number, string][] = [
   [25, 33, 'Tip: stay out of the atmosphere. Watch "Above atmosphere" on the left'],
 ];
 /** Missiles delivered by supply rocket after each wave, until the space base exists. */
-const MISSILES_PER_RESUPPLY = 3;
+const STATION_NAME = 'AEGIS';
 const AIM_DISTANCE = 70;
 /** Time runs this much slower while the tactical map is open. */
 const TACTICAL_TIME_SCALE = 0.3;
@@ -65,6 +68,8 @@ export interface PlaySessionDependencies {
   session: GameSession;
   rng: RandomSource;
   shipModel: ShipModel;
+  /** The Blender station model. */
+  stationModel: THREE.Object3D;
   ship: ShipController;
   /** Shows or hides the cockpit frame overlay. */
   setCockpitFrame: (visible: boolean) => void;
@@ -91,6 +96,9 @@ export class PlaySession {
   private readonly siteMarkers: SiteMarkers;
   private readonly plumes: ImpactPlumes;
   private readonly hazards: FlightHazards;
+  readonly station: SpaceStation;
+  readonly docking: DockingController;
+  private fuelWarned = false;
   /** Why the mission failed because of the ship, once the loss has played out. */
   shipFailure: string | null = null;
   private lostCause: string | null = null;
@@ -135,7 +143,16 @@ export class PlaySession {
       cameraRig: deps.cameraRig,
       explosions: deps.explosions,
     });
-    deps.scene.add(this.hazards.group);
+    this.station = new SpaceStation(deps.stationModel);
+    this.docking = new DockingController({
+      ship: deps.ship,
+      station: this.station,
+      missiles: this.missiles,
+      sound: deps.sound,
+      hud: deps.hud,
+      cameraRig: deps.cameraRig,
+    });
+    deps.scene.add(this.hazards.group, this.station.group);
   }
 
   get shipActive(): boolean {
@@ -153,6 +170,9 @@ export class PlaySession {
     this.sites.reset();
     this.plumes.clear();
     this.hazards.reset();
+    this.docking.reset();
+    this.station.hide();
+    this.fuelWarned = false;
     this.shipFailure = null;
     this.lostCause = null;
     this.lostTimer = 0;
@@ -164,6 +184,7 @@ export class PlaySession {
   /** Called when the launch hands over control. */
   beginDefence(firstWaveDelay: number): void {
     this.director.reset(firstWaveDelay);
+    this.station.placeAheadOf(this.deps.ship.position, this.deps.ship.forward());
   }
 
   update(realDeltaSeconds: number): void {
@@ -172,7 +193,8 @@ export class PlaySession {
     this.elapsed += deltaSeconds;
     const { ship, shipModel, earth, explosions, sound, cameraRig } = this.deps;
     const active = this.shipActive;
-    const flying = active && !this.tactical;
+    this.station.update(deltaSeconds, this.docking.state === 'approach');
+    const flying = active && !this.tactical && !this.docking.holdingShip;
     const input = flying ? this.hazards.filterInput(this.readFlightInput(), deltaSeconds) : IDLE_INPUT;
     ship.update(deltaSeconds, input);
     shipModel.group.updateMatrixWorld();
@@ -185,7 +207,15 @@ export class PlaySession {
         this.shipFailure = this.lostCause;
       }
     }
+    const wantsLaunch = !this.tactical && (this.deps.input.isDown('KeyW') || this.deps.input.isDown('ArrowUp'));
+    const pilotBusy = input.thrust !== 0 || input.strafe !== 0 || this.deps.input.firingPrimary;
+    this.docking.update(deltaSeconds, wantsLaunch, active, pilotBusy);
+    shipModel.group.updateMatrixWorld();
     this.hazards.update(deltaSeconds, active);
+    if (ship.fuel < LOW_FUEL && !this.fuelWarned) {
+      this.deps.hud.showMessage(`Fuel low. Dock at ${STATION_NAME} to refuel`, 'warning', 4);
+    }
+    this.fuelWarned = ship.fuel < LOW_FUEL;
 
     const impacts = this.field.update(deltaSeconds);
     this.combat.resolvePlanetImpacts(impacts, this.deps.camera.position);
@@ -219,7 +249,7 @@ export class PlaySession {
     this.updateWarnings(realDeltaSeconds);
     this.updateCamera(realDeltaSeconds);
     // In the cockpit the hull would block the view.
-    shipModel.group.visible = this.shipActive && (cameraRig.view === 'chase' || this.tactical);
+    shipModel.group.visible = this.shipActive && (cameraRig.view === 'chase' || this.tactical || this.docking.holdingShip);
     this.updateHud(realDeltaSeconds, ranked);
   }
 
@@ -302,6 +332,15 @@ export class PlaySession {
 
   private updateCamera(deltaSeconds: number): void {
     const { cameraRig, camera, shipModel, ship } = this.deps;
+    if (!this.tactical && this.docking.holdingShip) {
+      // Outside view of the bay, so the pilot watches the ship being docked and serviced.
+      const pose = this.station.dockPose();
+      const offset = new THREE.Vector3(3.2, 1.6, -7.5).applyQuaternion(pose.orientation);
+      const position = camera.position.clone().lerp(pose.position.clone().add(offset), damping(2.5, deltaSeconds));
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(pose.orientation);
+      cameraRig.place(position, ship.position, up, deltaSeconds);
+      return;
+    }
     if (!this.tactical) {
       cameraRig.follow(shipModel.group, deltaSeconds, ship.boosting);
       return;
@@ -345,7 +384,7 @@ export class PlaySession {
   private updateTips(deltaSeconds: number): void {
     this.defenceSeconds += deltaSeconds;
     const tip = TIPS.find(([from, to]) => this.defenceSeconds >= from && this.defenceSeconds < to);
-    this.deps.hud.setHint(tip ? tip[2] : null);
+    this.deps.hud.setHint(this.docking.hint ?? (tip ? tip[2] : null));
   }
 
   private handleWaveEvents(events: readonly WaveEvent[]): void {
@@ -370,8 +409,10 @@ export class PlaySession {
         const reward = bonus > 0 ? ` +${bonus} points.` : '';
         this.sites.repairSurvivors();
         const canSupply = this.sites.isStanding('launch');
-        const loaded = canSupply ? this.missiles.resupply(MISSILES_PER_RESUPPLY) : 0;
-        const supply = !canSupply ? ' No supply: Launch Complex lost.' : loaded > 0 ? ` Supply rocket: +${loaded} missiles.` : '';
+        if (canSupply) {
+          this.station.receiveSupplies();
+        }
+        const supply = canSupply ? ` Supply rocket reached ${STATION_NAME}.` : ' No supply: Launch Complex lost.';
         hud.showMessage(`Wave ${event.wave} over.${reward}${clean}${supply}`, 'success', 5);
         sound.chime();
       }
@@ -393,14 +434,20 @@ export class PlaySession {
       hull: ship.hull,
       speed: ship.velocity.length(),
       shipPosition: ship.position,
+      fuel: ship.fuel,
+      station: {
+        distance: this.station.group.visible ? ship.position.distanceTo(this.station.position) : null,
+        docked: this.docking.state === 'docked',
+        stock: this.station.stock,
+      },
       altitude: altitudeReadout(ship.position.length(), EARTH_RADIUS),
       zone: this.hazards.zone,
       sites: this.sites.sites,
     });
     const range = this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2;
     const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
-    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range);
-    if (!showTargets || !this.shipActive || !this.targeting) {
+    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.station.group.visible ? this.station.position : null);
+    if (!showTargets || !this.shipActive || !this.targeting || this.docking.holdingShip) {
       overlay.clear();
       return;
     }
@@ -415,6 +462,7 @@ export class PlaySession {
       tactical: this.tactical,
       shipPosition: ship.position,
       sites: this.siteMarkers.visibleLabels(camera.position),
+      station: this.station.group.visible ? { world: this.station.position, name: STATION_NAME } : null,
     });
   }
 }

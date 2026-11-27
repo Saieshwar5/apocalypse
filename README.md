@@ -78,8 +78,17 @@ Then open the address Vite prints (usually http://localhost:5173) and click
   and space dust that shows your own speed.
 - Radar, threat list ranked by urgency, on-screen target markers, arrows
   pointing to threats outside the view, and a tactical map.
-- Priority sites: six cities (Mumbai, New York, São Paulo, Lagos, London,
-  Sydney), the Launch Complex and the Deep-Space Radar in Antarctica. Each has
+- Aegis space station: it orbits Earth, shown on the scanner (cyan square)
+  and by an on-screen marker. Fly within about 5,700 km at under 30 km/s and
+  release the controls: docking guides back the ship into the bay, clamps
+  engage, and the station refuels, rearms and repairs it (the only way the
+  hull recovers). W launches. Asteroids keep coming while you are docked.
+- Fuel: thrust and boost burn it. An empty tank leaves 25% thrust and no
+  boost. The station's stock of fuel and missiles is limited and is topped up
+  by a supply rocket after each wave while the Launch Complex stands.
+- Priority sites: eleven cities (Mumbai, New York, São Paulo, Lagos, London,
+  Sydney, Tokyo, Shanghai, Cairo, Mexico City, Moscow), the Launch Complex
+  and the Radar Station in Antarctica. Each has
   health, a marker and label on the globe and a row in the HUD. Asteroids
   heading for a site are flagged with the site's name and a countdown, and
   from wave 2 some are aimed at sites. Losing the Launch Complex stops missile
@@ -96,7 +105,7 @@ Then open the address Vite prints (usually http://localhost:5173) and click
   of the screen they came from; a failing hull sparks, smokes and sounds an
   alarm. Flying too far out hands control to an autopilot that returns.
 - Waves from one to three attack fronts, with a giant every fifth wave.
-  A supply rocket delivers 3 missiles after each wave.
+  Missiles are only reloaded at the station.
 - Synthesised sound effects (no audio files yet).
 
 ## Checks
@@ -115,7 +124,7 @@ npm run build
 
 `npm test` covers the game rules: waves, damage, scoring, threat ranking,
 wave timing, laser range, aim-ahead, blasts, shield and hull, units, priority
-sites, atmosphere zones and the scanner projection. In development builds the running game is available as
+sites, atmosphere zones, the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.apocalypse` so browser automation can drive it; production builds do
 not expose it.
 
@@ -135,6 +144,7 @@ changed and rebuilt rather than edited by hand:
 | --- | --- |
 | `art/blender/build_ship.py` | `interceptor.glb`, in two variants: `gunship` (used) and `interceptor` |
 | `art/blender/build_launch.py` | `booster.glb` and `launchpad.glb` |
+| `art/blender/build_station.py` | `station.glb` (Aegis: hub, spinning ring, docking bay, tanks, solar wings) |
 | `art/blender/shipParts.py` | Shared mesh helpers: lofted hulls, armour plating, greebles |
 
 They need Blender's Python module, which can be installed with pip in a
@@ -197,6 +207,7 @@ src/
   effects/    Explosions, scorch marks, space dust
   hud/        3D scanner, target markers, reticle, hit feedback, status panels
   sites/      Priority sites: health, threats, globe markers
+  station/    Aegis station: orbit, stock, automatic docking
   camera/     Chase and cockpit camera
   input/      Keyboard and mouse
   audio/      Synthesised sound effects

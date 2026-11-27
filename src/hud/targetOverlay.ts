@@ -29,6 +29,7 @@ export interface OverlayFrame {
   shipPosition: THREE.Vector3;
   /** Priority sites on the side of Earth facing the camera. */
   sites: readonly SiteLabel[];
+  station: { world: THREE.Vector3; name: string } | null;
 }
 
 const SITE_LABEL_COLOR = { intact: '#7dffb0', damaged: '#ffb347', critical: '#ff5a4a', destroyed: '#7f8c9e' } as const;
@@ -72,6 +73,9 @@ export class TargetOverlay {
     context.font = `600 11px ${MONO}`;
     const lockedId = frame.targeting.target?.id ?? null;
     this.drawSiteLabels(frame.sites);
+    if (frame.station) {
+      this.drawStation(frame.station, frame.shipPosition);
+    }
 
     frame.ranked.forEach((asteroid, rank) => {
       const tone = threatTone(asteroid, rank);
@@ -137,6 +141,41 @@ export class TargetOverlay {
       context.fillRect(x - 4, point.y - 9, width + 8, 16);
       context.fillStyle = color;
       context.fillText(text, x, point.y + 3);
+    }
+    context.restore();
+  }
+
+  /** Cyan marker on the station, or an arrow at the screen edge towards it. */
+  private drawStation(station: { world: THREE.Vector3; name: string }, shipPosition: THREE.Vector3): void {
+    const context = this.context;
+    const point = this.projector.project(station.world);
+    const label = `${station.name} ${formatDistance(station.world.distanceTo(shipPosition))}`;
+    context.save();
+    context.strokeStyle = '#5fd8ff';
+    context.fillStyle = '#5fd8ff';
+    context.font = `700 11px ${MONO}`;
+    if (point.visible) {
+      context.strokeRect(point.x - 9, point.y - 9, 18, 18);
+      context.fillText(label, point.x + 14, point.y + 4);
+    } else {
+      const width = this.projector.width;
+      const height = this.projector.height;
+      const angle = Math.atan2(point.y - height / 2, point.x - width / 2);
+      const scale = Math.min((width / 2 - 70) / Math.abs(Math.cos(angle) || 1e-6), (height / 2 - 70) / Math.abs(Math.sin(angle) || 1e-6));
+      const x = width / 2 + Math.cos(angle) * scale;
+      const y = height / 2 + Math.sin(angle) * scale;
+      context.translate(x, y);
+      context.fillRect(-5, -5, 10, 10);
+      context.rotate(angle);
+      context.beginPath();
+      context.moveTo(18, 0);
+      context.lineTo(9, -6);
+      context.lineTo(9, 6);
+      context.closePath();
+      context.fill();
+      context.rotate(-angle);
+      context.textAlign = 'center';
+      context.fillText(label, 0, 22);
     }
     context.restore();
   }

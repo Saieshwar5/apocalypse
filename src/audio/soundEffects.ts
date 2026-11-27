@@ -96,6 +96,13 @@ export class SoundEffects {
     this.noiseBurst({ duration: 0.4, volume: 0.25, filterFrom: 1200, filterTo: 100 });
   }
 
+  /** Heavy mechanical thud of docking clamps. */
+  dockClamp(): void {
+    this.tone({ type: 'sine', from: 90, to: 38, duration: 0.35, volume: 0.35 });
+    this.tone({ type: 'square', from: 300, to: 120, duration: 0.08, volume: 0.06 });
+    this.noiseBurst({ duration: 0.25, volume: 0.18, filterFrom: 900, filterTo: 120 });
+  }
+
   /** Short beep for proximity and collision warnings. */
   warningBeep(urgent: boolean): void {
     this.tone({ type: 'square', from: urgent ? 1320 : 990, to: urgent ? 1320 : 990, duration: 0.07, volume: 0.035 });

@@ -121,6 +121,7 @@ export class Game {
       session: this.session,
       rng: this.rng,
       shipModel: this.shipModel,
+      stationModel: models.station,
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
     });

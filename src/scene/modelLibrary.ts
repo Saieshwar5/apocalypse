@@ -6,13 +6,14 @@ export interface ModelLibrary {
   interceptor: THREE.Object3D;
   booster: THREE.Object3D;
   launchPad: THREE.Object3D;
+  station: THREE.Object3D;
 }
 
 export async function loadModels(): Promise<ModelLibrary> {
   const loader = new GLTFLoader();
   const base = `${import.meta.env.BASE_URL}models/`;
-  const [interceptor, booster, launchPad] = await Promise.all(
-    ['interceptor.glb', 'booster.glb', 'launchpad.glb'].map(async (file) => {
+  const [interceptor, booster, launchPad, station] = await Promise.all(
+    ['interceptor.glb', 'booster.glb', 'launchpad.glb', 'station.glb'].map(async (file) => {
       try {
         return (await loader.loadAsync(`${base}${file}`)).scene;
       } catch (error) {
@@ -20,7 +21,7 @@ export async function loadModels(): Promise<ModelLibrary> {
       }
     }),
   );
-  return { interceptor, booster, launchPad };
+  return { interceptor, booster, launchPad, station };
 }
 
 /** Finds a socket (an empty placed in Blender) or fails loudly if the model changed. */
