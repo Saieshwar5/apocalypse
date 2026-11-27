@@ -34,11 +34,19 @@ interface Engine {
  * scales it, finds its sockets, adds engine plumes and blinking lights.
  * Forward is -Z and up is +Y, as before, so the controller is unchanged.
  */
-export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE): ShipModel {
+/**
+ * `tint` paints the hull for another pilot. The player's model must be made
+ * first: it adjusts the shared materials, and a tinted copy takes its own
+ * copies of them so the player's ship is not repainted.
+ */
+export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint: THREE.Color | null = null): ShipModel {
   const group = new THREE.Group();
   group.name = 'interceptor';
   const model = source.clone(true);
   model.scale.setScalar(scale);
+  if (tint) {
+    paintCopy(model, tint);
+  }
   group.add(model);
   group.updateMatrixWorld(true);
 
@@ -54,7 +62,7 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE): Shi
     const material = node.material as THREE.MeshStandardMaterial;
     const firstVisit = !adjusted.has(material);
     adjusted.add(material);
-    if (firstVisit && (material.name === 'Hull' || material.name === 'ArmourPlate' || material.name === 'DarkMachinery')) {
+    if (firstVisit && !tint && (material.name === 'Hull' || material.name === 'ArmourPlate' || material.name === 'DarkMachinery')) {
       // Space has almost nothing to reflect, so very metallic dark paint reads
       // as black. Lighten it slightly and make it more diffuse in the game.
       material.color.multiplyScalar(1.9);
@@ -139,4 +147,29 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE): Shi
       }
     },
   };
+}
+
+/** Gives a copy its own materials, with the hull paint shifted towards `tint`. */
+function paintCopy(model: THREE.Object3D, tint: THREE.Color): void {
+  const copies = new Map<THREE.Material, THREE.Material>();
+  model.traverse((node) => {
+    if (!(node instanceof THREE.Mesh)) {
+      return;
+    }
+    const original = node.material as THREE.MeshStandardMaterial;
+    let copy = copies.get(original) as THREE.MeshStandardMaterial | undefined;
+    if (!copy) {
+      copy = original.clone();
+      // Strong, slightly dark paint: pale tints wash out to grey under the sun.
+      if (copy.name === 'ArmourPlate') {
+        copy.color.lerp(tint.clone().multiplyScalar(0.55), 0.85);
+      } else if (copy.name === 'Hull') {
+        copy.color.lerp(tint.clone().multiplyScalar(0.22), 0.6);
+      } else if (copy.name === 'Marking') {
+        copy.color.copy(tint);
+      }
+      copies.set(original, copy);
+    }
+    node.material = copy;
+  });
 }

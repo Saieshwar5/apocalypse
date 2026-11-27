@@ -47,6 +47,11 @@ export class SoundEffects {
     this.voice.speak(text);
   }
 
+  /** A rival pilot on the radio: own pitch, never interrupts mission control. */
+  chatter(text: string, pitch: number): void {
+    this.voice.speak(text, pitch, false);
+  }
+
   toggleMute(): boolean {
     this.muted = !this.muted;
     this.voice.enabled = !this.muted;

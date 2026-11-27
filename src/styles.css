@@ -384,6 +384,15 @@ body {
   color: #ffd75e;
 }
 
+.league {
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+.league span {
+  margin-right: 8px;
+}
+
 #threat-list .threat-detail {
   grid-column: 1 / -1;
   color: var(--hud-dim);
@@ -405,6 +414,31 @@ body {
 #threat-list li.empty {
   display: block;
   color: var(--hud-dim);
+}
+
+.radio-line {
+  position: absolute;
+  top: 27%;
+  left: 50%;
+  max-width: min(560px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: rgba(6, 14, 24, 0.6);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--hud-text);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.radio-line.visible {
+  opacity: 1;
+}
+
+.radio-line strong {
+  font-style: normal;
+  margin-right: 6px;
 }
 
 .hud-message {

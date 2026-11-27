@@ -172,7 +172,16 @@ export class TargetOverlay {
       return;
     }
     if (point.visible) {
-      context.strokeRect(point.x - 9, point.y - 9, 18, 18);
+      if (station.shape === 'triangle') {
+        context.beginPath();
+        context.moveTo(point.x, point.y - 10);
+        context.lineTo(point.x + 9, point.y + 7);
+        context.lineTo(point.x - 9, point.y + 7);
+        context.closePath();
+        context.stroke();
+      } else {
+        context.strokeRect(point.x - 9, point.y - 9, 18, 18);
+      }
       context.fillText(label, point.x + 14, point.y + 4);
     } else if (station.edgeArrow !== false) {
       const width = this.projector.width;

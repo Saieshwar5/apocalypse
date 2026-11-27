@@ -14,6 +14,8 @@ export interface HudSnapshot {
   wave: number;
   balance: number;
   earned: number;
+  /** Earnings of every pilot, best first. */
+  league: readonly { name: string; earned: number; color: string; you: boolean }[];
   /** Open defence contracts, most urgent first. */
   contracts: readonly ContractListing[];
   /** Line under the board: this field's earnings, or what comes next. */
@@ -99,6 +101,8 @@ export class Hud {
   private readonly waveValue = element<HTMLElement>('#wave-value');
   private readonly balanceValue = element<HTMLElement>('#balance-value');
   private readonly earnedValue = element<HTMLElement>('#earned-value');
+  private readonly leagueValue = element<HTMLElement>('#league-value');
+  private lastLeague = '';
   private readonly contractSummary = element<HTMLElement>('#contract-summary');
   private readonly threatList = element<HTMLOListElement>('#threat-list');
   private readonly heatBar = element<HTMLDivElement>('#heat-bar');
@@ -117,6 +121,8 @@ export class Hud {
   private readonly atmosphereValue = element<HTMLElement>('#atmosphere-value');
   private readonly zoneValue = element<HTMLElement>('#zone-value');
   private readonly hint = element<HTMLDivElement>('#hud-hint');
+  private readonly radio = element<HTMLDivElement>('#radio-line');
+  private radioTimer = 0;
   private readonly steerStatus = element<HTMLElement>('#steer-status');
   private readonly assistStatus = element<HTMLElement>('#assist-status');
   private readonly motionStatus = element<HTMLElement>('#motion-status');
@@ -142,6 +148,7 @@ export class Hud {
     setText(this.balanceValue, formatCredits(snapshot.balance));
     setText(this.earnedValue, formatCredits(snapshot.earned));
     setText(this.contractSummary, snapshot.contractSummary);
+    this.renderLeague(snapshot.league);
 
     this.heatBar.style.width = `${snapshot.laserHeat}%`;
     this.heatBar.dataset.level = snapshot.overheated ? 'critical' : snapshot.laserHeat > 70 ? 'damaged' : 'stable';
@@ -180,6 +187,13 @@ export class Hud {
       this.damageFlash.style.opacity = String(this.flash);
     }
 
+    if (this.radioTimer > 0) {
+      this.radioTimer -= deltaSeconds;
+      if (this.radioTimer <= 0) {
+        this.radio.classList.remove('visible');
+      }
+    }
+
     if (this.messageTimer > 0) {
       this.messageTimer -= deltaSeconds;
       if (this.messageTimer <= 0) {
@@ -214,6 +228,22 @@ export class Hud {
     }
   }
 
+  private renderLeague(league: HudSnapshot['league']): void {
+    const key = league.map((row) => `${row.name}:${Math.round(row.earned)}`).join('|');
+    if (key === this.lastLeague) {
+      return;
+    }
+    this.lastLeague = key;
+    this.leagueValue.replaceChildren(
+      ...league.map((row, index) => {
+        const entry = document.createElement('span');
+        entry.textContent = `${index + 1}. ${row.you ? 'YOU' : row.name} ${Math.round(row.earned).toLocaleString('en-US')}`;
+        entry.style.color = row.color;
+        return entry;
+      }),
+    );
+  }
+
   /** Says plainly who is steering and what the engines are doing. */
   private renderControls(snapshot: HudSnapshot): void {
     const { controls, speed } = snapshot;
@@ -240,6 +270,16 @@ export class Hud {
       this.zoneValue.textContent = ZONE_LABEL[zone];
       this.atmosphereValue.dataset.zone = zone;
     }
+  }
+
+  /** A rival pilot on the radio, under the main message. */
+  showRadio(name: string, color: string, text: string, seconds = 4.5): void {
+    const label = document.createElement('strong');
+    label.textContent = name;
+    label.style.color = color;
+    this.radio.replaceChildren(label, document.createTextNode(text));
+    this.radio.classList.add('visible');
+    this.radioTimer = seconds;
   }
 
   /** Called for urgent messages so mission control can read them aloud. */
