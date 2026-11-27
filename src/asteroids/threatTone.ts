@@ -14,7 +14,8 @@ export const THREAT_COLORS: Record<ThreatTone, string> = {
 
 /** Shared colour language for brackets, radar, path lines and markers. */
 export function threatTone(asteroid: Asteroid, rank: number): ThreatTone {
-  if (asteroid.timeToImpact === null) {
+  // Harmless once known: it misses, or it will burn up before reaching the ground.
+  if (asteroid.timeToImpact === null || (asteroid.identified && asteroid.assessedDamage === 0)) {
     return 'miss';
   }
   if (rank < URGENT_COUNT) {

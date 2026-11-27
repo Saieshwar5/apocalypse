@@ -6,20 +6,27 @@ import { Hud } from '../hud/hud';
 import { Radar } from '../hud/radar';
 import { TargetOverlay } from '../hud/targetOverlay';
 import { InputState } from '../input/inputState';
+import { orbitRating } from '../logic/orbitPlan';
 import { createSeededRandom } from '../logic/random';
+import { STAR_SYSTEMS, nextSystem } from '../logic/starSystems';
+import { shareText, type RunRecord } from '../logic/bestRuns';
 import { GroundScene } from '../launch/groundScene';
 import { LaunchCinematic } from '../launch/launchCinematic';
 import { LAUNCH_SITE, OrbitInsertion, orbitPose } from '../launch/orbitInsertion';
 import { RocketEffects } from '../launch/rocketEffects';
-import { Earth, loadEarthTextures } from '../scene/earth';
+import { Earth, loadEarthTextures, type EarthTextures } from '../scene/earth';
+import { generatePlanetTextures } from '../scene/proceduralPlanet';
 import { loadModels } from '../scene/modelLibrary';
 import { RenderPipeline } from '../scene/renderPipeline';
+import { createMoon } from '../scene/moon';
 import { createStarfield, createSun } from '../scene/spaceBackdrop';
 import { createShipModel, type ShipModel } from '../ship/shipModel';
 import { ShipController } from '../ship/shipController';
 import { GameSession } from './gameSession';
 import { GameScreens } from './gameScreens';
 import { PlaySession } from './playSession';
+import { saveRun } from './runHistory';
+import { bindSettingsControls, loadSettings, type Settings } from './settings';
 
 export type GamePhase = 'menu' | 'launch' | 'playing' | 'paused' | 'gameover';
 
@@ -57,6 +64,11 @@ export class Game {
   private ground!: GroundScene;
   private rocketEffects!: RocketEffects;
   private menuAngle = 0.8;
+  private systemIndex = 0;
+  private earthTextures!: EarthTextures;
+  private readonly colonyTextures = new Map<string, EarthTextures>();
+  private sunLight!: THREE.DirectionalLight;
+  private lastRun: RunRecord | null = null;
 
   constructor(private readonly options: GameOptions) {
     const canvas = document.querySelector<HTMLCanvasElement>('#scene');
@@ -68,16 +80,20 @@ export class Game {
     this.pipeline = new RenderPipeline(canvas, this.scene, this.camera);
     this.input = new InputState(canvas);
     this.overlay = new TargetOverlay(overlayCanvas);
+    this.hud.onUrgent = (text) => this.sound.announce(text);
     this.radar = new Radar(radarCanvas);
     this.screens = new GameScreens({
-      onStart: () => this.startRun(),
+      onStart: () => this.startRun(0),
       onResume: () => this.resume(),
-      onRestart: () => this.startRun(),
+      onRestart: () => this.startRun(0),
+      onNext: () => this.startRun(this.systemIndex + 1),
+      onShare: () => this.copyResult(),
     });
   }
 
   async load(): Promise<void> {
     const [textures, models] = await Promise.all([loadEarthTextures(this.pipeline.renderer), loadModels()]);
+    this.earthTextures = textures;
     this.earth = new Earth(textures, SUN_DIRECTION);
     this.shipModel = createShipModel(models.interceptor);
     this.ship = new ShipController(this.shipModel.group);
@@ -95,6 +111,7 @@ export class Game {
     });
 
     const sun = createSun(SUN_DIRECTION);
+    this.sunLight = sun.light;
     this.scene.environment = this.pipeline.createSpaceEnvironment(SUN_DIRECTION);
     this.scene.environmentIntensity = 0.9;
     this.scene.add(
@@ -104,6 +121,7 @@ export class Game {
       // Earth-shine: soft blue light from below, reflected off the planet.
       new THREE.HemisphereLight(0x1a2233, 0x2f5f9e, 0.9),
       this.earth.group,
+      createMoon(new THREE.Vector3(-0.55, 0.2, 0.8)),
       this.shipModel.group,
       this.explosions.group,
     );
@@ -121,6 +139,8 @@ export class Game {
       session: this.session,
       rng: this.rng,
       shipModel: this.shipModel,
+      stationModel: models.station,
+      satellitesModel: models.satellites,
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
     });
@@ -128,20 +148,37 @@ export class Game {
 
     window.addEventListener('resize', this.onResize);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    const applySettings = (settings: Settings): void => {
+      this.ship.lookSensitivity = settings.sensitivity;
+      this.pipeline.setQuality(settings.quality);
+      this.overlay.resize();
+    };
+    const settings = loadSettings();
+    applySettings(settings);
+    bindSettingsControls(settings, applySettings);
     this.screens.showMenu();
 
     if (this.options.autostart) {
-      this.startRun();
+      this.startRun(0);
     }
     // Connecting to the document stops a huge delta after the tab was hidden.
     this.timer.connect(document);
     this.pipeline.renderer.setAnimationLoop(this.frame);
   }
 
-  private startRun(): void {
+  /** Starts a run in the given star system; systems after the first continue the campaign. */
+  private startRun(systemIndex: number): void {
+    const system = STAR_SYSTEMS[systemIndex] ?? STAR_SYSTEMS[0];
+    const continuing = systemIndex > 0 && system === STAR_SYSTEMS[systemIndex];
+    this.systemIndex = continuing ? systemIndex : 0;
     this.sound.unlock();
-    this.session.reset();
-    this.play.reset();
+    if (continuing) {
+      this.session.resetForNextSystem();
+    } else {
+      this.session.reset();
+    }
+    this.play.reset(system, continuing);
+    this.applySystemLook();
     this.explosions.clear();
     this.earth.reset(this.sunriseSpinAngle());
     this.shipModel.group.visible = true;
@@ -153,9 +190,38 @@ export class Game {
     this.phase = 'launch';
     this.hud.setVisible(false);
     this.screens.setCinematic(true);
-    if (this.options.skipLaunch) {
+    // Only Earth has a launch pad; colonies are reached by jump.
+    if (this.options.skipLaunch || continuing) {
       this.launch.skip();
     }
+  }
+
+  /** Planet surface, star colour and HUD label for the current system. */
+  private applySystemLook(): void {
+    const system = STAR_SYSTEMS[this.systemIndex];
+    let textures = this.earthTextures;
+    if (system.surface) {
+      textures = this.colonyTextures.get(system.id) ?? generatePlanetTextures(system.surface, system.sites);
+      this.colonyTextures.set(system.id, textures);
+    }
+    this.earth.setTextures(textures);
+    this.sunLight.color.setRGB(...system.starColor);
+    const label = document.querySelector('#planet-label');
+    if (label) {
+      label.textContent = `${system.planet} integrity`;
+    }
+  }
+
+  private copyResult(): void {
+    if (!this.lastRun) {
+      return;
+    }
+    const text = shareText(this.lastRun);
+    // Clipboard access can be refused; the text is also shown so it can be copied by hand.
+    navigator.clipboard?.writeText(text).then(
+      () => this.screens.setShareStatus('Copied'),
+      () => this.screens.setShareStatus(text),
+    ) ?? this.screens.setShareStatus(text);
   }
 
   /**
@@ -252,30 +318,56 @@ export class Game {
     this.phase = 'playing';
     this.screens.setCinematic(false);
     this.hud.setVisible(true);
-    this.play.beginDefence(6);
-    this.hud.showMessage('In orbit. Defend Earth', 'success', 4);
+    this.play.beginDefence();
+    this.hud.showMessage(STAR_SYSTEMS[this.systemIndex].briefing, 'success', 5);
   }
 
   private updatePlaying(deltaSeconds: number): void {
     this.play.update(deltaSeconds);
-    if (this.session.integrity <= 0) {
-      this.endRun();
+    if (this.play.campaign.orbitComplete) {
+      this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} is through the debris field`, true);
+    } else if (this.session.integrity <= 0) {
+      this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} has fallen`);
+    } else if (this.play.shipFailure) {
+      this.endRun(this.play.shipFailure);
     }
   }
 
-  private endRun(): void {
+  private endRun(reason: string, victory = false): void {
     this.phase = 'gameover';
     this.input.releasePointerLock();
     this.hud.setVisible(false);
     this.screens.setCockpitFrame(false);
     this.shipModel.group.visible = false;
     this.sound.setEngine(0, false);
+    const system = STAR_SYSTEMS[this.systemIndex];
+    const { citiesStanding, cityCount } = this.play.sites;
+    this.lastRun = {
+      score: this.session.score,
+      planet: system.planet,
+      victory,
+      stars: orbitRating(this.session.integrity, citiesStanding, cityCount),
+      citiesStanding,
+      cityCount,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    const next = victory ? nextSystem(this.systemIndex) : null;
     this.screens.showGameOver({
+      planet: system.planet,
+      nextStar: next?.star ?? null,
+      bestRuns: saveRun(this.lastRun),
+      current: this.lastRun,
       score: this.session.score,
       wavesCleared: this.session.wavesCleared,
       asteroidsDestroyed: this.session.asteroidsDestroyed,
       impacts: this.session.totalImpacts,
+      citiesStanding: this.play.sites.citiesStanding,
+      cityCount: this.play.sites.cityCount,
+      reason,
+      victory,
+      integrity: this.session.integrity,
     });
+    this.sound.setAtmosphere(0);
   }
 
   private readonly onResize = (): void => {

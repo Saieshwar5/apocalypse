@@ -18,6 +18,8 @@ export interface ShipModel {
   /** Local position of the pilot's eye, for the cockpit camera. */
   cockpit: THREE.Vector3;
   setThrottle(level: number, boosting: boolean): void;
+  /** Leans the hull into a turn; purely visual, so aiming is unaffected. */
+  setBank(yawRate: number, deltaSeconds: number): void;
   update(elapsedSeconds: number): void;
 }
 
@@ -111,6 +113,10 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE): Shi
     group,
     gunPorts: [local('gun_L'), local('gun_R')],
     cockpit: local('cockpit'),
+    setBank(yawRate, deltaSeconds) {
+      const target = THREE.MathUtils.clamp(yawRate * 0.28, -0.55, 0.55);
+      model.rotation.z += (target - model.rotation.z) * (1 - Math.exp(-6 * deltaSeconds));
+    },
     setThrottle(level, boosting) {
       throttle = THREE.MathUtils.clamp(level, 0, 1);
       boost = boosting;

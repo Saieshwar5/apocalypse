@@ -50,6 +50,16 @@ export class RenderPipeline {
     this.composer.setSize(width, height);
   }
 
+  /**
+   * Low quality renders at one pixel per CSS pixel and skips bloom, which
+   * roughly halves the work on high-density screens and weak GPUs.
+   */
+  setQuality(quality: 'low' | 'high'): void {
+    this.renderer.setPixelRatio(quality === 'low' ? 1 : Math.min(window.devicePixelRatio, 2));
+    this.bloom.enabled = quality === 'high';
+    this.resize();
+  }
+
   /** Switches between the orbital scene and the launch-pad scene. */
   setScene(scene: THREE.Scene): void {
     this.renderPass.scene = scene;

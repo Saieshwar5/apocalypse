@@ -1,36 +1,42 @@
 import * as THREE from 'three';
 import { AsteroidField, type Asteroid } from '../asteroids/asteroidField';
+import { updateIdentification } from '../asteroids/identification';
 import { ThreatVisuals } from '../asteroids/threatVisuals';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { CameraRig } from '../camera/cameraRig';
 import type { Explosions } from '../effects/explosions';
+import { ImpactPlumes } from '../effects/impactPlumes';
 import { ScorchMarks } from '../effects/scorchMarks';
 import { SpaceDust } from '../effects/spaceDust';
 import { CombatFeedback } from '../hud/combatFeedback';
 import type { Hud } from '../hud/hud';
-import type { Radar } from '../hud/radar';
+import { SCANNER_RANGE, type Radar } from '../hud/radar';
 import type { TargetOverlay } from '../hud/targetOverlay';
 import type { InputState } from '../input/inputState';
+import { altitudeReadout } from '../logic/atmosphere';
 import type { RandomSource } from '../logic/random';
-import { waveClearBonus } from '../logic/scoring';
-import { SHIELD_CAPACITY } from '../logic/shipDefense';
 import { rankThreats } from '../logic/threats';
-import { damping, orientationFromForward } from '../math/orientation';
+import { damping } from '../math/orientation';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import { ShieldBubble } from '../ship/shieldBubble';
 import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipController';
 import type { ShipModel } from '../ship/shipModel';
 import { LaserCannon } from '../weapons/laserCannon';
 import { MissileLauncher } from '../weapons/missileLauncher';
+import { SatelliteTraffic } from '../satellites/satelliteTraffic';
+import { StationOperations } from '../station/stationOperations';
+import { STAR_SYSTEMS, type StarSystem } from '../logic/starSystems';
+import { SiteDefence } from '../sites/siteDefence';
+import { SiteMarkers } from '../sites/siteMarkers';
 import { CombatResolver } from './combatResolver';
+import { FlightHazards } from './flightHazards';
 import type { GameSession } from './gameSession';
-import { LAUNCH_SITE, ORBIT_ALTITUDE, ORBIT_NOSE_DOWN } from '../launch/orbitInsertion';
 import { computeTargeting, type TargetingInfo } from './targeting';
-import { WaveDirector, type WaveEvent } from './waveDirector';
+import { Campaign } from './campaign';
 
-const RESPAWN_SECONDS = 5;
+/** After the ship is destroyed, play continues this long so the player sees it. */
+const SHIP_LOST_SECONDS = 2.5;
 /** Missiles delivered by supply rocket after each wave, until the space base exists. */
-const MISSILES_PER_RESUPPLY = 3;
 const AIM_DISTANCE = 70;
 /** Time runs this much slower while the tactical map is open. */
 const TACTICAL_TIME_SCALE = 0.3;
@@ -51,6 +57,9 @@ export interface PlaySessionDependencies {
   session: GameSession;
   rng: RandomSource;
   shipModel: ShipModel;
+  /** The Blender station model. */
+  stationModel: THREE.Object3D;
+  satellitesModel: THREE.Object3D;
   ship: ShipController;
   /** Shows or hides the cockpit frame overlay. */
   setCockpitFrame: (visible: boolean) => void;
@@ -65,7 +74,7 @@ export class PlaySession {
   readonly field: AsteroidField;
   readonly laser = new LaserCannon();
   readonly missiles = new MissileLauncher();
-  readonly director: WaveDirector;
+  readonly campaign: Campaign;
   readonly combat: CombatResolver;
   tactical = false;
   private readonly visuals = new ThreatVisuals(EARTH_RADIUS);
@@ -73,23 +82,36 @@ export class PlaySession {
   private readonly scorches = new ScorchMarks();
   private readonly feedback = new CombatFeedback();
   private readonly shield = new ShieldBubble();
+  readonly sites: SiteDefence;
+  private readonly siteMarkers: SiteMarkers;
+  private readonly plumes: ImpactPlumes;
+  private readonly hazards: FlightHazards;
+  readonly stationOps: StationOperations;
+  readonly satellites: SatelliteTraffic;
+  /** Why the mission failed because of the ship, once the loss has played out. */
+  shipFailure: string | null = null;
+  private lostCause: string | null = null;
+  private lostTimer = 0;
   private targeting: TargetingInfo | null = null;
   /** Map orbit angles, set from the ship's position when the map opens. */
   private readonly tacticalOrbit = new THREE.Spherical(TACTICAL_DISTANCE, Math.PI / 3, 0);
-  private respawnTimer = 0;
   private warningTimer = 0;
   private elapsed = 0;
 
   constructor(private readonly deps: PlaySessionDependencies) {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
-    this.director = new WaveDirector(deps.rng);
     deps.shipModel.group.add(this.shield.mesh);
+    this.sites = new SiteDefence(deps.earth, STAR_SYSTEMS[0].sites);
+    this.siteMarkers = new SiteMarkers(deps.earth, this.sites);
+    this.plumes = new ImpactPlumes(deps.earth);
     deps.scene.add(this.field.group, this.visuals.group, this.dust.lines, this.laser.group, this.missiles.group);
     this.combat = new CombatResolver({
       field: this.field,
       earth: deps.earth,
       explosions: deps.explosions,
       scorches: this.scorches,
+      plumes: this.plumes,
+      sites: this.sites,
       sound: deps.sound,
       hud: deps.hud,
       feedback: this.feedback,
@@ -98,30 +120,88 @@ export class PlaySession {
       ship: deps.ship,
       shield: this.shield,
       rng: deps.rng,
-      shipActive: () => this.respawnTimer <= 0,
+      shipActive: () => this.shipActive,
+    });
+    this.hazards = new FlightHazards({
+      ship: deps.ship,
+      combat: this.combat,
+      sound: deps.sound,
+      hud: deps.hud,
+      cameraRig: deps.cameraRig,
+      explosions: deps.explosions,
+    });
+    this.stationOps = new StationOperations({
+      scene: deps.scene,
+      stationModel: deps.stationModel,
+      earth: deps.earth,
+      ship: deps.ship,
+      missiles: this.missiles,
+      field: this.field,
+      explosions: deps.explosions,
+      sound: deps.sound,
+      hud: deps.hud,
+      cameraRig: deps.cameraRig,
+      input: deps.input,
+    });
+    deps.scene.add(this.hazards.group);
+    this.satellites = new SatelliteTraffic({
+      scene: deps.scene,
+      model: deps.satellitesModel,
+      rng: deps.rng,
+      ship: deps.ship,
+      field: this.field,
+      combat: this.combat,
+      explosions: deps.explosions,
+      sound: deps.sound,
+      hud: deps.hud,
+      session: deps.session,
+      projectiles: [this.laser.group, this.missiles.group],
+    });
+    this.campaign = new Campaign({
+      field: this.field,
+      sites: this.sites,
+      stationOps: this.stationOps,
+      earth: deps.earth,
+      hud: deps.hud,
+      sound: deps.sound,
+      session: deps.session,
+      rng: deps.rng,
+      input: deps.input,
+      ship: deps.ship,
+      laser: this.laser,
+      missiles: this.missiles,
     });
   }
 
   get shipActive(): boolean {
-    return this.respawnTimer <= 0;
+    return this.lostCause === null;
   }
 
-  reset(): void {
+  /** `keepUpgrades` carries the workshop upgrades into the next star system. */
+  reset(system: StarSystem = STAR_SYSTEMS[0], keepUpgrades = false): void {
+    this.sites.setDefinitions(system.sites);
+    this.siteMarkers.rebuild();
     this.field.clear();
     this.visuals.clear();
     this.scorches.clear();
     this.feedback.clear();
     this.laser.reset();
     this.missiles.reset();
-    this.director.reset();
-    this.respawnTimer = 0;
+    this.campaign.reset(system.difficulty, keepUpgrades);
+    this.plumes.clear();
+    this.hazards.reset();
+    this.stationOps.reset();
+    this.satellites.reset();
+    this.shipFailure = null;
+    this.lostCause = null;
+    this.lostTimer = 0;
     this.tactical = false;
     this.targeting = null;
   }
 
   /** Called when the launch hands over control. */
-  beginDefence(firstWaveDelay: number): void {
-    this.director.reset(firstWaveDelay);
+  beginDefence(): void {
+    this.stationOps.begin();
   }
 
   update(realDeltaSeconds: number): void {
@@ -130,44 +210,63 @@ export class PlaySession {
     this.elapsed += deltaSeconds;
     const { ship, shipModel, earth, explosions, sound, cameraRig } = this.deps;
     const active = this.shipActive;
-    const flying = active && !this.tactical;
-    ship.update(deltaSeconds, flying ? this.readFlightInput() : IDLE_INPUT, EARTH_RADIUS);
+    const flying = active && !this.tactical && !this.stationOps.holdingShip;
+    const input = flying ? this.hazards.filterInput(this.readFlightInput(), deltaSeconds) : IDLE_INPUT;
+    ship.update(deltaSeconds, input);
     shipModel.group.updateMatrixWorld();
 
-    if (flying) {
+    if (flying && !this.hazards.returning) {
       this.updateWeapons(deltaSeconds);
     } else if (!active) {
-      this.updateRespawn(deltaSeconds);
+      this.lostTimer -= deltaSeconds;
+      if (this.lostTimer <= 0) {
+        this.shipFailure = this.lostCause;
+      }
     }
+    const pilotBusy = input.thrust !== 0 || input.strafe !== 0 || this.deps.input.firingPrimary;
+    this.stationOps.update(deltaSeconds, active, this.tactical, pilotBusy);
+    shipModel.group.updateMatrixWorld();
+    this.hazards.update(deltaSeconds, active);
 
     const impacts = this.field.update(deltaSeconds);
     this.combat.resolvePlanetImpacts(impacts, this.deps.camera.position);
     this.combat.resolveWeaponHits(this.laser.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'laser');
     this.combat.resolveWeaponHits(this.missiles.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'missile');
     this.combat.resolveShipCollisions();
-    if (this.combat.consumeShipLost()) {
-      this.destroyShip();
+    this.combat.resolveEscaped(this.field.collectEscaped());
+    this.satellites.update(deltaSeconds, active);
+    const lostCause = this.combat.consumeShipLost();
+    if (lostCause && active) {
+      this.destroyShip(lostCause);
     }
-    this.handleWaveEvents(this.director.update(deltaSeconds, this.field.count));
+    this.campaign.update(deltaSeconds);
 
+    updateIdentification(deltaSeconds, ship.position, ship.forward(), this.field.all, this.sites.isStanding('radar'), flying, this.feedback);
+    this.sites.updateThreats(this.field.all);
+    this.stationOps.updateThreats();
     const ranked = rankThreats(this.field.all);
     earth.update(deltaSeconds);
+    this.siteMarkers.update(deltaSeconds);
+    this.plumes.update(deltaSeconds);
     explosions.update(deltaSeconds);
     this.scorches.update(deltaSeconds);
     this.feedback.update(deltaSeconds);
     this.visuals.update(deltaSeconds, ranked);
+    // A solar flare takes the path predictions away along with the scanner.
+    this.visuals.group.visible = !this.campaign.scannerBlind;
     this.dust.update(ship.position, ship.velocity);
     this.dust.lines.visible = !this.tactical;
-    this.shield.update(deltaSeconds, ship.shield / SHIELD_CAPACITY);
+    this.shield.update(deltaSeconds, ship.shield / ship.shieldCapacity);
     shipModel.setThrottle(ship.throttle, ship.boosting);
+    shipModel.setBank(flying ? ship.yawRate : 0, deltaSeconds);
     shipModel.update(this.elapsed);
-    sound.setEngine(active ? ship.throttle : 0, ship.boosting);
+    sound.setEngine(this.shipActive ? ship.throttle : 0, ship.boosting);
 
-    this.targeting = active ? computeTargeting(ship, this.missiles.lockedTarget, this.field.all) : null;
+    this.targeting = this.shipActive ? computeTargeting(ship, this.missiles.lockedTarget, this.field.all) : null;
     this.updateWarnings(realDeltaSeconds);
     this.updateCamera(realDeltaSeconds);
     // In the cockpit the hull would block the view.
-    shipModel.group.visible = active && (cameraRig.view === 'chase' || this.tactical);
+    shipModel.group.visible = this.shipActive && (cameraRig.view === 'chase' || this.tactical || this.stationOps.holdingShip);
     this.updateHud(realDeltaSeconds, ranked);
   }
 
@@ -187,7 +286,7 @@ export class PlaySession {
         input.consumeLook();
       }
       cameraRig.snap();
-      hud.showMessage(this.tactical ? 'Tactical map: time slowed. Mouse to rotate, Tab to return' : 'Back in the cockpit', 'info', 2.5);
+      hud.showMessage(this.tactical ? 'Tactical map: time slowed. Mouse rotates, Q/E move the station, Tab returns' : 'Back in the cockpit', 'info', 2.5);
     }
     if (input.consumePress('KeyC') && !this.tactical) {
       const view = cameraRig.toggleView();
@@ -250,6 +349,10 @@ export class PlaySession {
 
   private updateCamera(deltaSeconds: number): void {
     const { cameraRig, camera, shipModel, ship } = this.deps;
+    if (!this.tactical && this.stationOps.holdingShip) {
+      this.stationOps.followDockedShip(camera, deltaSeconds);
+      return;
+    }
     if (!this.tactical) {
       cameraRig.follow(shipModel.group, deltaSeconds, ship.boosting);
       return;
@@ -263,64 +366,26 @@ export class PlaySession {
     cameraRig.place(position, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), deltaSeconds);
   }
 
-  private destroyShip(): void {
+  private destroyShip(cause: string): void {
     const { explosions, sound, cameraRig, hud, ship } = this.deps;
-    explosions.spawnExplosion(ship.position, 1.2, 'fire');
-    sound.explosion(0.5);
-    cameraRig.addShake(1);
-    this.respawnTimer = RESPAWN_SECONDS;
-    hud.showMessage(`Interceptor lost. Relaunching in ${RESPAWN_SECONDS} s`, 'danger', RESPAWN_SECONDS);
-  }
-
-  private updateRespawn(deltaSeconds: number): void {
-    const { ship, earth, cameraRig, hud } = this.deps;
-    this.respawnTimer -= deltaSeconds;
-    ship.velocity.multiplyScalar(0.9);
-    if (this.respawnTimer > 0) {
-      return;
-    }
-    const up = earth.localToWorldDirection(LAUNCH_SITE);
-    const east = new THREE.Vector3().crossVectors(earth.northAxis(), up).normalize();
-    const forward = east.multiplyScalar(Math.cos(ORBIT_NOSE_DOWN)).addScaledVector(up, -Math.sin(ORBIT_NOSE_DOWN));
-    const position = up.clone().multiplyScalar(EARTH_RADIUS + ORBIT_ALTITUDE);
-    ship.reset(position, orientationFromForward(forward, up), 2);
-    cameraRig.snap();
-    hud.showMessage('Interceptor back in orbit', 'success', 2);
-  }
-
-  private handleWaveEvents(events: readonly WaveEvent[]): void {
-    const { session, hud, sound } = this.deps;
-    for (const event of events) {
-      if (event.type === 'wave-started') {
-        session.impactsThisWave = 0;
-        session.destroyedThisWave = 0;
-        if (event.plan.hasGiant) {
-          hud.showMessage(`Wave ${event.plan.wave}: giant asteroid detected. Intercept it far out`, 'danger', 5);
-          sound.alarm();
-        } else {
-          hud.showMessage(`Wave ${event.plan.wave} incoming: ${event.plan.spawns.length} contacts`, 'warning', 3.5);
-        }
-      } else if (event.type === 'spawn') {
-        this.field.spawnIncoming(event.spawn.size, event.spawn.material, event.spawn.direction);
-      } else {
-        const bonus = waveClearBonus(event.wave, session.destroyedThisWave, session.impactsThisWave);
-        session.score += bonus;
-        session.wavesCleared += 1;
-        const clean = session.impactsThisWave === 0 ? ' Earth untouched.' : '';
-        const reward = bonus > 0 ? ` +${bonus} points.` : '';
-        const loaded = this.missiles.resupply(MISSILES_PER_RESUPPLY);
-        const supply = loaded > 0 ? ` Supply rocket: +${loaded} missiles.` : '';
-        hud.showMessage(`Wave ${event.wave} over.${reward}${clean}${supply}`, 'success', 5);
-        sound.chime();
-      }
-    }
+    explosions.spawnExplosion(ship.position, 1.6, 'fire');
+    explosions.spawnRockChips(ship.position, 3);
+    sound.explosion(0.7);
+    cameraRig.addShake(1.2);
+    this.lostCause = cause;
+    this.lostTimer = SHIP_LOST_SECONDS;
+    hud.showMessage('Interceptor destroyed', 'danger', SHIP_LOST_SECONDS);
   }
 
   private updateHud(deltaSeconds: number, ranked: readonly Asteroid[], showTargets = true): void {
     const { hud, radar, overlay, ship, shipModel, session, camera } = this.deps;
     hud.update(deltaSeconds, {
       integrity: session.integrity,
-      wave: Math.max(1, this.director.wave),
+      wave: Math.max(1, this.campaign.director.wave),
+      credits: this.campaign.credits,
+      missileCapacity: this.missiles.capacity,
+      fuelCapacity: ship.fuelCapacity,
+      shieldCapacity: ship.shieldCapacity,
       score: session.score,
       threats: ranked,
       laserHeat: this.laser.heat,
@@ -331,10 +396,16 @@ export class PlaySession {
       hull: ship.hull,
       speed: ship.velocity.length(),
       shipPosition: ship.position,
+      fuel: ship.fuel,
+      station: this.stationOps.hudInfo(),
+      altitude: altitudeReadout(ship.position.length(), EARTH_RADIUS),
+      zone: this.hazards.zone,
+      sites: this.sites.sites,
     });
+    const range = (this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * this.satellites.scannerBonus;
     const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
-    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS);
-    if (!showTargets || !this.shipActive || !this.targeting) {
+    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null, this.campaign.scannerBlind, this.satellites.positions());
+    if (!showTargets || !this.shipActive || !this.targeting || this.stationOps.holdingShip) {
       overlay.clear();
       return;
     }
@@ -348,6 +419,8 @@ export class PlaySession {
       feedback: this.feedback,
       tactical: this.tactical,
       shipPosition: ship.position,
+      sites: this.siteMarkers.visibleLabels(camera.position),
+      stationMarkers: this.stationOps.markers(),
     });
   }
 }

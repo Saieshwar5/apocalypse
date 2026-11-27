@@ -9,6 +9,20 @@ export class GameSession {
   destroyedThisWave = 0;
   totalImpacts = 0;
   wavesCleared = 0;
+  sitesLost = 0;
+  /** Asteroids that burned up harmlessly in the atmosphere. */
+  burnUps = 0;
+  /** Credits spent on upgrades; credits available are score minus this. */
+  spent = 0;
+
+  /** New star system in the same campaign: the planet is fresh, the score carries on. */
+  resetForNextSystem(): void {
+    const { score, spent, asteroidsDestroyed } = this;
+    this.reset();
+    this.score = score;
+    this.spent = spent;
+    this.asteroidsDestroyed = asteroidsDestroyed;
+  }
 
   reset(): void {
     this.integrity = MAX_PLANET_INTEGRITY;
@@ -18,5 +32,8 @@ export class GameSession {
     this.destroyedThisWave = 0;
     this.totalImpacts = 0;
     this.wavesCleared = 0;
+    this.sitesLost = 0;
+    this.burnUps = 0;
+    this.spent = 0;
   }
 }

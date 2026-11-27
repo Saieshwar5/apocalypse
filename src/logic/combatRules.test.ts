@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { asteroidHealth, fragmentsOnDestroy, weaponDamage } from './asteroidClasses';
-import { applyPlanetDamage, impactDamage, integrityLevel } from './planetDamage';
+import { applyPlanetDamage, burnsUp, impactDamage, integrityLevel, threatRating } from './planetDamage';
 import { destroyScore, waveClearBonus } from './scoring';
 
 describe('planet damage', () => {
@@ -8,6 +8,20 @@ describe('planet damage', () => {
     expect(impactDamage('small', 'rocky')).toBe(1);
     expect(impactDamage('giant', 'rocky')).toBe(40);
     expect(impactDamage('medium', 'iron')).toBeGreaterThan(impactDamage('medium', 'rocky'));
+  });
+
+  it('judges danger by density, not size', () => {
+    expect(threatRating('large', 'rubble')).toBe('low');
+    expect(threatRating('medium', 'iron')).toBe('severe');
+    expect(impactDamage('small', 'iron')).toBeGreaterThan(impactDamage('medium', 'rubble'));
+    expect(threatRating('giant', 'rocky', true)).toBe('harmless');
+  });
+
+  it('burns up small loose rocks but not dense ones', () => {
+    expect(burnsUp('small', 'rubble')).toBe(true);
+    expect(burnsUp('small', 'carbon')).toBe(true);
+    expect(burnsUp('small', 'rocky')).toBe(false);
+    expect(burnsUp('small', 'iron')).toBe(false);
   });
 
   it('never drops integrity below zero', () => {

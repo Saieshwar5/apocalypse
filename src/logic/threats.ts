@@ -25,14 +25,22 @@ export function timeToImpact(position: Vec3Tuple, velocity: Vec3Tuple, planetRad
 export interface ThreatCandidate {
   timeToImpact: number | null;
   planetDamage: number;
+  /** What the pilot knows so far; used in place of planetDamage when present. */
+  assessedDamage?: number;
+  /** True when the predicted impact would damage a priority site. */
+  threatensSite?: boolean;
 }
+
+/** An asteroid heading for a priority site counts this many times over. */
+const SITE_THREAT_WEIGHT = 2.5;
 
 /** Damage per second of remaining warning time. Asteroids that miss score 0. */
 export function threatUrgency(threat: ThreatCandidate): number {
   if (threat.timeToImpact === null) {
     return 0;
   }
-  return threat.planetDamage / Math.max(threat.timeToImpact, 1);
+  const weight = threat.threatensSite ? SITE_THREAT_WEIGHT : 1;
+  return ((threat.assessedDamage ?? threat.planetDamage) * weight) / Math.max(threat.timeToImpact, 1);
 }
 
 /** Most urgent first. Does not modify the input array. */

@@ -1,5 +1,5 @@
 export type AsteroidSize = 'small' | 'medium' | 'large' | 'giant';
-export type AsteroidMaterial = 'rocky' | 'iron' | 'ice';
+export type AsteroidMaterial = 'rocky' | 'iron' | 'ice' | 'rubble' | 'carbon';
 export type WeaponKind = 'laser' | 'missile';
 
 export const ASTEROID_SIZES: readonly AsteroidSize[] = ['small', 'medium', 'large', 'giant'];
@@ -60,34 +60,73 @@ export const ASTEROID_CLASSES: Record<AsteroidSize, AsteroidClass> = {
 
 export interface MaterialTraits {
   label: string;
+  /** Relative density: sets mass, and so how hard it hits and how easily it is pushed. */
+  density: number;
+  /** Loose, low-density bodies are larger for the same class. */
+  radiusMultiplier: number;
   healthMultiplier: number;
   speedMultiplier: number;
   /** Damage multipliers per weapon: iron shrugs off lasers, ice shatters easily. */
   weaponMultiplier: Record<WeaponKind, number>;
   planetDamageMultiplier: number;
+  /** One-line advice shown once the asteroid has been scanned. */
+  advice: string;
 }
 
+/**
+ * Size is not danger. A rubble pile is big, loose and mostly burns up; a
+ * small iron body is dense and does real damage. Damage follows density.
+ */
 export const MATERIAL_TRAITS: Record<AsteroidMaterial, MaterialTraits> = {
   rocky: {
-    label: 'Rock',
+    label: 'Stony',
+    density: 1,
+    radiusMultiplier: 1,
     healthMultiplier: 1,
     speedMultiplier: 1,
     weaponMultiplier: { laser: 1, missile: 1 },
     planetDamageMultiplier: 1,
+    advice: 'Laser or missile',
   },
   iron: {
     label: 'Iron',
+    density: 2.6,
+    radiusMultiplier: 0.9,
     healthMultiplier: 1.4,
     speedMultiplier: 0.85,
     weaponMultiplier: { laser: 0.25, missile: 1.25 },
-    planetDamageMultiplier: 1.3,
+    planetDamageMultiplier: 2.2,
+    advice: 'Missiles only: resists lasers',
   },
   ice: {
     label: 'Ice',
+    density: 0.5,
+    radiusMultiplier: 1,
     healthMultiplier: 0.6,
     speedMultiplier: 1.6,
     weaponMultiplier: { laser: 1.5, missile: 1 },
-    planetDamageMultiplier: 0.7,
+    planetDamageMultiplier: 0.5,
+    advice: 'Fast: laser, lead the shot',
+  },
+  rubble: {
+    label: 'Rubble pile',
+    density: 0.2,
+    radiusMultiplier: 1.45,
+    healthMultiplier: 0.5,
+    speedMultiplier: 0.9,
+    weaponMultiplier: { laser: 1.3, missile: 1 },
+    planetDamageMultiplier: 0.15,
+    advice: 'Loose and light: mostly burns up',
+  },
+  carbon: {
+    label: 'Carbon-rich',
+    density: 0.6,
+    radiusMultiplier: 1.1,
+    healthMultiplier: 0.65,
+    speedMultiplier: 1.05,
+    weaponMultiplier: { laser: 1.2, missile: 1 },
+    planetDamageMultiplier: 0.5,
+    advice: 'Crumbly: laser',
   },
 };
 

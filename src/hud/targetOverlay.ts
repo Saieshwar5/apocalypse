@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import { THREAT_COLORS, threatTone } from '../asteroids/threatTone';
 import type { TargetingInfo } from '../game/targeting';
-import type { AsteroidSize } from '../logic/asteroidClasses';
+import type { SiteLabel } from '../sites/siteMarkers';
+import { RATING_COLOR, RATING_LABEL, ratingOf } from '../asteroids/identification';
+import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { CombatFeedback } from './combatFeedback';
 import { drawReticle } from './reticle';
@@ -26,7 +28,12 @@ export interface OverlayFrame {
   /** Zoomed-out planning view: label everything, no reticle. */
   tactical: boolean;
   shipPosition: THREE.Vector3;
+  /** Priority sites on the side of Earth facing the camera. */
+  sites: readonly SiteLabel[];
+  stationMarkers: readonly { world: THREE.Vector3; name: string; ghost: boolean }[];
 }
+
+const SITE_LABEL_COLOR = { intact: '#7dffb0', damaged: '#ffb347', critical: '#ff5a4a', destroyed: '#7f8c9e' } as const;
 
 /**
  * Screen-space layer over the 3D view: brackets and labels on asteroids,
@@ -66,6 +73,10 @@ export class TargetOverlay {
     context.lineWidth = 1.5;
     context.font = `600 11px ${MONO}`;
     const lockedId = frame.targeting.target?.id ?? null;
+    this.drawSiteLabels(frame.sites);
+    for (const marker of frame.stationMarkers) {
+      this.drawStation(marker, frame.shipPosition);
+    }
 
     frame.ranked.forEach((asteroid, rank) => {
       const tone = threatTone(asteroid, rank);
@@ -104,6 +115,83 @@ export class TargetOverlay {
     }
   }
 
+  private drawSiteLabels(sites: readonly SiteLabel[]): void {
+    const context = this.context;
+    context.save();
+    context.font = `700 11px ${MONO}`;
+    for (const { site, world, condition } of sites) {
+      const point = this.projector.project(world);
+      if (!point.visible) {
+        continue;
+      }
+      const threatened = site.threatenedIn !== null && condition !== 'destroyed';
+      const color = threatened ? '#ff5a4a' : SITE_LABEL_COLOR[condition];
+      const name = site.definition.name.toUpperCase();
+      const text =
+        condition === 'destroyed'
+          ? `${name} LOST`
+          : threatened
+            ? `${name} ${formatCountdown(site.threatenedIn ?? 0)}`
+            : condition === 'intact'
+              ? name
+              : `${name} ${Math.ceil(site.health)}%`;
+      const width = context.measureText(text).width;
+      // Installations label to the left so they do not cover a nearby city.
+      const x = site.definition.kind === 'city' ? point.x + 13 : point.x - 13 - width;
+      context.fillStyle = 'rgba(4, 10, 18, 0.6)';
+      context.fillRect(x - 4, point.y - 9, width + 8, 16);
+      context.fillStyle = color;
+      context.fillText(text, x, point.y + 3);
+    }
+    context.restore();
+  }
+
+  /** Cyan marker on the station, or an arrow at the screen edge towards it. */
+  private drawStation(station: { world: THREE.Vector3; name: string; ghost: boolean }, shipPosition: THREE.Vector3): void {
+    const context = this.context;
+    const point = this.projector.project(station.world);
+    const label = `${station.name} ${formatDistance(station.world.distanceTo(shipPosition))}`;
+    context.save();
+    context.strokeStyle = '#5fd8ff';
+    context.fillStyle = '#5fd8ff';
+    context.font = `700 11px ${MONO}`;
+    if (station.ghost) {
+      // Destinations and supply rockets: a dashed marker, and no edge arrow.
+      if (point.visible) {
+        context.globalAlpha = 0.75;
+        context.setLineDash([3, 3]);
+        context.strokeRect(point.x - 7, point.y - 7, 14, 14);
+        context.fillText(station.name, point.x + 12, point.y + 4);
+      }
+      context.restore();
+      return;
+    }
+    if (point.visible) {
+      context.strokeRect(point.x - 9, point.y - 9, 18, 18);
+      context.fillText(label, point.x + 14, point.y + 4);
+    } else {
+      const width = this.projector.width;
+      const height = this.projector.height;
+      const angle = Math.atan2(point.y - height / 2, point.x - width / 2);
+      const scale = Math.min((width / 2 - 70) / Math.abs(Math.cos(angle) || 1e-6), (height / 2 - 70) / Math.abs(Math.sin(angle) || 1e-6));
+      const x = width / 2 + Math.cos(angle) * scale;
+      const y = height / 2 + Math.sin(angle) * scale;
+      context.translate(x, y);
+      context.fillRect(-5, -5, 10, 10);
+      context.rotate(angle);
+      context.beginPath();
+      context.moveTo(18, 0);
+      context.lineTo(9, -6);
+      context.lineTo(9, 6);
+      context.closePath();
+      context.fill();
+      context.rotate(-angle);
+      context.textAlign = 'center';
+      context.fillText(label, 0, 22);
+    }
+    context.restore();
+  }
+
   private drawBracket(x: number, y: number, size: number, color: string): void {
     const context = this.context;
     const arm = Math.max(4, size * 0.4);
@@ -140,9 +228,22 @@ export class TargetOverlay {
   private drawLabel(asteroid: Asteroid, x: number, y: number, color: string, shipPosition: THREE.Vector3): void {
     const context = this.context;
     const distance = asteroid.mesh.position.distanceTo(shipPosition) - asteroid.radius;
-    const eta = asteroid.timeToImpact === null ? 'MISSES EARTH' : `IMPACT ${formatCountdown(asteroid.timeToImpact)}`;
+    const where = asteroid.targetSite ? `→ ${asteroid.targetSite.toUpperCase()}` : 'IMPACT';
+    const eta = asteroid.timeToImpact === null ? 'MISSES' : `${where} ${formatCountdown(asteroid.timeToImpact)}`;
     context.fillStyle = color;
-    context.fillText(`${SIZE_LABEL[asteroid.size]} ${asteroid.material.toUpperCase()}  ${eta}`, x, y - 4);
+    if (asteroid.identified) {
+      const rating = ratingOf(asteroid);
+      context.fillText(`${SIZE_LABEL[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toUpperCase()}  ${eta}`, x, y - 4);
+      context.fillStyle = RATING_COLOR[rating];
+      context.fillText(RATING_LABEL[rating], x, y + 22);
+    } else {
+      context.fillText(`${SIZE_LABEL[asteroid.size]} UNIDENTIFIED  ${eta}`, x, y - 4);
+      // Scan progress: aim at the contact to fill it.
+      context.fillStyle = 'rgba(232, 241, 255, 0.25)';
+      context.fillRect(x, y + 15, 70, 3);
+      context.fillStyle = '#8fd3ff';
+      context.fillRect(x, y + 15, 70 * Math.min(1, asteroid.scanProgress), 3);
+    }
     context.fillStyle = 'rgba(232, 241, 255, 0.75)';
     context.fillText(`${formatDistance(distance)} · ${formatSpeed(asteroid.velocity.length())}`, x, y + 9);
   }

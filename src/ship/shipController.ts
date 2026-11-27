@@ -6,6 +6,7 @@ import {
   type DamageResult,
   type DefenseState,
 } from '../logic/shipDefense';
+import { FUEL_CAPACITY, fuelBurned, thrustScale } from '../logic/stationSupply';
 import { damping } from '../math/orientation';
 
 export interface FlightInput {
@@ -32,7 +33,6 @@ const BOOST_MULTIPLIER = 2.6;
 const DRAG = 0.55;
 const BOOST_DRAIN = 28;
 const BOOST_RECHARGE = 11;
-const HULL_CLEARANCE = 0.9;
 
 /**
  * Moves the interceptor: mouse steers pitch and yaw, keys thrust, strafe and
@@ -42,6 +42,14 @@ const HULL_CLEARANCE = 0.9;
 export class ShipController {
   readonly velocity = new THREE.Vector3();
   boostEnergy = 100;
+  /** Burned by thrust and boost; refilled at the station. */
+  fuel = FUEL_CAPACITY;
+  /** Set from the loadout; upgrades raise these. */
+  fuelCapacity = FUEL_CAPACITY;
+  shieldCapacity = 100;
+  thrustMultiplier = 1;
+  /** Mouse steering multiplier from the settings. */
+  lookSensitivity = 1;
   defense: DefenseState = createDefenseState();
   /** 0..1 engine output, used for exhaust visuals and sound. */
   throttle = 0;
@@ -61,6 +69,11 @@ export class ShipController {
     return this.defense.shield;
   }
 
+  /** Current yaw rate in radians per second (positive turns left), for banking. */
+  get yawRate(): number {
+    return this.angularVelocity.y;
+  }
+
   get position(): THREE.Vector3 {
     return this.object.position;
   }
@@ -73,13 +86,12 @@ export class ShipController {
     return target.set(0, 1, 0).applyQuaternion(this.object.quaternion);
   }
 
-  update(deltaSeconds: number, input: FlightInput, planetRadius: number): void {
-    this.defense = rechargeShield(this.defense, deltaSeconds);
+  update(deltaSeconds: number, input: FlightInput): void {
+    this.defense = rechargeShield(this.defense, deltaSeconds, this.shieldCapacity);
     this.updateRotation(deltaSeconds, input);
     this.updateThrust(deltaSeconds, input);
     this.velocity.multiplyScalar(Math.exp(-DRAG * deltaSeconds));
     this.object.position.addScaledVector(this.velocity, deltaSeconds);
-    this.keepAbovePlanet(planetRadius);
   }
 
   /** Shield first, then hull. The caller checks `hull` to see if the ship is lost. */
@@ -89,21 +101,31 @@ export class ShipController {
     return result;
   }
 
+  /** Station repairs: the only way the hull recovers. */
+  repair(hull: number, shield: number): void {
+    this.defense = {
+      ...this.defense,
+      hull: Math.min(100, this.defense.hull + hull),
+      shield: Math.min(this.shieldCapacity, this.defense.shield + shield),
+    };
+  }
+
   reset(position: THREE.Vector3, orientation: THREE.Quaternion, initialSpeed = 0): void {
     this.object.position.copy(position);
     this.object.quaternion.copy(orientation);
     this.velocity.copy(this.forward()).multiplyScalar(initialSpeed);
     this.angularVelocity.set(0, 0, 0);
     this.boostEnergy = 100;
-    this.defense = createDefenseState();
+    this.fuel = this.fuelCapacity;
+    this.defense = createDefenseState(this.shieldCapacity);
     this.throttle = 0;
     this.boosting = false;
   }
 
   private updateRotation(deltaSeconds: number, input: FlightInput): void {
     const safeDelta = Math.max(deltaSeconds, 1 / 240);
-    const targetPitch = THREE.MathUtils.clamp((-input.look.y * LOOK_SENSITIVITY) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
-    const targetYaw = THREE.MathUtils.clamp((-input.look.x * LOOK_SENSITIVITY) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
+    const targetPitch = THREE.MathUtils.clamp((-input.look.y * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
+    const targetYaw = THREE.MathUtils.clamp((-input.look.x * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
     const targetRoll = -input.roll * ROLL_RATE;
     this.angularVelocity.lerp(this.scratch.set(targetPitch, targetYaw, targetRoll), damping(14, deltaSeconds));
 
@@ -119,33 +141,21 @@ export class ShipController {
   }
 
   private updateThrust(deltaSeconds: number, input: FlightInput): void {
-    const wantsBoost = input.boost && input.thrust > 0 && this.boostEnergy > 1;
+    const wantsBoost = input.boost && input.thrust > 0 && this.boostEnergy > 1 && this.fuel > 0;
+    // An empty tank leaves weak reserve thrust, so the ship can still limp home.
+    const power = thrustScale(this.fuel) * this.thrustMultiplier;
+    this.fuel = Math.max(0, this.fuel - fuelBurned(input.thrust, input.strafe, wantsBoost, deltaSeconds));
     this.boosting = wantsBoost;
     this.boostEnergy = wantsBoost
       ? Math.max(0, this.boostEnergy - BOOST_DRAIN * deltaSeconds)
       : Math.min(100, this.boostEnergy + BOOST_RECHARGE * deltaSeconds);
 
-    const forwardThrust = input.thrust * THRUST * (wantsBoost ? BOOST_MULTIPLIER : 1);
+    const forwardThrust = input.thrust * THRUST * power * (wantsBoost ? BOOST_MULTIPLIER : 1);
     const quaternion = this.object.quaternion;
     this.velocity.addScaledVector(this.scratch.set(0, 0, -1).applyQuaternion(quaternion), forwardThrust * deltaSeconds);
-    this.velocity.addScaledVector(this.scratch.set(1, 0, 0).applyQuaternion(quaternion), input.strafe * STRAFE_THRUST * deltaSeconds);
+    this.velocity.addScaledVector(this.scratch.set(1, 0, 0).applyQuaternion(quaternion), input.strafe * STRAFE_THRUST * power * deltaSeconds);
 
     const targetThrottle = Math.max(0, input.thrust) * (wantsBoost ? 1 : 0.75) + 0.1;
     this.throttle = THREE.MathUtils.lerp(this.throttle, targetThrottle, damping(6, deltaSeconds));
-  }
-
-  /** The ship cannot fly into the planet: it slides along the upper atmosphere. */
-  private keepAbovePlanet(planetRadius: number): void {
-    const minimum = planetRadius + HULL_CLEARANCE;
-    const distance = this.object.position.length();
-    if (distance >= minimum) {
-      return;
-    }
-    const normal = this.scratch.copy(this.object.position).normalize();
-    this.object.position.copy(normal).multiplyScalar(minimum);
-    const inward = this.velocity.dot(normal);
-    if (inward < 0) {
-      this.velocity.addScaledVector(normal, -inward * 1.3);
-    }
   }
 }

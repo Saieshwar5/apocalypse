@@ -1,9 +1,11 @@
 import type * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
-import { integrityLevel } from '../logic/planetDamage';
+import type { AltitudeReadout, AtmosphereZone } from '../logic/atmosphere';
+import { integrityLevel, threatRating } from '../logic/planetDamage';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
-import { MISSILE_CAPACITY } from '../weapons/missileLauncher';
+import type { SiteState } from '../sites/siteDefence';
+import { SitePanel } from './sitePanel';
 
 export interface HudSnapshot {
   integrity: number;
@@ -13,12 +15,36 @@ export interface HudSnapshot {
   laserHeat: number;
   overheated: boolean;
   missiles: number;
+  missileCapacity: number;
+  credits: number;
+  fuelCapacity: number;
+  shieldCapacity: number;
   boost: number;
   shield: number;
   hull: number;
   speed: number;
   shipPosition: THREE.Vector3;
+  fuel: number;
+  station: {
+    distance: number | null;
+    docked: boolean;
+    destroyed: boolean;
+    stock: { fuel: number; missiles: number };
+    shield: number;
+    health: number;
+    threatenedIn: number | null;
+  };
+  altitude: AltitudeReadout;
+  zone: AtmosphereZone;
+  sites: readonly SiteState[];
 }
+
+const ZONE_LABEL: Record<AtmosphereZone, string> = {
+  space: 'Space',
+  warning: 'Low: pull up',
+  atmosphere: 'IN ATMOSPHERE',
+  breakup: 'BREAK-UP',
+};
 
 export type MessageTone = 'info' | 'warning' | 'danger' | 'success';
 
@@ -40,6 +66,7 @@ export class Hud {
   private readonly integrityValue = element<HTMLSpanElement>('#integrity-value');
   private readonly waveValue = element<HTMLElement>('#wave-value');
   private readonly scoreValue = element<HTMLElement>('#score-value');
+  private readonly creditsValue = element<HTMLElement>('#credits-value');
   private readonly threatList = element<HTMLOListElement>('#threat-list');
   private readonly heatBar = element<HTMLDivElement>('#heat-bar');
   private readonly missileValue = element<HTMLElement>('#missile-value');
@@ -48,6 +75,20 @@ export class Hud {
   private readonly shieldBar = element<HTMLDivElement>('#shield-bar');
   private readonly speedValue = element<HTMLElement>('#speed-value');
   private readonly message = element<HTMLDivElement>('#hud-message');
+  private readonly fuelBar = element<HTMLDivElement>('#fuel-bar');
+  private readonly stationValue = element<HTMLElement>('#station-value');
+  private readonly stockValue = element<HTMLElement>('#stock-value');
+  private readonly stationHealthValue = element<HTMLElement>('#station-health-value');
+  private readonly centreValue = element<HTMLElement>('#centre-value');
+  private readonly surfaceValue = element<HTMLElement>('#surface-value');
+  private readonly atmosphereValue = element<HTMLElement>('#atmosphere-value');
+  private readonly zoneValue = element<HTMLElement>('#zone-value');
+  private readonly hint = element<HTMLDivElement>('#hud-hint');
+  private readonly damageFlash = element<HTMLDivElement>('#damage-flash');
+  private readonly defaultHint = this.hint.textContent ?? '';
+  private sitePanel: SitePanel | null = null;
+  private sitePanelSites: readonly SiteState[] | null = null;
+  private flash = 0;
   private messageTimer = 0;
   private lastThreatMarkup = '';
 
@@ -62,17 +103,43 @@ export class Hud {
     this.integrityValue.textContent = `${integrity.toFixed(0)}%`;
     this.waveValue.textContent = String(snapshot.wave);
     this.scoreValue.textContent = snapshot.score.toLocaleString();
+    this.creditsValue.textContent = snapshot.credits.toLocaleString();
 
     this.heatBar.style.width = `${snapshot.laserHeat}%`;
     this.heatBar.dataset.level = snapshot.overheated ? 'critical' : snapshot.laserHeat > 70 ? 'damaged' : 'stable';
-    this.missileValue.textContent = `${snapshot.missiles} / ${MISSILE_CAPACITY}`;
+    this.missileValue.textContent = `${snapshot.missiles} / ${snapshot.missileCapacity}`;
     this.boostBar.style.width = `${snapshot.boost}%`;
-    this.shieldBar.style.width = `${snapshot.shield}%`;
+    this.fuelBar.style.width = `${(snapshot.fuel / snapshot.fuelCapacity) * 100}%`;
+    this.fuelBar.dataset.level = snapshot.fuel <= 0 ? 'critical' : snapshot.fuel < snapshot.fuelCapacity * 0.25 ? 'damaged' : 'stable';
+    const { station } = snapshot;
+    this.stationValue.textContent = station.destroyed
+      ? 'DESTROYED'
+      : station.docked
+        ? 'DOCKED'
+        : station.distance === null
+          ? '—'
+          : formatDistance(station.distance);
+    this.stockValue.textContent = station.destroyed ? '—' : `${Math.round(station.stock.fuel)} fuel · ${Math.floor(station.stock.missiles)} missiles`;
+    const threat = station.threatenedIn !== null ? ` · HIT IN ${formatCountdown(station.threatenedIn)}` : '';
+    this.stationHealthValue.textContent = station.destroyed ? '—' : `shield ${Math.round(station.shield)} hull ${Math.round(station.health)}${threat}`;
+    this.stationHealthValue.dataset.alert = String(station.threatenedIn !== null || station.health < 60);
+    this.shieldBar.style.width = `${(snapshot.shield / snapshot.shieldCapacity) * 100}%`;
     this.hullBar.style.width = `${snapshot.hull}%`;
     this.hullBar.dataset.level = integrityLevel(snapshot.hull);
     this.speedValue.textContent = formatSpeed(snapshot.speed);
 
     this.renderThreats(snapshot);
+    this.renderPosition(snapshot);
+    if (!this.sitePanel || this.sitePanelSites !== snapshot.sites) {
+      // The site list is replaced when the star system changes.
+      this.sitePanel = new SitePanel(element<HTMLOListElement>('#site-list'), snapshot.sites);
+      this.sitePanelSites = snapshot.sites;
+    }
+    this.sitePanel.update(snapshot.sites);
+    if (this.flash > 0) {
+      this.flash = Math.max(0, this.flash - deltaSeconds * 1.8);
+      this.damageFlash.style.opacity = String(this.flash);
+    }
 
     if (this.messageTimer > 0) {
       this.messageTimer -= deltaSeconds;
@@ -82,7 +149,52 @@ export class Hud {
     }
   }
 
+  /**
+   * Red flash on the side of the screen a hit came from. `localDirection` is
+   * the source in the ship's frame (x right, y up, z backwards).
+   */
+  flashDamage(localDirection: THREE.Vector3, strength: number): void {
+    const flat = Math.hypot(localDirection.x, localDirection.y);
+    // Hits from straight ahead or behind have no screen side: flash the whole rim.
+    const sideways = flat > Math.abs(localDirection.z) * 0.35 && flat > 0;
+    const x = sideways ? 50 + (localDirection.x / flat) * 50 : 50;
+    const y = sideways ? 50 - (localDirection.y / flat) * 50 : 50;
+    this.damageFlash.style.background = sideways
+      ? `radial-gradient(circle at ${x}% ${y}%, rgba(255, 40, 20, 0.75), transparent 60%)`
+      : 'radial-gradient(ellipse at center, transparent 45%, rgba(255, 40, 20, 0.7) 100%)';
+    this.flash = Math.max(this.flash, Math.min(1, strength));
+    this.damageFlash.style.opacity = String(this.flash);
+  }
+
+  /** Replaces the bottom hint line; pass null to restore the controls list. */
+  setHint(text: string | null): void {
+    const next = text ?? this.defaultHint;
+    if (this.hint.textContent !== next) {
+      this.hint.textContent = next;
+      this.hint.classList.toggle('tip', text !== null);
+    }
+  }
+
+  private renderPosition(snapshot: HudSnapshot): void {
+    const { altitude, zone } = snapshot;
+    this.centreValue.textContent = formatDistance(altitude.fromCentre);
+    this.surfaceValue.textContent = formatDistance(altitude.aboveSurface);
+    const inside = altitude.aboveAtmosphere < 0;
+    this.atmosphereValue.textContent = `${inside ? '-' : ''}${formatDistance(Math.abs(altitude.aboveAtmosphere))}`;
+    if (this.zoneValue.dataset.zone !== zone) {
+      this.zoneValue.dataset.zone = zone;
+      this.zoneValue.textContent = ZONE_LABEL[zone];
+      this.atmosphereValue.dataset.zone = zone;
+    }
+  }
+
+  /** Called for urgent messages so mission control can read them aloud. */
+  onUrgent: ((text: string) => void) | null = null;
+
   showMessage(text: string, tone: MessageTone = 'info', seconds = 3): void {
+    if (tone === 'danger') {
+      this.onUrgent?.(text);
+    }
     this.message.textContent = text;
     this.message.dataset.tone = tone;
     this.message.classList.add('visible');
@@ -92,9 +204,14 @@ export class Hud {
   private renderThreats(snapshot: HudSnapshot): void {
     const rows = snapshot.threats.slice(0, VISIBLE_THREATS).map((asteroid) => {
       const eta = asteroid.timeToImpact === null ? 'misses' : formatCountdown(asteroid.timeToImpact);
-      const urgent = asteroid.timeToImpact !== null && asteroid.timeToImpact < 20;
+      const harmless = asteroid.identified && asteroid.assessedDamage === 0;
+      const urgent = !harmless && asteroid.timeToImpact !== null && (asteroid.timeToImpact < 20 || asteroid.threatensSite);
       const distance = formatDistance(snapshot.shipPosition.distanceTo(asteroid.mesh.position) - asteroid.radius);
-      const name = `${SIZE_NAME[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toLowerCase()} · -${asteroid.planetDamage.toFixed(0)}%`;
+      const rating = threatRating(asteroid.size, asteroid.material, asteroid.timeToImpact === null);
+      const what = asteroid.identified
+        ? `${SIZE_NAME[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toLowerCase()} · ${rating}`
+        : `${SIZE_NAME[asteroid.size]} unidentified`;
+      const name = `${what}${asteroid.targetSite ? ` → ${asteroid.targetSite.toUpperCase()}` : ''}`;
       const detail = `${distance} away · ${formatSpeed(asteroid.velocity.length())}`;
       return `<li class="${urgent ? 'urgent' : ''}"><span>${name}</span><span class="threat-eta">${eta}</span><span class="threat-detail">${detail}</span></li>`;
     });

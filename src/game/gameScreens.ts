@@ -1,7 +1,12 @@
+import type { RunRecord } from '../logic/bestRuns';
+import { orbitRating } from '../logic/orbitPlan';
+
 export interface ScreenActions {
   onStart(): void;
   onResume(): void;
   onRestart(): void;
+  onNext(): void;
+  onShare(): void;
 }
 
 export interface RunSummary {
@@ -9,6 +14,18 @@ export interface RunSummary {
   wavesCleared: number;
   asteroidsDestroyed: number;
   impacts: number;
+  citiesStanding: number;
+  cityCount: number;
+  /** Why the mission ended, shown above the heading. */
+  reason: string;
+  /** True when the orbit was completed rather than lost. */
+  victory: boolean;
+  integrity: number;
+  planet: string;
+  /** Star of the next system when there is one to travel to. */
+  nextStar: string | null;
+  bestRuns: readonly RunRecord[];
+  current: RunRecord;
 }
 
 function element<T extends HTMLElement>(selector: string): T {
@@ -36,6 +53,8 @@ export class GameScreens {
     this.startButton.addEventListener('click', () => actions.onStart());
     element<HTMLButtonElement>('#resume-button').addEventListener('click', () => actions.onResume());
     element<HTMLButtonElement>('#restart-button').addEventListener('click', () => actions.onRestart());
+    element<HTMLButtonElement>('#next-button').addEventListener('click', () => actions.onNext());
+    element<HTMLButtonElement>('#share-button').addEventListener('click', () => actions.onShare());
   }
 
   showMenu(): void {
@@ -55,9 +74,11 @@ export class GameScreens {
   showGameOver(summary: RunSummary): void {
     const rows: [string, string][] = [
       ['Score', summary.score.toLocaleString()],
-      ['Waves survived', String(summary.wavesCleared)],
+      [`${summary.planet} integrity`, `${Math.max(0, Math.round(summary.integrity))}%`],
+      ['Fields cleared', String(summary.wavesCleared)],
       ['Asteroids destroyed', String(summary.asteroidsDestroyed)],
-      ['Impacts on Earth', String(summary.impacts)],
+      ['Impacts', String(summary.impacts)],
+      ['Cities standing', `${summary.citiesStanding} of ${summary.cityCount}`],
     ];
     this.summary.replaceChildren(
       ...rows.flatMap(([label, value]) => {
@@ -68,14 +89,42 @@ export class GameScreens {
         return [term, detail];
       }),
     );
+    element<HTMLParagraphElement>('#failure-reason').textContent = summary.reason;
+    const stars = orbitRating(summary.integrity, summary.citiesStanding, summary.cityCount);
+    element<HTMLHeadingElement>('#outcome-heading').textContent = summary.victory
+      ? `Orbit complete ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`
+      : 'Mission failed';
+    this.gameOver.dataset.outcome = summary.victory ? 'victory' : 'defeat';
+    const nextButton = element<HTMLButtonElement>('#next-button');
+    nextButton.hidden = summary.nextStar === null;
+    nextButton.textContent = summary.nextStar ? `Travel to ${summary.nextStar}` : '';
+    element<HTMLButtonElement>('#restart-button').textContent = summary.victory ? 'Start again from Earth' : 'Launch again';
+    this.setShareStatus('Copy result');
+    element<HTMLOListElement>('#best-runs').replaceChildren(
+      ...summary.bestRuns.map((run) => {
+        const row = document.createElement('li');
+        const isCurrent = run.score === summary.current.score && run.date === summary.current.date && run.planet === summary.current.planet;
+        row.className = isCurrent ? 'current' : '';
+        const what = document.createElement('span');
+        what.textContent = `${run.date} · ${run.planet}${run.victory ? ` ${'★'.repeat(run.stars)}` : ''}`;
+        const score = document.createElement('span');
+        score.textContent = run.score.toLocaleString();
+        row.append(what, score);
+        return row;
+      }),
+    );
     this.gameOver.hidden = false;
-    element<HTMLButtonElement>('#restart-button').focus();
+    (summary.nextStar ? element<HTMLButtonElement>('#next-button') : element<HTMLButtonElement>('#restart-button')).focus();
   }
 
   hideAll(): void {
     this.menu.hidden = true;
     this.pause.hidden = true;
     this.gameOver.hidden = true;
+  }
+
+  setShareStatus(text: string): void {
+    element<HTMLButtonElement>('#share-button').textContent = text;
   }
 
   /** Letterbox bars, captions and the skip hint during the launch. */

@@ -37,19 +37,32 @@ export function waveComposition(wave: number): Record<AsteroidSize, number> {
   };
 }
 
-/** Iron appears from wave 2 and ice from wave 3, each becoming more common. */
+/**
+ * Light, loose types (rubble, carbon-rich) are present from the start; iron
+ * appears from wave 2 and ice from wave 3, each becoming more common.
+ */
 export function chooseMaterial(wave: number, rng: RandomSource): AsteroidMaterial {
-  const ironChance = wave >= 2 ? Math.min(0.35, 0.12 + wave * 0.03) : 0;
-  const iceChance = wave >= 3 ? Math.min(0.25, 0.1 + wave * 0.015) : 0;
-  const roll = rng();
-  if (roll < ironChance) {
-    return 'iron';
-  }
-  if (roll < ironChance + iceChance) {
-    return 'ice';
+  const ironChance = wave >= 2 ? Math.min(0.3, 0.1 + wave * 0.03) : 0;
+  const iceChance = wave >= 3 ? Math.min(0.2, 0.08 + wave * 0.015) : 0;
+  const rubbleChance = 0.14;
+  const carbonChance = 0.14;
+  let roll = rng();
+  for (const [material, chance] of [
+    ['iron', ironChance],
+    ['ice', iceChance],
+    ['rubble', rubbleChance],
+    ['carbon', carbonChance],
+  ] as const) {
+    if (roll < chance) {
+      return material;
+    }
+    roll -= chance;
   }
   return 'rocky';
 }
+
+/** Share of extra asteroids per field that merely pass by and never threaten the planet. */
+export const PASSER_BY_RATIO = 0.3;
 
 /**
  * Builds the spawn schedule for one wave. Asteroids come from one to three

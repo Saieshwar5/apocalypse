@@ -1,3 +1,6 @@
+import { AmbientMusic } from './ambientMusic';
+import { RadioVoice } from './radioVoice';
+
 /**
  * Sound effects synthesised with the Web Audio API, so the prototype needs no
  * audio files. Recorded sounds and radio voice lines can replace these later
@@ -10,7 +13,10 @@ export class SoundEffects {
   private noise: AudioBuffer | null = null;
   private engineGain: GainNode | null = null;
   private engineFilter: BiquadFilterNode | null = null;
+  private atmosphereGain: GainNode | null = null;
   private muted = false;
+  private music: AmbientMusic | null = null;
+  private readonly voice = new RadioVoice();
 
   /** Call from a click or key handler. Safe to call more than once. */
   unlock(): void {
@@ -28,10 +34,25 @@ export class SoundEffects {
     this.master.connect(this.context.destination);
     this.noise = this.createNoiseBuffer(this.context);
     this.startEngine(this.context, this.master);
+    this.music = new AmbientMusic(this.context, this.master);
+  }
+
+  /** Background score intensity, 0 (calm) to 1 (severe threat close). */
+  setTension(level: number): void {
+    this.music?.setTension(level);
+  }
+
+  /** Mission control reads an urgent message aloud. */
+  announce(text: string): void {
+    this.voice.speak(text);
   }
 
   toggleMute(): boolean {
     this.muted = !this.muted;
+    this.voice.enabled = !this.muted;
+    if (this.muted) {
+      this.voice.stop();
+    }
     if (this.master && this.context) {
       this.master.gain.setTargetAtTime(this.muted ? 0 : 0.55, this.context.currentTime, 0.05);
     }
@@ -46,6 +67,14 @@ export class SoundEffects {
     const now = this.context.currentTime;
     this.engineGain.gain.setTargetAtTime(0.03 + throttle * (boosting ? 0.12 : 0.07), now, 0.1);
     this.engineFilter.frequency.setTargetAtTime(220 + throttle * (boosting ? 900 : 500), now, 0.1);
+  }
+
+  /** Roar of air on the hull during atmospheric entry (0..1). */
+  setAtmosphere(level: number): void {
+    if (!this.context || !this.atmosphereGain) {
+      return;
+    }
+    this.atmosphereGain.gain.setTargetAtTime(level > 0 ? 0.12 + level * 0.3 : 0, this.context.currentTime, 0.15);
   }
 
   laser(): void {
@@ -85,6 +114,13 @@ export class SoundEffects {
   hullHit(): void {
     this.tone({ type: 'square', from: 120, to: 40, duration: 0.35, volume: 0.14 });
     this.noiseBurst({ duration: 0.4, volume: 0.25, filterFrom: 1200, filterTo: 100 });
+  }
+
+  /** Heavy mechanical thud of docking clamps. */
+  dockClamp(): void {
+    this.tone({ type: 'sine', from: 90, to: 38, duration: 0.35, volume: 0.35 });
+    this.tone({ type: 'square', from: 300, to: 120, duration: 0.08, volume: 0.06 });
+    this.noiseBurst({ duration: 0.25, volume: 0.18, filterFrom: 900, filterTo: 120 });
   }
 
   /** Short beep for proximity and collision warnings. */
@@ -176,6 +212,18 @@ export class SoundEffects {
     this.engineFilter.connect(this.engineGain).connect(destination);
     oscillator.start();
     rumble.start();
+
+    const roar = context.createBufferSource();
+    roar.buffer = this.noise;
+    roar.loop = true;
+    const roarFilter = context.createBiquadFilter();
+    roarFilter.type = 'bandpass';
+    roarFilter.frequency.value = 420;
+    roarFilter.Q.value = 0.6;
+    this.atmosphereGain = context.createGain();
+    this.atmosphereGain.gain.value = 0;
+    roar.connect(roarFilter).connect(this.atmosphereGain).connect(destination);
+    roar.start();
   }
 
   private createNoiseBuffer(context: AudioContext): AudioBuffer {

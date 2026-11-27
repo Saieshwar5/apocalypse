@@ -21,11 +21,27 @@
     </div>
 
     <div id="hud" hidden>
-      <section class="hud-panel hud-status" aria-label="Earth status">
-        <div class="hud-label">Earth integrity <span id="integrity-value">100%</span></div>
+      <section class="hud-panel hud-status" aria-label="Planet status">
+        <div class="hud-label"><span id="planet-label">Earth integrity</span> <span id="integrity-value">100%</span></div>
         <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div>
-        <div class="hud-row"><span>Wave</span><strong id="wave-value">1</strong></div>
         <div class="hud-row"><span>Score</span><strong id="score-value">0</strong></div>
+        <div class="hud-row"><span>Credits</span><strong id="credits-value">0</strong></div>
+        <span id="wave-value" hidden>1</span>
+      </section>
+
+      <section class="hud-panel hud-position" aria-label="Ship position">
+        <div class="hud-label">Position <span id="zone-value" class="zone-value">Space</span></div>
+        <div class="hud-row"><span>From planet centre</span><strong id="centre-value">0 km</strong></div>
+        <div class="hud-row"><span>Above surface</span><strong id="surface-value">0 km</strong></div>
+        <div class="hud-row"><span>Above atmosphere</span><strong id="atmosphere-value">0 km</strong></div>
+        <div class="hud-row station-row"><span>Aegis station</span><strong id="station-value">—</strong></div>
+        <div class="hud-row"><span>Stock</span><strong id="stock-value"></strong></div>
+        <div class="hud-row"><span>Station</span><strong id="station-health-value"></strong></div>
+      </section>
+
+      <section class="hud-panel hud-sites" aria-label="Priority sites">
+        <div class="hud-label">Priority sites <span class="hud-label-note">impact in</span></div>
+        <ol id="site-list"></ol>
       </section>
 
       <section class="hud-panel hud-threats" aria-label="Incoming asteroids">
@@ -35,7 +51,7 @@
 
       <section class="hud-radar" aria-label="Radar">
         <canvas id="radar"></canvas>
-        <div class="hud-caption">Radar · nose up · <span id="radar-range">150,000 km</span></div>
+        <div class="hud-caption">3D scanner · <span id="radar-range">150,000 km</span></div>
       </section>
 
       <section class="hud-panel hud-systems" aria-label="Ship systems">
@@ -43,6 +59,8 @@
         <div class="bar"><div id="heat-bar" class="bar-fill" data-level="stable"></div></div>
         <div class="hud-label">Boost</div>
         <div class="bar"><div id="boost-bar" class="bar-fill boost"></div></div>
+        <div class="hud-label">Fuel</div>
+        <div class="bar"><div id="fuel-bar" class="bar-fill" data-level="stable"></div></div>
         <div class="hud-label">Shield</div>
         <div class="bar"><div id="shield-bar" class="bar-fill shield"></div></div>
         <div class="hud-label">Hull</div>
@@ -51,8 +69,20 @@
         <div class="hud-row"><span>Speed</span><strong id="speed-value">0</strong></div>
       </section>
 
+      <section class="hud-panel hud-orbit" aria-label="Orbit forecast">
+        <canvas id="orbit-map"></canvas>
+        <div id="orbit-label" class="hud-caption">Entering orbit</div>
+      </section>
+
+      <section id="workshop" class="hud-panel hud-workshop" aria-label="Station workshop" hidden>
+        <div class="hud-label">Station workshop <span>Credits <strong id="workshop-credits">0</strong></span></div>
+        <ol id="workshop-list"></ol>
+        <div class="hud-caption">Press a number key to buy</div>
+      </section>
+
       <div id="hud-message" class="hud-message" role="status" aria-live="polite"></div>
-      <div class="hud-hint">Mouse steer · Click fire · F missile · Shift boost · Tab map · C camera · M sound · Esc pause</div>
+      <div id="hud-hint" class="hud-hint">Mouse steer · Click fire · F missile · Shift boost · Tab map · C camera · M sound · Esc pause</div>
+      <div id="damage-flash" aria-hidden="true"></div>
     </div>
 
     <div id="cinematic" hidden>
@@ -81,11 +111,13 @@
           <dt>A / D</dt><dd>Strafe</dd>
           <dt>Q / E</dt><dd>Roll</dd>
           <dt>Shift</dt><dd>Boost</dd>
+          <dt>Fly slowly to Aegis</dt><dd>Dock: refuel, rearm, repair (W launches)</dd>
+          <dt>1 to 8 while docked</dt><dd>Buy upgrades with credits</dd>
+          <dt>Enter</dt><dd>Leave a calm zone early (or skip the launch)</dd>
           <dt>Tab</dt><dd>Tactical map (slows time)</dd>
           <dt>C</dt><dd>Chase or cockpit camera</dd>
-          <dt>Enter</dt><dd>Skip launch</dd>
         </dl>
-        <p class="screen-note">Small rocks dent the planet; giants can end it. Lasers hit hardest up close and fade with range; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not.</p>
+        <p class="screen-note">Small rocks dent the planet; giants can end it. Lasers hit hardest up close and fade with range; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, stay out of the atmosphere, and do not lose your ship: there is only one.</p>
       </div>
     </div>
 
@@ -93,16 +125,29 @@
       <div class="screen-card compact">
         <h2>Paused</h2>
         <p class="tagline">The asteroids are waiting.</p>
+        <div class="settings">
+          <label for="sensitivity-input">Mouse sensitivity</label>
+          <input id="sensitivity-input" type="range" min="0.4" max="2" step="0.1" value="1" />
+          <label for="quality-input">Graphics</label>
+          <select id="quality-input">
+            <option value="high">High (bloom, full resolution)</option>
+            <option value="low">Low (faster)</option>
+          </select>
+        </div>
         <button id="resume-button" type="button">Resume</button>
       </div>
     </div>
 
     <div id="game-over" class="screen" hidden>
       <div class="screen-card compact">
-        <p class="eyebrow">Earth has fallen</p>
-        <h2>Mission failed</h2>
+        <p id="failure-reason" class="eyebrow">Earth has fallen</p>
+        <h2 id="outcome-heading">Mission failed</h2>
         <dl id="run-summary" class="summary"></dl>
+        <button id="next-button" type="button" hidden>Travel to the next system</button>
         <button id="restart-button" type="button">Launch again</button>
+        <button id="share-button" type="button" class="secondary">Copy result</button>
+        <h3 class="best-heading">Best runs on this device</h3>
+        <ol id="best-runs" class="best-runs"></ol>
       </div>
     </div>
 
