@@ -48,6 +48,8 @@ export class ShipController {
   fuelCapacity = FUEL_CAPACITY;
   shieldCapacity = 100;
   thrustMultiplier = 1;
+  /** Mouse steering multiplier from the settings. */
+  lookSensitivity = 1;
   defense: DefenseState = createDefenseState();
   /** 0..1 engine output, used for exhaust visuals and sound. */
   throttle = 0;
@@ -122,8 +124,8 @@ export class ShipController {
 
   private updateRotation(deltaSeconds: number, input: FlightInput): void {
     const safeDelta = Math.max(deltaSeconds, 1 / 240);
-    const targetPitch = THREE.MathUtils.clamp((-input.look.y * LOOK_SENSITIVITY) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
-    const targetYaw = THREE.MathUtils.clamp((-input.look.x * LOOK_SENSITIVITY) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
+    const targetPitch = THREE.MathUtils.clamp((-input.look.y * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
+    const targetYaw = THREE.MathUtils.clamp((-input.look.x * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta, -MAX_TURN_RATE, MAX_TURN_RATE);
     const targetRoll = -input.roll * ROLL_RATE;
     this.angularVelocity.lerp(this.scratch.set(targetPitch, targetYaw, targetRoll), damping(14, deltaSeconds));
 

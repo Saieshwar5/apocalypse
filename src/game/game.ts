@@ -26,6 +26,7 @@ import { GameSession } from './gameSession';
 import { GameScreens } from './gameScreens';
 import { PlaySession } from './playSession';
 import { saveRun } from './runHistory';
+import { bindSettingsControls, loadSettings, type Settings } from './settings';
 
 export type GamePhase = 'menu' | 'launch' | 'playing' | 'paused' | 'gameover';
 
@@ -146,6 +147,14 @@ export class Game {
 
     window.addEventListener('resize', this.onResize);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    const applySettings = (settings: Settings): void => {
+      this.ship.lookSensitivity = settings.sensitivity;
+      this.pipeline.setQuality(settings.quality);
+      this.overlay.resize();
+    };
+    const settings = loadSettings();
+    applySettings(settings);
+    bindSettingsControls(settings, applySettings);
     this.screens.showMenu();
 
     if (this.options.autostart) {

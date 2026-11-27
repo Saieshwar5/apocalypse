@@ -705,3 +705,29 @@ button.secondary {
 .best-runs li.current {
   color: var(--accent);
 }
+
+.settings {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 14px;
+  align-items: center;
+  margin: 0 0 18px;
+  font-size: 13px;
+  text-align: left;
+}
+
+.settings select,
+.settings input {
+  width: 100%;
+  min-height: 32px;
+  accent-color: var(--accent);
+}
+
+.settings select {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--hud-text);
+  border: 1px solid var(--hud-border);
+  border-radius: 6px;
+  padding: 0 8px;
+  font: inherit;
+}
