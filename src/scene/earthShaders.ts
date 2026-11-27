@@ -45,6 +45,31 @@ export const SURFACE_FRAGMENT = /* glsl */ `
   varying vec3 vWorldNormal;
   varying vec3 vLocalNormal;
 
+  float hash(vec3 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+  }
+
+  float valueNoise(vec3 x) {
+    vec3 i = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+      mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y),
+      f.z
+    );
+  }
+
+  // Fine mottling that the photographs are too coarse to hold. It fades in
+  // only near the surface, where the stretched texture would look smooth.
+  float closeDetail(vec3 direction, float nearness) {
+    float coarse = valueNoise(direction * 90.0);
+    float fine = valueNoise(direction * 260.0);
+    return (coarse * 0.6 + fine * 0.4 - 0.5) * nearness;
+  }
+
   vec3 perturbNormal(vec3 surfacePosition, vec3 surfaceNormal, float height) {
     vec3 dpdx = dFdx(surfacePosition);
     vec3 dpdy = dFdy(surfacePosition);
@@ -61,13 +86,15 @@ export const SURFACE_FRAGMENT = /* glsl */ `
     vec3 viewDirection = normalize(vWorldPosition - cameraPosition);
     vec3 geometricNormal = normalize(vWorldNormal);
     vec4 detail = texture2D(detailMap, vUv);
-    vec3 normal = perturbNormal(vWorldPosition, geometricNormal, detail.r * bumpScale);
+    float nearness = 1.0 - smoothstep(12.0, 70.0, distance(cameraPosition, vWorldPosition));
+    float mottle = closeDetail(normalize(vLocalNormal), nearness);
+    vec3 normal = perturbNormal(vWorldPosition, geometricNormal, (detail.r + mottle * 0.35) * bumpScale);
 
     float sunOrientation = dot(geometricNormal, sunDirection);
     float dayStrength = smoothstep(-0.25, 0.5, sunOrientation);
     float diffuse = max(dot(normal, sunDirection), 0.0);
 
-    vec3 dayColor = texture2D(dayMap, vUv).rgb;
+    vec3 dayColor = texture2D(dayMap, vUv).rgb * (1.0 + mottle * 0.28);
     vec3 nightColor = texture2D(nightMap, vUv).rgb;
 
     float scar = 0.0;

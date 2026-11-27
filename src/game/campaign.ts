@@ -246,7 +246,7 @@ export class Campaign {
     // Approach from the site's side of the planet so the path is not blocked.
     const overSite = earth.localToWorldDirectionAt(site.localDirection, 45);
     const direction = overSite.add(new THREE.Vector3(...randomUnitVector(rng)).multiplyScalar(0.5)).normalize();
-    field.spawnAt(spawn.size, spawn.material, direction.multiplyScalar(185), 1, (flightSeconds) =>
+    field.spawnAt(spawn.size, spawn.material, direction.multiplyScalar(250), 1, (flightSeconds) =>
       earth.localToWorldDirectionAt(site.localDirection, flightSeconds).multiplyScalar(EARTH_RADIUS),
     );
   }

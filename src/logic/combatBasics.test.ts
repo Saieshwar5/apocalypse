@@ -17,16 +17,16 @@ import { formatCountdown, formatDistance, formatSpeed } from './units';
 
 describe('laser range', () => {
   it('does full damage close in, less far away and nothing past its range', () => {
-    expect(laserRangeMultiplier(10)).toBe(1);
-    expect(laserRangeMultiplier(50)).toBe(1);
-    expect(laserRangeMultiplier(110)).toBeCloseTo(0.675, 3);
-    expect(laserRangeMultiplier(170)).toBe(0);
+    expect(laserRangeMultiplier(5)).toBe(1);
+    expect(laserRangeMultiplier(16)).toBe(1);
+    expect(laserRangeMultiplier(30)).toBeCloseTo(0.675, 3);
+    expect(laserRangeMultiplier(44)).toBe(0);
   });
 
   it('classifies range for the reticle', () => {
-    expect(laserRangeBand(30)).toBe('optimal');
-    expect(laserRangeBand(100)).toBe('reduced');
-    expect(laserRangeBand(200)).toBe('out-of-range');
+    expect(laserRangeBand(10)).toBe('optimal');
+    expect(laserRangeBand(30)).toBe('reduced');
+    expect(laserRangeBand(60)).toBe('out-of-range');
   });
 });
 
@@ -91,8 +91,8 @@ describe('ship defence', () => {
 
 describe('units', () => {
   it('formats distances, speeds and countdowns for the HUD', () => {
-    expect(formatDistance(75)).toBe('48,000 km');
-    expect(formatDistance(1)).toBe('640 km');
+    expect(formatDistance(75)).toBe('12,000 km');
+    expect(formatDistance(1)).toBe('160 km');
     expect(formatSpeed(5)).toBe('21 km/s');
     expect(formatSpeed(1)).toBe('4.2 km/s');
     expect(formatCountdown(37.2)).toBe('0:38');

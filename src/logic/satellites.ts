@@ -71,8 +71,8 @@ export function orbitState(orbit: CircularOrbit, seconds: number): OrbitState {
   };
 }
 
-const REFERENCE_RADIUS = 13;
-const REFERENCE_PERIOD = 90;
+const REFERENCE_RADIUS = 48;
+const REFERENCE_PERIOD = 260;
 /**
  * Real orbits follow period ∝ radius^1.5, which would make the far
  * satellites take over ten minutes and look frozen. A gentler exponent keeps
@@ -97,9 +97,9 @@ export interface OrbitBand {
  * and weather low, navigation in the middle, relays far out.
  */
 export const ORBIT_BANDS: readonly OrbitBand[] = [
-  { minRadius: 13, maxRadius: 15, kinds: ['weather', 'comms', 'weather'] },
-  { minRadius: 20, maxRadius: 28, kinds: ['nav', 'weather', 'nav'] },
-  { minRadius: 40, maxRadius: 50, kinds: ['comms', 'nav'] },
+  { minRadius: 48, maxRadius: 53, kinds: ['weather', 'comms', 'weather'] },
+  { minRadius: 60, maxRadius: 74, kinds: ['nav', 'weather', 'nav'] },
+  { minRadius: 90, maxRadius: 110, kinds: ['comms', 'nav'] },
 ];
 
 export interface SatellitePlan {

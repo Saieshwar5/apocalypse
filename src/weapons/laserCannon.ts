@@ -14,7 +14,7 @@ export interface WeaponHit {
   direction: THREE.Vector3;
 }
 
-export const BOLT_SPEED = 190;
+export const BOLT_SPEED = 130;
 /** Bolts dissipate at the laser's maximum range. */
 const BOLT_LIFETIME = LASER_RANGE.maximum / BOLT_SPEED;
 const FIRE_INTERVAL = 1 / 9;
@@ -24,7 +24,7 @@ const COOLING_PER_SECOND = 32;
 /** After overheating, firing resumes only once heat falls below this. */
 const OVERHEAT_RECOVERY = 35;
 /** Bolts from both wing guns converge this far ahead of the nose. */
-const CONVERGENCE_DISTANCE = 70;
+const CONVERGENCE_DISTANCE = 24;
 const POOL_SIZE = 64;
 
 interface Bolt {

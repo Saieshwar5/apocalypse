@@ -8,7 +8,7 @@ import type { RocketEffects } from './rocketEffects';
 
 /** Satish Dhawan Space Centre, Sriharikota. */
 export const LAUNCH_SITE = latLonToLocalDirection(13.72, 80.23);
-export const ORBIT_ALTITUDE = 7;
+export const ORBIT_ALTITUDE = 20;
 /**
  * The climb ends with the nose this far below level. From orbit the horizon
  * is about 54 degrees down, so flying level would leave Earth out of view.
@@ -17,7 +17,7 @@ export const ORBIT_NOSE_DOWN = THREE.MathUtils.degToRad(38);
 
 /** How far east (radians around the planet) the climb drifts while turning. */
 const DOWNRANGE_ANGLE = 0.42;
-const START_ALTITUDE = 1.2;
+const START_ALTITUDE = 3.2;
 const CUTOFF = 3.6;
 const SEPARATION = 4.0;
 const SHIP_IGNITION = 4.4;

@@ -1,3 +1,4 @@
+import { PLANET_RADIUS } from '../logic/units';
 import * as THREE from 'three';
 import {
   ATMOSPHERE_FRAGMENT,
@@ -9,7 +10,7 @@ import {
   SURFACE_VERTEX,
 } from './earthShaders';
 
-export const EARTH_RADIUS = 10;
+export const EARTH_RADIUS = PLANET_RADIUS;
 const AXIAL_TILT = THREE.MathUtils.degToRad(23.44);
 /** One rotation every eight minutes: slow, but visible during a wave. */
 const SPIN_RATE = (Math.PI * 2) / 480;
@@ -69,7 +70,7 @@ export class Earth {
       sunDirection: { value: sunDirection },
       atmosphereDayColor: { value: new THREE.Color(0.3, 0.6, 1.0) },
       atmosphereTwilightColor: { value: new THREE.Color(0.9, 0.42, 0.18) },
-      bumpScale: { value: 0.06 },
+      bumpScale: { value: 0.06 * (EARTH_RADIUS / 10) },
       impacts: { value: this.impacts },
       impactHeat: { value: this.impactHeat },
       impactCount: { value: 0 },

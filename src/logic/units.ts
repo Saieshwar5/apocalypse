@@ -1,12 +1,18 @@
-/** Earth's radius is 10 world units, so one unit is 637.1 km. */
-export const KM_PER_UNIT = 6371 / 10;
+/**
+ * The planet's radius in world units. The ship is about 2 units long, so the
+ * planet is large enough to fill the sky from a low orbit.
+ */
+export const PLANET_RADIUS = 40;
+
+/** One world unit is about 159 km. */
+export const KM_PER_UNIT = 6371 / PLANET_RADIUS;
 
 /**
  * The game compresses time: a wave lasts about a minute instead of days.
  * Speeds are divided by this factor when shown, so an asteroid moving
  * 5 units per second reads as about 21 km/s, a realistic impact speed.
  */
-export const TIME_COMPRESSION = 150;
+export const TIME_COMPRESSION = 38;
 
 export function unitsToKm(units: number): number {
   return units * KM_PER_UNIT;
