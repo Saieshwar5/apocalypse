@@ -39,6 +39,7 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Q / E | Roll |
 | Shift | Boost |
 | T | Connect the tow line to a contract satellite, or release it |
+| I (docked) | Insure the ship |
 | Z | Flight assist on or off |
 | Left click or Space | Laser (short range; overheats if held too long) |
 | F or right click | Missile at the locked target |
@@ -47,6 +48,26 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## Stage 5b: reputation and the licence
+
+- Reputation (start 60, out of 100) is the pilot's licence to fly. It
+  rises with completed contracts (+2, +3 when clean) and satellite jobs
+  (+5), and falls when a contracted rock hits the planet (-2, -6 if it hits
+  a city or installation), when the pilot destroys a satellite (-8), fails
+  a satellite job they took (-5), hits a rival (-2), leaves debris (-0.25 a
+  tonne) or loses the ship (-15).
+- The licence has stages, announced by mission control and shown under
+  Earth's integrity: **good standing** (45 and up); **warning** (rivals no
+  longer give way to you on contested work); **probation** below 30 (complete
+  two contracts within three minutes, or be recalled; passing restores 38);
+  **recalled** (the career ends: "Licence revoked").
+- Losing the ship no longer ends the run: a replacement is delivered beside
+  Aegis for 900 cr, or 200 cr if insured (I while docked, 250 cr, used up by
+  one loss). If you cannot pay, Halo grants one emergency loan of 1,000 cr,
+  repaid by 30% of later earnings until 1,250 cr is paid back. With no
+  money and the loan spent, the career ends in bankruptcy.
+- The end screen shows the licence, reputation and ships lost.
 
 ## Stage 5a: the Cascade and Orbit Health
 
@@ -331,7 +352,7 @@ sites, atmosphere zones and the automatic pull-up, the flight model, guidance,
 contract pay, station prices and the wallet, the tow line, placement and
 satellite job paths, rival choices, shared pay, radio rationing, the autopilot,
 the Cascade (debris, drag, growth, sweeping, orbits through a point), automatic
-quality,
+quality, reputation, probation, insurance and the emergency loan,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
