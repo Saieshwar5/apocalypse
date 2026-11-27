@@ -24,8 +24,8 @@
       <section class="hud-panel hud-status" aria-label="Planet status">
         <div class="hud-label"><span id="planet-label">Earth integrity</span> <span id="integrity-value">100%</span></div>
         <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div>
-        <div class="hud-row"><span>Score</span><strong id="score-value">0</strong></div>
-        <div class="hud-row"><span>Credits</span><strong id="credits-value">0</strong></div>
+        <div class="hud-row"><span>Balance</span><strong id="balance-value" class="money">500 cr</strong></div>
+        <div class="hud-row"><span>Earned this run</span><strong id="earned-value">0 cr</strong></div>
         <span id="wave-value" hidden>1</span>
       </section>
 
@@ -44,9 +44,10 @@
         <ol id="site-list"></ol>
       </section>
 
-      <section class="hud-panel hud-threats" aria-label="Incoming asteroids">
-        <div class="hud-label">Incoming <span class="hud-label-note">most urgent first</span></div>
+      <section class="hud-panel hud-threats" aria-label="Contract board">
+        <div class="hud-label">Contracts <span class="hud-label-note">Earth Defence Authority</span></div>
         <ol id="threat-list"></ol>
+        <div id="contract-summary" class="hud-caption"></div>
       </section>
 
       <section class="hud-radar" aria-label="Radar">
@@ -75,7 +76,7 @@
       </section>
 
       <section id="workshop" class="hud-panel hud-workshop" aria-label="Station workshop" hidden>
-        <div class="hud-label">Station workshop <span>Credits <strong id="workshop-credits">0</strong></span></div>
+        <div class="hud-label">Station workshop <span>Balance <strong id="workshop-credits" class="money">0 cr</strong></span></div>
         <ol id="workshop-list"></ol>
         <div class="hud-caption">Press a number key to buy</div>
       </section>
@@ -106,7 +107,7 @@
       <div class="screen-card">
         <p class="eyebrow">Planetary Defence Wing</p>
         <h1>Singularity</h1>
-        <p class="tagline">One interceptor. One planet. Hold the line.</p>
+        <p class="tagline">One interceptor. One planet. Paid by the rock.</p>
         <button id="start-button" type="button" disabled>Loading…</button>
         <dl class="controls">
           <dt>Mouse or arrow keys</dt><dd>Steer</dd>
@@ -118,13 +119,13 @@
           <dt>Left click / Space</dt><dd>Laser (short range: fly close)</dd>
           <dt>F / Right click</dt><dd>Missile at locked target</dd>
           <dt>Z</dt><dd>Flight assist on or off (off: pure drift and gravity)</dd>
-          <dt>Fly slowly to Aegis</dt><dd>Brake near it and let go to dock: refuel, rearm, repair (W launches)</dd>
-          <dt>1 to 8 while docked</dt><dd>Buy upgrades with credits</dd>
+          <dt>Fly slowly to Aegis</dt><dd>Brake near it and let go to dock. Fuel, missiles and repairs cost money (W launches)</dd>
+          <dt>1 to 8 while docked</dt><dd>Buy upgrades with your earnings</dd>
           <dt>Enter</dt><dd>Leave a calm zone early (or skip the launch)</dd>
           <dt>Tab</dt><dd>Tactical map (slows time)</dd>
           <dt>C</dt><dd>Chase or cockpit camera</dd>
         </dl>
-        <p class="screen-note">Small rocks dent the planet; giants can end it. Follow the yellow PRIORITY marker: it shows whether you can reach a rock before it lands. Lasers only reach a short way, so fly to the rock; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, brake before you get too low, and do not lose your ship: there is only one.</p>
+        <p class="screen-note">You are a contract pilot. Every asteroid heading for the planet carries a contract from the Earth Defence Authority, paid by how much damage it would do, with a bonus for stopping it early; a rock that will burn up pays nothing, so scan before you chase. Spend your earnings on fuel, missiles, repairs and upgrades at Aegis. Small rocks dent the planet; giants can end it. Follow the yellow PRIORITY marker: it shows whether you can reach a rock before it lands. Lasers only reach a short way, so fly to the rock; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, brake before you get too low, and do not lose your ship: there is only one.</p>
       </div>
     </div>
 

@@ -371,6 +371,19 @@ body {
   font-weight: 700;
 }
 
+#threat-list .threat-pay {
+  color: #ffd75e;
+  font-weight: 700;
+}
+
+#threat-list .threat-pay.estimate {
+  opacity: 0.7;
+}
+
+.money {
+  color: #ffd75e;
+}
+
 #threat-list .threat-detail {
   grid-column: 1 / -1;
   color: var(--hud-dim);
