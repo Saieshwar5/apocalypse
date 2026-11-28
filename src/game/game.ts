@@ -199,6 +199,7 @@ export class Game {
       this.callSign = settings.callSign;
       this.hardcore = settings.hardcore;
       this.shipName = settings.shipName;
+      this.hud.density = settings.hudDensity;
       const paint = liveryById(settings.livery).tint;
       this.shipModel.setPaint(paint ? new THREE.Color(...paint) : null);
       this.pipeline.setQuality(effectiveQuality(settings.quality, this.autoQuality));
@@ -232,6 +233,7 @@ export class Game {
     this.play.reset(system, continuing, training);
     this.career.startRun(this.hardcore && !training);
     this.worldLayer.reset();
+    this.hud.newPilot = training || this.career.record.runs < 2;
     this.applySystemLook();
     this.radio.reset();
     this.explosions.clear();
@@ -403,6 +405,7 @@ export class Game {
     }
     this.play.update(deltaSeconds);
     this.career.update(deltaSeconds);
+    this.overlay.quietLabels = !(this.hud.visibility?.allWorldLabels ?? true);
     this.damage.update(deltaSeconds, this.ship.hull, this.shipModel.group, this.ship.velocity, this.play.shipActive);
     this.cockpit.update(deltaSeconds, cockpitReadings(this.ship, this.play, this.shipName));
     this.earth.setAuroraStrength({ storm: 2.2, warning: 1.4, clear: 1 }[this.play.services.weather.phase]);

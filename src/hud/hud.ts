@@ -1,6 +1,8 @@
+import { FLASH_SECONDS, hudVisibility, type HudDensity, type HudVisibility } from '../logic/hudFocus';
+import { MessageQueue, type MessageTone } from '../logic/messageQueue';
 import type * as THREE from 'three';
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
-import type { AltitudeReadout, AtmosphereZone } from '../logic/atmosphere';
+import { DEFENCE_ZONE, type AltitudeReadout, type AtmosphereZone } from '../logic/atmosphere';
 import { integrityLevel, threatRating } from '../logic/planetDamage';
 import { formatCredits } from '../logic/contracts';
 import { CASCADE } from '../logic/cascade';
@@ -62,6 +64,8 @@ export interface HudSnapshot {
   };
   /** Satellite contracts, shown above the defence contracts. */
   jobs: readonly JobRow[];
+  /** For deciding what to show: calm zone or field, and whether the tactical map is open. */
+  focus: { calm: boolean; tactical: boolean };
 }
 
 const ZONE_LABEL: Record<AtmosphereZone, string> = {
@@ -71,10 +75,9 @@ const ZONE_LABEL: Record<AtmosphereZone, string> = {
   breakup: 'BREAK-UP',
 };
 
-export type MessageTone = 'info' | 'warning' | 'danger' | 'success';
+export type { MessageTone };
 
 const SIZE_NAME: Record<AsteroidSize, string> = { small: 'Small', medium: 'Medium', large: 'Large', giant: 'Giant' };
-const VISIBLE_THREATS = 5;
 
 function setText(target: HTMLElement, text: string): void {
   if (target.textContent !== text) {
@@ -141,14 +144,38 @@ export class Hud {
   private sitePanel: SitePanel | null = null;
   private sitePanelSites: readonly SiteState[] | null = null;
   private flash = 0;
-  private messageTimer = 0;
+  private readonly messages = new MessageQueue();
   private lastThreatMarkup = '';
+  /** HUD density from the settings, and whether the controls line still helps (early runs). */
+  density: HudDensity = 'standard';
+  newPilot = true;
+  /** What the HUD decided to show this frame; the overlay reads it for world labels. */
+  visibility: HudVisibility | null = null;
+  private lastBalance = Number.NaN;
+  private moneyDelta = 0;
+  private moneySeconds = Infinity;
+  private lastLeagueOrder = '';
+  private leagueSeconds = Infinity;
+  private readonly show = {
+    status: element<HTMLElement>('#status-panel'),
+    integrity: element<HTMLElement>('#integrity-group'),
+    orbit: element<HTMLElement>('#orbit-group'),
+    licence: element<HTMLElement>('#licence-row'),
+    balance: element<HTMLElement>('#balance-row'),
+    earned: element<HTMLElement>('#earned-row'),
+    position: element<HTMLElement>('#position-panel'),
+    stationRows: element<HTMLElement>('#station-rows'),
+    sites: element<HTMLElement>('#sites-panel'),
+    heat: element<HTMLElement>('#heat-group'),
+    boost: element<HTMLElement>('#boost-group'),
+  };
 
   setVisible(visible: boolean): void {
     this.root.hidden = !visible;
   }
 
   update(deltaSeconds: number, snapshot: HudSnapshot): void {
+    this.applyFocus(deltaSeconds, snapshot);
     const integrity = Math.max(0, snapshot.integrity);
     this.integrityBar.style.width = `${integrity}%`;
     this.integrityBar.dataset.level = integrityLevel(integrity);
@@ -162,7 +189,9 @@ export class Hud {
       this.licenceValue.dataset.stage = snapshot.licence.stage;
     }
     this.waveValue.textContent = String(snapshot.wave);
-    setText(this.balanceValue, formatCredits(snapshot.balance));
+    const delta = Math.round(this.moneyDelta);
+    const flashing = this.moneySeconds < FLASH_SECONDS.money && delta !== 0;
+    setText(this.balanceValue, flashing ? `${delta > 0 ? '+' : '−'}${formatCredits(Math.abs(delta))} → ${formatCredits(snapshot.balance)}` : formatCredits(snapshot.balance));
     setText(this.earnedValue, formatCredits(snapshot.earned));
     setText(this.contractSummary, snapshot.contractSummary);
     this.renderLeague(snapshot.league);
@@ -190,7 +219,7 @@ export class Hud {
     this.hullBar.dataset.level = integrityLevel(snapshot.hull);
     this.speedValue.textContent = formatSpeed(snapshot.speed);
 
-    this.renderThreats(snapshot);
+    this.renderThreats(snapshot, this.visibility?.boardRows ?? 8);
     this.renderPosition(snapshot);
     this.renderControls(snapshot);
     if (!this.sitePanel || this.sitePanelSites !== snapshot.sites) {
@@ -211,12 +240,86 @@ export class Hud {
       }
     }
 
-    if (this.messageTimer > 0) {
-      this.messageTimer -= deltaSeconds;
-      if (this.messageTimer <= 0) {
-        this.message.classList.remove('visible');
-      }
+    const next = this.messages.update(deltaSeconds);
+    if (next === 'clear') {
+      this.message.classList.remove('visible');
+    } else if (next) {
+      this.display(next.text, next.tone);
     }
+  }
+
+  /** Decides what is worth showing now and hides the rest. */
+  private applyFocus(deltaSeconds: number, snapshot: HudSnapshot): void {
+    if (Math.abs(snapshot.balance - this.lastBalance) >= 1 || Number.isNaN(this.lastBalance)) {
+      // Small trickles (sweeping pays by the tonne) add up into one change on screen.
+      const fresh = this.moneySeconds > FLASH_SECONDS.money;
+      this.moneyDelta = (fresh ? 0 : this.moneyDelta) + (Number.isNaN(this.lastBalance) ? 0 : snapshot.balance - this.lastBalance);
+      this.moneySeconds = Number.isNaN(this.lastBalance) ? Infinity : 0;
+      this.lastBalance = snapshot.balance;
+    }
+    this.moneySeconds += deltaSeconds;
+    const order = snapshot.league.map((row) => row.name).join('|');
+    if (order !== this.lastLeagueOrder) {
+      this.leagueSeconds = this.lastLeagueOrder === '' ? Infinity : 0;
+      this.lastLeagueOrder = order;
+    }
+    this.leagueSeconds += deltaSeconds;
+    const { controls, station } = snapshot;
+    const damagedSites = snapshot.sites.filter((site) => site.health < 100).length;
+    const threatenedSites = snapshot.sites.filter((site) => site.threatenedIn !== null && site.health > 0).length;
+    const visibility = hudVisibility({
+      density: this.density,
+      calm: snapshot.focus.calm,
+      tactical: snapshot.focus.tactical,
+      integrity: snapshot.integrity,
+      orbitHealth: snapshot.orbitHealth,
+      licenceGood: snapshot.licence.stage === 'good',
+      moneySeconds: this.moneySeconds,
+      leagueSeconds: this.leagueSeconds,
+      threatenedSites,
+      damagedSites,
+      needsStation:
+        snapshot.fuel < snapshot.fuelCapacity * 0.3 || snapshot.hull < 45 || snapshot.missiles === 0 || station.threatenedIn !== null || station.docked,
+      altitudeMatters: snapshot.zone !== 'space' || snapshot.shipPosition.length() > DEFENCE_ZONE.warning * 0.9,
+      laserHeat: snapshot.laserHeat,
+      boost: snapshot.boost,
+      mouseCaptured: controls.mouseCaptured,
+      autopilot: controls.autopilot !== null,
+      assist: controls.assist,
+      berthed: controls.berthed,
+      braking: controls.braking,
+      towing: controls.towing !== null,
+      newPilot: this.newPilot,
+    });
+    this.visibility = visibility;
+    const set = (target: HTMLElement, visible: boolean) => {
+      const value = String(visible);
+      if (target.dataset.show !== value) {
+        target.dataset.show = value;
+      }
+    };
+    set(this.show.integrity, visibility.integrity);
+    set(this.show.orbit, visibility.orbitHealth);
+    set(this.show.licence, visibility.licence);
+    set(this.show.balance, visibility.balance);
+    set(this.show.earned, visibility.earned);
+    set(this.leagueValue, visibility.league);
+    set(
+      this.show.status,
+      visibility.integrity || visibility.orbitHealth || visibility.licence || visibility.balance || visibility.earned || visibility.league,
+    );
+    set(this.show.position, visibility.position);
+    set(this.show.stationRows, visibility.stationRows);
+    set(this.show.sites, visibility.sites !== 'none');
+    if (this.show.sites.dataset.mode !== visibility.sites) {
+      this.show.sites.dataset.mode = visibility.sites;
+    }
+    set(this.show.heat, visibility.heat);
+    set(this.show.boost, visibility.boost);
+    set(this.steerStatus, visibility.steerChip);
+    set(this.assistStatus, visibility.assistChip);
+    set(this.motionStatus, visibility.motionChip);
+    set(this.hint, visibility.controlsLine || this.hint.classList.contains('tip'));
   }
 
   /**
@@ -302,22 +405,27 @@ export class Hud {
   /** Called for urgent messages so mission control can read them aloud. */
   onUrgent: ((text: string) => void) | null = null;
 
+  /** Messages take turns on one line: dangers interrupt, news waits (see logic/messageQueue). */
   showMessage(text: string, tone: MessageTone = 'info', seconds = 3): void {
+    const shown = this.messages.push({ text, tone, seconds });
+    if (shown) {
+      this.display(shown.text, shown.tone);
+    }
+  }
+
+  private display(text: string, tone: MessageTone): void {
     if (tone === 'danger') {
       this.onUrgent?.(text);
     }
     this.message.textContent = text;
     this.message.dataset.tone = tone;
     this.message.classList.add('visible');
-    this.messageTimer = seconds;
   }
 
-  private renderThreats(snapshot: HudSnapshot): void {
-    const jobs = snapshot.jobs.map(
-      (job) =>
-        `<li class="job ${job.urgent ? 'urgent' : ''}"><span>${job.title}</span><span class="threat-pay">${formatCredits(job.pay)}</span><span class="threat-detail">${job.detail}</span></li>`,
-    );
-    const rows = snapshot.contracts.slice(0, VISIBLE_THREATS).map(({ asteroid, pay, estimate }) => {
+  private renderThreats(snapshot: HudSnapshot, limit: number): void {
+    const jobRow = (job: JobRow) =>
+      `<li class="job ${job.urgent ? 'urgent' : ''}"><span>${job.title}</span><span class="threat-pay">${formatCredits(job.pay)}</span><span class="threat-detail">${job.detail}</span></li>`;
+    const contracts = snapshot.contracts.map(({ asteroid, pay, estimate }) => {
       const eta = asteroid.timeToImpact === null ? 'off course' : formatCountdown(asteroid.timeToImpact);
       const urgent = asteroid.timeToImpact !== null && (asteroid.timeToImpact < 20 || asteroid.threatensSite);
       const distance = formatDistance(snapshot.shipPosition.distanceTo(asteroid.mesh.position) - asteroid.radius);
@@ -330,11 +438,15 @@ export class Hud {
       const detail = `${offer} · ${distance} away · ${formatSpeed(asteroid.velocity.length())}`;
       return `<li class="${urgent ? 'urgent' : ''}"><span>${name}</span><span class="threat-eta">${eta}</span><span class="threat-detail">${detail}</span></li>`;
     });
-    const hidden = snapshot.contracts.length - rows.length;
+    // In a field the rocks come first, after anything with a deadline; in a calm zone the jobs lead.
+    const urgentJobs = snapshot.jobs.filter((job) => job.urgent).map(jobRow);
+    const otherJobs = snapshot.jobs.filter((job) => !job.urgent).map(jobRow);
+    const ordered = snapshot.focus.calm ? [...urgentJobs, ...otherJobs, ...contracts] : [...urgentJobs, ...contracts, ...otherJobs];
+    const rows = ordered.slice(0, limit);
+    const hidden = ordered.length - rows.length;
     if (hidden > 0) {
-      rows.push(`<li class="empty">+${hidden} more</li>`);
+      rows.push(`<li class="empty">+${hidden} more · Tab shows all</li>`);
     }
-    rows.unshift(...jobs);
     const markup = rows.length > 0 ? rows.join('') : '<li class="empty">No open contracts</li>';
     // Rewriting identical markup every frame would waste layout work.
     if (markup !== this.lastThreatMarkup) {

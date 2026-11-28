@@ -44,6 +44,9 @@ const SITE_LABEL_COLOR = { intact: '#7dffb0', damaged: '#ffb347', critical: '#ff
  * health bars, missile lock, countdowns on predicted impact points, edge
  * arrows for threats out of view, the reticle and hit feedback.
  */
+/** In quiet mode, stations are named only inside this distance. */
+const QUIET_LABEL_RANGE = 80;
+
 export class TargetOverlay {
   private readonly context: CanvasRenderingContext2D;
   private readonly projector = new ScreenProjector();
@@ -69,6 +72,10 @@ export class TargetOverlay {
     this.context.clearRect(0, 0, window.innerWidth, window.innerHeight);
   }
 
+  /** Fewer words in the world: names only on what is near, threatened or needed. Set by the HUD density. */
+  quietLabels = false;
+  private quiet = false;
+
   draw(deltaSeconds: number, frame: OverlayFrame): void {
     this.elapsed += deltaSeconds;
     this.clear();
@@ -77,6 +84,7 @@ export class TargetOverlay {
     context.lineWidth = 1.5;
     context.font = `600 11px ${MONO}`;
     const lockedId = frame.targeting.target?.id ?? null;
+    this.quiet = this.quietLabels && !frame.tactical;
     this.drawSiteLabels(frame.sites);
     for (const marker of frame.stationMarkers) {
       this.drawStation(marker, frame.shipPosition);
@@ -115,7 +123,7 @@ export class TargetOverlay {
     if (frame.tactical) {
       this.drawShipMarker(frame.shipPosition);
     } else {
-      drawGuidance(context, this.projector, frame.guidance, this.elapsed);
+      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet }, this.elapsed);
       drawReticle(context, this.projector, frame.aimPoint, frame.targeting, frame.feedback, frame.overheated, this.elapsed);
     }
   }
@@ -130,6 +138,9 @@ export class TargetOverlay {
         continue;
       }
       const threatened = site.threatenedIn !== null && condition !== 'destroyed';
+      if (this.quiet && !threatened && condition === 'intact') {
+        continue;
+      }
       const color = threatened ? '#ff5a4a' : SITE_LABEL_COLOR[condition];
       const name = site.definition.name.toUpperCase();
       const text =
@@ -182,7 +193,9 @@ export class TargetOverlay {
       } else {
         context.strokeRect(point.x - 9, point.y - 9, 18, 18);
       }
-      context.fillText(label, point.x + 14, point.y + 4);
+      if (!this.quiet || station.world.distanceTo(shipPosition) < QUIET_LABEL_RANGE) {
+        context.fillText(label, point.x + 14, point.y + 4);
+      }
     } else if (station.edgeArrow !== false) {
       const width = this.projector.width;
       const height = this.projector.height;

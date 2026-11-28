@@ -157,7 +157,7 @@ export class Campaign {
       hud.showMessage('Leaving the calm zone', 'info', 2);
     }
     const tip = TIPS.find(([from, to]) => this.seconds >= from && this.seconds < to);
-    hud.setHint(stationOps.docking.hint ?? this.deps.extraHint() ?? (tip ? tip[2] : null));
+    hud.setHint(stationOps.docking.hint ?? this.deps.extraHint() ?? (tip && hud.newPilot ? tip[2] : null));
     this.workshop.update(docked, this.levels, this.credits);
     this.orbitMap.draw(this.director);
   }

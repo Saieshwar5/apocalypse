@@ -1169,3 +1169,33 @@ body[data-photo-filter='mono'] #scene {
   font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace;
   pointer-events: none;
 }
+
+/* HUD focus: readings and panels that do not matter right now step aside. */
+#hud [data-show='false'] {
+  display: none !important;
+}
+
+#sites-panel[data-mode='alert'] li[data-condition='intact']:not(.threatened) {
+  display: none;
+}
+
+#sites-panel[data-mode='alert'] .hud-label-note {
+  display: none;
+}
+
+/* Panels fade in rather than pop. */
+#hud .hud-panel,
+#hud .hud-group,
+#hud .hud-row {
+  animation: hud-appear 0.25s ease-out;
+}
+
+@keyframes hud-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+#status-panel .hud-group + .hud-group {
+  margin-top: 6px;
+}
