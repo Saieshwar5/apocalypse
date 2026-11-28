@@ -1,6 +1,7 @@
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
 import { CAST, LINES, RADIO_NET, fillLine, radioClear, type Moment, type SpeakerId } from '../logic/cast';
+import { formatDistance } from '../logic/units';
 
 export interface RadioNetDependencies {
   hud: Hud;
@@ -59,6 +60,11 @@ export class RadioNet {
       this.queue.push(line);
     }
     this.queue = this.queue.slice(0, RADIO_NET.queueLength);
+  }
+
+  /** Mission control confirms a nav target the pilot picked. */
+  navCallout(label: string, distance: number): void {
+    this.say('control', `Copy, {callsign}. ${label}, ${formatDistance(distance)} out. Follow your director.`);
   }
 
   /** A line for a moment, from one of the speakers who has something to say about it. */

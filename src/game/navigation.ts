@@ -5,6 +5,8 @@ import type { Radar } from '../hud/radar';
 import type { TargetOverlay } from '../hud/targetOverlay';
 import type { InputState } from '../input/inputState';
 import { MATERIAL_TRAITS } from '../logic/asteroidClasses';
+import { directorAdvice, meetingPoint } from '../logic/flightDirector';
+import { FLIGHT } from '../logic/flightModel';
 import {
   OBJECTIVE_NAME,
   SCANNER_MODES,
@@ -16,12 +18,15 @@ import {
   type ObjectiveOptions,
   type ScannerMode,
 } from '../logic/navigation';
+import { handlingShare } from '../logic/shipModules';
 import { DOCKING } from '../logic/stationSupply';
 import { TOW } from '../logic/towing';
 import { damping, orientationFromForward } from '../math/orientation';
-import type { ShipController } from '../ship/shipController';
+import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipController';
 import type { GameSession } from './gameSession';
+import { NavComputer, type NavEntry } from './navComputer';
 import { AIM_DISTANCE, type PlaySession } from './playSession';
+import type { RadioNet } from './radioNet';
 
 export interface NavigationDependencies {
   play: PlaySession;
@@ -31,64 +36,108 @@ export interface NavigationDependencies {
   overlay: TargetOverlay;
   radar: Radar;
   session: GameSession;
+  radio?: RadioNet;
 }
+
+export type Objective = NavigationObjective & { kind: ObjectiveKind };
 
 /** A quick tap of B cycles the scanner range; holding it enlarges the scanner. */
 const HOLD_SECONDS = 0.3;
-/** Berths take the ship below this relative speed. */
 const BERTH_SPEED = 3;
-const COLORS: Record<ObjectiveKind, string> = { threat: '#ffd23f', job: '#8fd3ff', station: '#7dffb0', home: '#5fd8ff' };
+const COLORS: Record<ObjectiveKind, string> = { threat: '#ffd23f', job: '#8fd3ff', station: '#7dffb0', home: '#5fd8ff', target: '#e48cff' };
 
 /**
- * One objective, shown the same way everywhere: the target compass and
- * steering arrow by the crosshair, the highlight on the scanner and the
- * approach guide near stations. G chooses what it points at, B sets the
- * scanner's range (hold to enlarge), X turns the nose towards it.
+ * One objective, shown the same way everywhere: the compass, steering arrow
+ * and flight director by the crosshair, the route line and meeting point in
+ * space, the scanner highlight and the approach guide. G chooses what it
+ * points at, N opens the navigation computer to pick anything by name,
+ * B sets the scanner's range (hold to enlarge), X turns the nose towards
+ * the objective and U flies there on the approach autopilot.
  */
 export class Navigation {
   mode: ObjectiveMode = 'auto';
   scannerMode: ScannerMode = 'auto';
-  objective: (NavigationObjective & { kind: ObjectiveKind }) | null = null;
+  objective: Objective | null = null;
+  readonly computer: NavComputer;
+  /** The approach autopilot is flying to the objective. */
+  autopilotOn = false;
   private readonly lastWorld = new THREE.Vector3();
   private lastKey = '';
   private readonly velocity = new THREE.Vector3();
   private bHeld = 0;
-  private alignWarned = false;
+  private warned = false;
 
   constructor(private readonly deps: NavigationDependencies) {
+    this.computer = new NavComputer({ play: deps.play, ship: deps.ship, input: deps.input, hud: deps.hud });
     deps.radar.rangeFor = (full) => scannerRange(this.scannerMode, full, this.objective ? this.objective.world.distanceTo(deps.ship.position) : null);
+    deps.play.autopilot = (input, deltaSeconds) => this.autopilotInput(input, deltaSeconds);
   }
 
   reset(): void {
     this.mode = 'auto';
     this.objective = null;
     this.lastKey = '';
-    this.alignWarned = false;
+    this.warned = false;
+    this.computer.reset();
+    this.disengage(null);
   }
 
   /** Before the play session updates: keys, the objective, the scanner. */
   update(deltaSeconds: number, flying: boolean): void {
-    const { input, hud, radar } = this.deps;
+    const { input, hud, radar, play } = this.deps;
+    const holding = play.stationOps.holdingShip || play.services.berths.holding;
+    if (holding && this.autopilotOn) {
+      // The docking guides or the berth have the ship: the trip is over.
+      this.disengage('Autopilot: arrived. The station has the ship');
+    }
+    const picked = this.computer.update(deltaSeconds, flying && !holding);
+    if (picked === 'cleared') {
+      this.mode = 'auto';
+      hud.showMessage('Nav target cleared: the compass follows the action', 'info', 2.5);
+    } else if (picked) {
+      this.mode = 'target';
+      const entry = this.computer.current();
+      if (entry) {
+        hud.showMessage(`Nav target: ${entry.label}. Follow the compass and the flight director`, 'info', 3);
+        this.deps.radio?.navCallout(entry.label, entry.world.distanceTo(this.deps.ship.position));
+      }
+    }
     const options = this.options();
+    if (this.mode === 'target' && !options.target) {
+      this.mode = 'auto';
+      this.computer.selected = null;
+      hud.showMessage('Nav target lost', 'warning', 2.5);
+    }
     if (input.consumePress('KeyG')) {
       this.mode = nextObjectiveMode(this.mode, options);
+      this.computer.selected = this.mode === 'target' ? this.computer.selected : null;
       hud.showMessage(`Compass: ${OBJECTIVE_NAME[this.mode]}${this.mode === 'auto' ? ' (follows the action)' : ''}`, 'info', 2);
+    }
+    if (input.consumePress('KeyU')) {
+      this.toggleAutopilot();
     }
     this.handleScannerKey(deltaSeconds);
     this.objective = this.build(resolveObjective(this.mode, options), deltaSeconds);
+    if (!this.objective && this.autopilotOn) {
+      this.disengage('Autopilot off: nothing to fly to');
+    }
     radar.objective = this.objective ? { position: this.objective.world, color: this.objective.color } : null;
     radar.modeLabel = this.scannerMode.toUpperCase();
     this.deps.overlay.compassActive = this.objective !== null;
-    if (flying && input.isDown('KeyX')) {
+    if (flying && input.isDown('KeyX') && !this.autopilotOn) {
       this.align(deltaSeconds);
     }
   }
 
-  /** After the play session has drawn the overlay: the compass, arrow, velocity marker and approach guide. */
+  /** After the play session has drawn the overlay: the navigation aids and the list numbers. */
   draw(): void {
     const { play, ship, overlay } = this.deps;
-    const visible = play.shipActive && !play.tactical && !play.stationOps.holdingShip && !play.services.berths.holding;
-    if (!this.objective || !visible) {
+    const visible = play.shipActive && !play.stationOps.holdingShip && !play.services.berths.holding;
+    if (!visible) {
+      return;
+    }
+    overlay.drawNavTags(this.computer.visibleEntries().map(({ number, entry }) => ({ number, world: entry.world, label: entry.label })));
+    if (!this.objective || play.tactical) {
       return;
     }
     const aimPoint = new THREE.Vector3(0, 0, -AIM_DISTANCE).applyMatrix4(ship.object.matrixWorld);
@@ -98,7 +147,8 @@ export class Navigation {
         shipPosition: ship.position,
         shipVelocity: ship.velocity,
         shipQuaternion: ship.object.quaternion,
-        chosen: this.mode !== 'auto',
+        chosen: this.mode !== 'auto' && this.mode !== 'target',
+        autopilot: this.autopilotOn,
       },
       aimPoint,
     );
@@ -111,11 +161,12 @@ export class Navigation {
       job: play.services.waypoint() !== null,
       station: true,
       home: play.stationOps.present,
+      target: this.computer.selected !== null && this.computer.current() !== null,
       needsHome: ship.fuel < ship.fuelCapacity * 0.25 || ship.hull < 35,
     };
   }
 
-  private build(kind: ObjectiveKind | null, deltaSeconds: number): (NavigationObjective & { kind: ObjectiveKind }) | null {
+  private build(kind: ObjectiveKind | null, deltaSeconds: number): Objective | null {
     if (!kind) {
       return null;
     }
@@ -123,7 +174,8 @@ export class Navigation {
     let world: THREE.Vector3 | null = null;
     let label = '';
     let tag = '';
-    let approachSpeed: number | null = null;
+    let arriveSpeed = 6;
+    let arriveRange = 14;
     let knownVelocity: THREE.Vector3 | null = null;
     let key: string = kind;
     if (kind === 'threat' && play.guidance.priority) {
@@ -140,7 +192,8 @@ export class Navigation {
         world = waypoint.world;
         label = waypoint.label;
         tag = 'JOB';
-        approachSpeed = TOW.attachSpeed;
+        arriveSpeed = TOW.attachSpeed;
+        arriveRange = 8;
         key = `job-${waypoint.label}`;
       }
     } else if (kind === 'home') {
@@ -150,16 +203,26 @@ export class Navigation {
         knownVelocity = aegis.velocity;
         label = 'Aegis station: dock to refuel, rearm and repair';
         tag = 'HOME · AEGIS';
-        approachSpeed = DOCKING.maxRelativeSpeed;
+        arriveSpeed = DOCKING.maxRelativeSpeed - 1;
+        arriveRange = DOCKING.range - 3;
+      }
+    } else if (kind === 'target') {
+      const entry = this.computer.current();
+      if (entry) {
+        ({ world, label, arriveSpeed, arriveRange } = entry);
+        knownVelocity = entry.velocity;
+        tag = `NAV · ${shortName(entry)}`;
+        key = `target-${entry.id}`;
       }
     } else {
       const outposts = play.services.outposts.list;
       const nearest = outposts.reduce((best, outpost) => (outpost.position.distanceTo(ship.position) < best.position.distanceTo(ship.position) ? outpost : best));
-      world = nearest.position;
+      world = play.services.outposts.portPosition(nearest.id);
       knownVelocity = nearest.velocity;
       label = nearest.name;
       tag = nearest.name;
-      approachSpeed = BERTH_SPEED;
+      arriveSpeed = BERTH_SPEED - 0.5;
+      arriveRange = 4;
       key = `station-${nearest.id}`;
     }
     if (!world) {
@@ -175,7 +238,41 @@ export class Navigation {
     }
     this.lastWorld.copy(world);
     this.lastKey = key;
-    return { kind, label, tag, world, velocity: this.velocity.clone(), color: COLORS[kind], approachSpeed, approachRange: 60 };
+    const velocity = this.velocity.clone();
+    return { kind, label, tag, world, velocity, color: COLORS[kind], approachSpeed: kind === 'threat' ? null : arriveSpeed, approachRange: 60, ...this.plan(world, velocity, arriveSpeed, arriveRange) };
+  }
+
+  /** The meeting point and the flight director's advice for this trip. */
+  private plan(world: THREE.Vector3, velocity: THREE.Vector3, arriveSpeed: number, arriveRange: number): Pick<NavigationObjective, 'meet' | 'director'> {
+    const { ship } = this.deps;
+    const brake = FLIGHT.brake * ship.thrustMultiplier * handlingShare(ship.massFactor);
+    const first = directorAdvice(this.directorInput(world, velocity, arriveSpeed, arriveRange, brake));
+    // Aim where the target will be when the ship gets there, unless it is already close.
+    const distance = world.distanceTo(ship.position);
+    const meet =
+      distance > arriveRange * 3
+        ? new THREE.Vector3(...meetingPoint(ship.position.toArray(), world.toArray(), velocity.toArray(), Math.max(first.targetSpeed, 6)).point)
+        : world.clone();
+    return { meet, director: directorAdvice(this.directorInput(meet, velocity, arriveSpeed, arriveRange, brake)) };
+  }
+
+  private directorInput(point: THREE.Vector3, velocity: THREE.Vector3, arriveSpeed: number, arriveRange: number, brake: number) {
+    const { ship } = this.deps;
+    const offset = point.clone().sub(ship.position);
+    const distance = offset.length();
+    const relative = ship.velocity.clone().sub(velocity);
+    const direction = distance > 0 ? offset.clone().divideScalar(distance) : new THREE.Vector3(0, 0, -1);
+    return {
+      distance,
+      closingSpeed: relative.dot(direction),
+      relativeSpeed: relative.length(),
+      angle: ship.forward().angleTo(direction),
+      brake,
+      cruiseSpeed: FLIGHT.cruiseSpeed,
+      boostSpeed: FLIGHT.boostSpeed,
+      arriveRange,
+      arriveSpeed,
+    };
   }
 
   private handleScannerKey(deltaSeconds: number): void {
@@ -194,21 +291,97 @@ export class Navigation {
     radar.enlarged = false;
   }
 
+  private hardcoreRefuses(): boolean {
+    if (!this.deps.session.hardcore) {
+      return false;
+    }
+    if (!this.warned) {
+      this.deps.hud.showMessage('Hardcore licence: no steering assist or autopilot. Fly it yourself', 'warning', 2.5);
+      this.warned = true;
+    }
+    return true;
+  }
+
   /** Hold X: the ship turns its nose towards the objective (turning only; the pilot still thrusts). */
   private align(deltaSeconds: number): void {
-    const { ship, session, hud, play } = this.deps;
-    if (!this.objective || play.hazards.autopilot) {
+    const { play } = this.deps;
+    if (!this.objective || play.hazards.autopilot || this.hardcoreRefuses()) {
       return;
     }
-    if (session.hardcore) {
-      if (!this.alignWarned) {
-        hud.showMessage('Hardcore licence: no steering assist. Fly it yourself', 'warning', 2.5);
-        this.alignWarned = true;
-      }
-      return;
-    }
-    const direction = this.objective.world.clone().sub(ship.position).normalize();
-    const target = orientationFromForward(direction, ship.up());
-    ship.object.quaternion.slerp(target, damping(3, deltaSeconds));
+    this.turnTowards(this.objective.meet ?? this.objective.world, deltaSeconds, 3);
   }
+
+  private turnTowards(point: THREE.Vector3, deltaSeconds: number, sharpness: number): void {
+    const { ship } = this.deps;
+    const direction = point.clone().sub(ship.position).normalize();
+    ship.object.quaternion.slerp(orientationFromForward(direction, ship.up()), damping(sharpness, deltaSeconds));
+  }
+
+  private toggleAutopilot(): void {
+    if (this.autopilotOn) {
+      this.disengage('Autopilot off. You have the controls');
+      return;
+    }
+    if (this.hardcoreRefuses()) {
+      return;
+    }
+    if (!this.objective) {
+      this.deps.hud.showMessage('Autopilot: pick something to fly to first (N or G)', 'warning', 2.5);
+      return;
+    }
+    this.autopilotOn = true;
+    this.deps.play.autopilotLabel = `AUTOPILOT → ${this.objective.tag}`;
+    this.deps.hud.showMessage(`Autopilot engaged: flying to ${this.objective.label}. Any control takes over`, 'info', 3);
+  }
+
+  private disengage(message: string | null): void {
+    if (this.autopilotOn && message) {
+      this.deps.hud.showMessage(message, 'info', 2.5);
+    }
+    this.autopilotOn = false;
+    this.deps.play.autopilotLabel = null;
+  }
+
+  /**
+   * The approach autopilot: turns to the meeting point and follows the
+   * flight director, burning, coasting and braking, until the ship is
+   * beside the target at its speed. Any steering or thrust from the pilot
+   * hands control back. It flies a little cautiously, so a good pilot is faster.
+   */
+  private autopilotInput(input: FlightInput, deltaSeconds: number): FlightInput {
+    if (!this.autopilotOn) {
+      return input;
+    }
+    const pilotActing =
+      input.thrust > 0 || input.brake > 0 || input.strafe !== 0 || input.lift !== 0 || input.pitch !== 0 || input.yaw !== 0 || Math.hypot(input.look.x, input.look.y) > 2;
+    const objective = this.objective;
+    if (pilotActing || !objective?.director) {
+      this.disengage('Autopilot off. You have the controls');
+      return input;
+    }
+    const { ship } = this.deps;
+    const phase = objective.director.phase;
+    if (phase === 'arrived') {
+      this.disengage(`Autopilot: arrived at ${objective.label}. You have the controls`);
+      return IDLE_INPUT;
+    }
+    this.turnTowards(objective.meet ?? objective.world, deltaSeconds, 2.2);
+    const facing = ship.forward().angleTo((objective.meet ?? objective.world).clone().sub(ship.position)) < 0.35;
+    if (phase === 'brake' || phase === 'arrive') {
+      return { ...IDLE_INPUT, brake: 1 };
+    }
+    if (phase === 'burn' && facing) {
+      return { ...IDLE_INPUT, thrust: 1, boost: objective.director.targetSpeed > FLIGHT.cruiseSpeed && ship.boostEnergy > 20 };
+    }
+    return IDLE_INPUT;
+  }
+}
+
+/** The compass tag for a nav target: the call sign or station name, kept short. */
+function shortName(entry: NavEntry): string {
+  const match = entry.label.match(/(WX|NAV|COM)-\d [A-Z]+/);
+  if (match) {
+    return match[0];
+  }
+  return entry.label.replace(/ \(home\)$/, '').slice(0, 18).toUpperCase();
 }
