@@ -138,7 +138,7 @@ export class ContractBook {
       this.completedBy[best] = (this.completedBy[best] ?? 0) + 1;
     }
     if (mine > 0) {
-      this.deps.events.emit({ type: 'contract-completed', clean: payout.clean });
+      this.deps.events.emit({ type: 'contract-completed', clean: payout.clean, early: payout.early });
       if (asteroid.targetSite) {
         this.deps.radio.moment('big-save', { site: asteroid.targetSite });
       }

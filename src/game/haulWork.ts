@@ -1,3 +1,5 @@
+import type { ModuleEffects } from '../logic/shipModules';
+import { timeScore } from '../logic/medals';
 import * as THREE from 'three';
 import type { Asteroid, AsteroidField } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
@@ -27,6 +29,9 @@ export interface HaulWorkDependencies {
   sound: SoundEffects;
   rng: RandomSource;
   radio: RadioNet;
+  /** Seconds of play, for grading jobs; and what the fitted modules do. */
+  clock: () => number;
+  fit: () => ModuleEffects;
 }
 
 /** Ceres accepts a rock released this close to its intake... */
@@ -37,6 +42,9 @@ interface Haul {
   /** The rock as the tow line sees it. */
   body: TowBody;
   tonnes: number;
+  /** Play clock at the first connection, and the par time for the trip from there. */
+  connectedAt: number | null;
+  par: number;
 }
 
 /**
@@ -70,7 +78,7 @@ export class HaulWork {
     rock.passerBy = true;
     rock.identified = true;
     const tonnes = haulTonnes(rock.radius);
-    this.haul = { rock, body: rockBody(rock), tonnes };
+    this.haul = { rock, body: rockBody(rock), tonnes, connectedAt: null, par: 0 };
     hud.showMessage(`Ceres Works: haul a ${tonnes.toFixed(1)} t carbon rock to our intake for ${formatCredits(this.pay(tonnes))}`, 'info', 5);
     sound.chime();
     return true;
@@ -92,6 +100,11 @@ export class HaulWork {
       return;
     }
     if (tow.attachBody(haul.body, haulLoadMass(haul.tonnes))) {
+      if (haul.connectedAt === null) {
+        haul.connectedAt = this.deps.clock();
+        // A loaded ship covers about five units a second, door to door.
+        haul.par = 25 + haul.rock.mesh.position.distanceTo(this.deps.outposts.portPosition('ceres')) / 5;
+      }
       hud.showMessage(`Tow line on the ${haul.tonnes.toFixed(1)} t rock. Very heavy: plan your fuel and brake early`, 'success', 3.5);
       sound.dockClamp();
     } else {
@@ -120,7 +133,8 @@ export class HaulWork {
     const made = market.refine(haul.tonnes);
     const pay = this.pay(haul.tonnes);
     wallet.earn(pay);
-    events.emit({ type: 'satellite-job-completed' });
+    const seconds = this.deps.clock() - (haul.connectedAt ?? this.deps.clock());
+    events.emit({ type: 'satellite-job-completed', job: 'haul', score: timeScore(seconds, haul.par), pay });
     this.haul = null;
     this.deps.radio.moment('haul-delivered');
     hud.showMessage(`Delivered to Ceres Works: ${formatCredits(pay)}. Refined into ${Math.round(made.fuel)} fuel and ${Math.round(made.parts)} parts`, 'success', 4.5);
@@ -169,6 +183,6 @@ export class HaulWork {
   }
 
   private pay(tonnes: number): number {
-    return Math.round((tonnes * HAUL_PAY_PER_TONNE) / 5) * 5;
+    return Math.round((tonnes * HAUL_PAY_PER_TONNE * this.deps.fit().haulPay) / 5) * 5;
   }
 }

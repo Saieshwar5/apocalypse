@@ -48,11 +48,12 @@ const PULL_UP_REACTION = 0.5;
 /** The pull-up hands back control this far above the atmosphere, once climbing. */
 const PULL_UP_CLEARANCE = 3;
 
-export function needsPullUp(altitude: number, sinkRate: number): boolean {
+/** `power`: braking power, below 1 for a heavily fitted ship, which needs more room. */
+export function needsPullUp(altitude: number, sinkRate: number, power = 1): boolean {
   if (altitude <= PULL_UP_FLOOR) {
     return true;
   }
-  return sinkRate > 0 && altitude - PULL_UP_FLOOR < stoppingDistance(sinkRate) + sinkRate * PULL_UP_REACTION;
+  return sinkRate > 0 && altitude - PULL_UP_FLOOR < stoppingDistance(sinkRate, power) + sinkRate * PULL_UP_REACTION;
 }
 
 export function pullUpComplete(altitude: number, sinkRate: number): boolean {

@@ -33,8 +33,7 @@ import { EnvironmentLighting } from '../scene/environmentLighting';
 import { SUN_DIRECTION } from '../scene/sunDirection';
 import { RadioNet } from './radioNet';
 import { DEFAULT_CALL_SIGN } from '../logic/cast';
-import { nextRank, rankFor, recordCareerRun } from '../logic/career';
-import { loadCareer, saveCareer } from './careerStore';
+import { PilotCareer } from './pilotCareer';
 import { FrameStats } from '../scene/frameStats';
 
 export type GamePhase = 'menu' | 'launch' | 'playing' | 'paused' | 'gameover';
@@ -72,8 +71,9 @@ export class Game {
   private qualityPreference: QualityPreference = 'auto';
   private autoQuality: GraphicsQuality = 'high';
   private callSign = DEFAULT_CALL_SIGN;
-  private career = loadCareer();
-  private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => rankFor(this.career) });
+  private hardcore = false;
+  private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => this.career.rank });
+  private career!: PilotCareer;
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -166,11 +166,10 @@ export class Game {
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
       radio: this.radio,
-      onTrainingComplete: () => {
-        this.career = { ...this.career, trainingDone: true };
-        saveCareer(this.career);
-      },
+      onTrainingComplete: () => this.career.markTrainingDone(),
     });
+    this.career = new PilotCareer({ session: this.session, hud: this.hud, sound: this.sound, input: this.input, radio: this.radio });
+    this.career.attach(this.play);
     this.shipModel.group.visible = false;
 
     window.addEventListener('resize', this.onResize);
@@ -179,6 +178,7 @@ export class Game {
       this.ship.lookSensitivity = settings.sensitivity;
       this.qualityPreference = settings.quality;
       this.callSign = settings.callSign;
+      this.hardcore = settings.hardcore;
       this.pipeline.setQuality(effectiveQuality(settings.quality, this.autoQuality));
       this.overlay.resize();
     };
@@ -208,6 +208,7 @@ export class Game {
       this.session.reset();
     }
     this.play.reset(system, continuing, training);
+    this.career.startRun(this.hardcore && !training);
     this.applySystemLook();
     this.radio.reset();
     this.explosions.clear();
@@ -374,6 +375,7 @@ export class Game {
 
   private updatePlaying(deltaSeconds: number): void {
     this.play.update(deltaSeconds);
+    this.career.update(deltaSeconds);
     this.radio.update(deltaSeconds);
     if (this.play.campaign.orbitComplete) {
       this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} is through the debris field`, true);
@@ -388,23 +390,8 @@ export class Game {
     }
   }
 
-  /** Adds the run to the career and returns the rank line for the end screen. */
-  private recordCareer(victory: boolean): string {
-    const before = rankFor(this.career);
-    const seasonCompleted = victory && this.play.licence.stage === 'good';
-    this.career = recordCareerRun(this.career, this.session.wallet.earned, seasonCompleted);
-    saveCareer(this.career);
-    this.showRank();
-    const after = rankFor(this.career);
-    return after === before ? after : `${after} (promoted from ${before})`;
-  }
-
   private showRank(): void {
-    const next = nextRank(this.career);
-    const needs = next
-      ? `: ${[next.earnedNeeded > 0 ? `${next.earnedNeeded.toLocaleString('en-US')} cr more` : '', next.seasonsNeeded > 0 ? `${next.seasonsNeeded} more season${next.seasonsNeeded > 1 ? 's' : ''}` : ''].filter(Boolean).join(' and ')} to ${next.name}`
-      : '';
-    this.screens.setRank(`Rank: ${rankFor(this.career)}${needs} · career earnings ${this.career.earned.toLocaleString('en-US')} cr`);
+    this.screens.setRank(this.career.rankLine());
   }
 
   private endRun(reason: string, victory = false): void {
@@ -440,7 +427,9 @@ export class Game {
       reputation: this.play.licence.reputation,
       licence: this.play.licence.stage,
       shipsLost: this.play.licence.shipsLost,
-      rank: this.recordCareer(victory),
+      rank: this.career.recordRun(this.session.wallet.earned, victory && this.play.licence.stage === 'good'),
+      medals: this.career.runMedals(),
+      hardcore: this.session.hardcore,
       debrisSwept: this.play.services.debris.swept,
       league: this.session.league().map(({ pilot, earned }) => ({ name: pilotName(pilot), earned, you: pilot === 'player' })),
       wavesCleared: this.session.wavesCleared,
@@ -453,6 +442,7 @@ export class Game {
       integrity: this.session.integrity,
     });
     this.sound.setAtmosphere(0);
+    this.showRank();
   }
 
   private readonly onResize = (): void => {

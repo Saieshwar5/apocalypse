@@ -1,3 +1,5 @@
+import type { ModuleEffects } from '../logic/shipModules';
+import { passengerScore } from '../logic/medals';
 import type * as THREE from 'three';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
@@ -24,9 +26,15 @@ export interface CrewWorkDependencies {
   sound: SoundEffects;
   radio: RadioNet;
   rng: RandomSource;
+  /** Seconds of play, for grading jobs; and what the fitted modules do. */
+  clock: () => number;
+  fit: () => ModuleEffects;
 }
 
 type Stage = 'pickup' | 'travel' | 'return';
+
+/** Boarding to home again, flown well: out, the service hold, and back. */
+const CREW_PAR_SECONDS = 70;
 
 /**
  * A crew service call from Halo: berth at Halo to take a crew aboard, fly
@@ -40,6 +48,9 @@ export class CrewWork {
   private work = 0;
   private lastHull = 100;
   private progressShown = 0;
+  /** Play clock when the crew boarded, and hits they felt. */
+  private boardedAt = 0;
+  private hardHits = 0;
 
   constructor(private readonly deps: CrewWorkDependencies) {}
 
@@ -84,7 +95,8 @@ export class CrewWork {
       this.satellite = null;
       return;
     }
-    if (aboard && ship.hull < this.lastHull - 1) {
+    if (aboard && ship.hull < this.lastHull - this.deps.fit().crewCushion) {
+      this.hardHits += 1;
       hud.showMessage('The crew took that hit too. Fly gently', 'warning', 2);
     }
     this.lastHull = ship.hull;
@@ -94,6 +106,8 @@ export class CrewWork {
         hud.showMessage('The satellite is gone. Crew call cancelled', 'warning', 3);
       } else if (berths.berthedAt === 'halo') {
         this.stage = 'travel';
+        this.boardedAt = this.deps.clock();
+        this.hardHits = 0;
         hud.showMessage(`Crew aboard. Fly to ${KIND_LABEL[satellite.kind]} and hold close beside it`, 'success', 4);
       }
       return;
@@ -103,10 +117,12 @@ export class CrewWork {
       return;
     }
     if (berths.berthedAt === 'halo') {
-      this.deps.wallet.earn(CREW_CALL.pay);
-      events.emit({ type: 'satellite-job-completed' });
+      const pay = Math.round(CREW_CALL.pay * this.deps.fit().crewPay);
+      this.deps.wallet.earn(pay);
+      const score = passengerScore(this.hardHits, this.deps.clock() - this.boardedAt, CREW_PAR_SECONDS);
+      events.emit({ type: 'satellite-job-completed', job: 'crew', score, pay });
       radio.say('halo', 'Crew is home safe. Thank you, {callsign}.');
-      hud.showMessage(`Crew service complete: ${formatCredits(CREW_CALL.pay)}`, 'success', 4);
+      hud.showMessage(`Crew service complete: ${formatCredits(pay)}`, 'success', 4);
       this.deps.sound.killConfirm();
       this.satellite = null;
     }

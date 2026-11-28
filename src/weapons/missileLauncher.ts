@@ -31,6 +31,8 @@ export class MissileLauncher {
   readonly group = new THREE.Group();
   /** Set from the loadout; the missile rack upgrade raises it. */
   capacity = DEFAULT_CAPACITY;
+  /** Lock range; a long-range scanner extends it. */
+  lockRange = LOCK_RANGE;
   ammunition = DEFAULT_CAPACITY;
   lockedTarget: Asteroid | null = null;
   private readonly missiles: Missile[] = [];
@@ -58,7 +60,7 @@ export class MissileLauncher {
     for (const asteroid of asteroids) {
       const offset = asteroid.mesh.position.clone().sub(ship.position);
       const distance = offset.length();
-      if (distance > LOCK_RANGE + asteroid.radius) {
+      if (distance > this.lockRange + asteroid.radius) {
         continue;
       }
       // Larger rocks are easier to lock: widen the cone by their apparent size.

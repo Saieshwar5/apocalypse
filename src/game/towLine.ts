@@ -42,6 +42,8 @@ export class TowLine {
   /** A body being hauled (a rock, an escape pod), or null; never at the same time as a satellite. */
   body: TowBody | null = null;
   private rockMass = 1;
+  /** Set from the fitted modules: ship mass and the winch. */
+  lineFit = { shipMass: 1, lineStrength: 1, lineSteadying: 1 };
   /** Set when a hauled rock's line snaps; cleared by whoever reports it. */
   snapped = false;
   /** Latest pull on the line, for the HUD. */
@@ -134,6 +136,7 @@ export class TowLine {
         loadPosition: satellite.position.toArray(),
         loadVelocity: satellite.velocity.toArray(),
         loadMass: LOAD_MASS.satellite,
+        ...this.lineFit,
       },
       deltaSeconds,
     );
@@ -165,6 +168,7 @@ export class TowLine {
         loadPosition: rock.position.toArray(),
         loadVelocity: rock.velocity.toArray(),
         loadMass: this.rockMass,
+        ...this.lineFit,
       },
       deltaSeconds,
     );

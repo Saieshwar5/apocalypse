@@ -1,3 +1,4 @@
+import { MEDAL_THRESHOLD, type JobKind } from './medals';
 /**
  * Reputation is the pilot's licence to fly. It rises with good work and
  * falls with failures; the licence has stages so the end never arrives
@@ -21,9 +22,10 @@ export const REPUTATION = {
 export const PROBATION = { contracts: 2, seconds: 180 } as const;
 
 export type ReputationEvent =
-  | { type: 'contract-completed'; clean: boolean }
+  | { type: 'contract-completed'; clean: boolean; early?: boolean }
   | { type: 'contract-lost'; site: boolean }
-  | { type: 'satellite-job-completed' }
+  /** `score` 0..1 grades the work for a medal; `pay` is what it paid. */
+  | { type: 'satellite-job-completed'; job?: JobKind; score?: number; pay?: number }
   | { type: 'satellite-job-failed' }
   | { type: 'satellite-destroyed-by-player' }
   | { type: 'rival-hit' }
@@ -39,7 +41,8 @@ export function reputationChange(event: ReputationEvent): number {
     case 'contract-lost':
       return event.site ? -6 : -2;
     case 'satellite-job-completed':
-      return 5;
+      // Veteran work is noticed.
+      return 5 + ((event.score ?? 0) >= MEDAL_THRESHOLD.gold ? 2 : 0);
     case 'satellite-job-failed':
       return -5;
     case 'satellite-destroyed-by-player':
@@ -95,3 +98,6 @@ export const LOAN = { amount: 1000, owed: 1250, repaymentShare: 0.3 } as const;
 export function replacementFee(insured: boolean): number {
   return insured ? SHIP_LOSS.insuredFee : SHIP_LOSS.replacementFee;
 }
+
+/** The hardcore licence: one ship, no loan, a quarter more on every payment. */
+export const HARDCORE = { payRate: 1.25 } as const;

@@ -92,6 +92,7 @@ export class OrbitServices {
   readonly escort: EscortWork;
 
   constructor(private readonly deps: OrbitServicesDependencies) {
+    const job = { clock: () => deps.session.clock, fit: () => deps.session.fit };
     this.outposts = new Outposts(deps.outpostModels);
     this.market = new StationMarket({
       positionOf: (station) => (station === 'aegis' ? (deps.stationOps.whereabouts()?.position ?? null) : this.outposts.get(station).position),
@@ -110,6 +111,7 @@ export class OrbitServices {
       hud: deps.hud,
       sound: deps.sound,
       rng: deps.rng,
+      clock: job.clock,
       useYardParts: () => this.market.stock('vulcan', 'parts') >= YARD_PARTS.perRepair && this.market.add('vulcan', 'parts', -YARD_PARTS.perRepair) < 0,
     });
     this.berths = new OutpostBerths({
@@ -122,6 +124,7 @@ export class OrbitServices {
       sound: deps.sound,
     });
     this.haul = new HaulWork({
+      ...job,
       field: deps.field,
       outposts: this.outposts,
       market: this.market,
@@ -147,6 +150,7 @@ export class OrbitServices {
       atStation: () => deps.stationOps.holdingShip || this.berths.holding,
     });
     this.crew = new CrewWork({
+      ...job,
       berths: this.berths,
       fleet: deps.fleet,
       ship: deps.ship,
@@ -159,6 +163,7 @@ export class OrbitServices {
       rng: deps.rng,
     });
     this.rescue = new RescueWork({
+      ...job,
       scene: deps.scene,
       ship: deps.ship,
       tow: this.tow,
@@ -172,6 +177,7 @@ export class OrbitServices {
       rng: deps.rng,
     });
     this.escort = new EscortWork({
+      ...job,
       field: deps.field,
       rocket: () => (deps.stationOps.present ? deps.stationOps.rocket : null),
       explosions: deps.explosions,
@@ -184,6 +190,7 @@ export class OrbitServices {
     });
     deps.scene.add(this.outposts.group, this.tow.mesh, this.market.group);
     this.debris = new OrbitDebris({
+      ...job,
       traffic: deps.traffic,
       ship: deps.ship,
       combat: deps.combat,

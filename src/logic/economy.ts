@@ -57,8 +57,12 @@ export class Wallet {
   /** True once the career's one loan has been taken. */
   loanTaken = false;
 
+  /** A hardcore licence pays more on everything and has no emergency loan. */
+  payRate = 1;
+  loanAllowed = true;
+
   earn(amount: number): void {
-    const paid = Math.max(0, amount);
+    const paid = Math.max(0, amount) * this.payRate;
     this.earned += paid;
     const repayment = Math.min(this.loanOwed, paid * LOAN.repaymentShare);
     this.loanOwed -= repayment;
@@ -67,7 +71,7 @@ export class Wallet {
 
   /** Takes the career's one emergency loan. Returns false if it was already used. */
   borrow(): boolean {
-    if (this.loanTaken) {
+    if (this.loanTaken || !this.loanAllowed) {
       return false;
     }
     this.loanTaken = true;

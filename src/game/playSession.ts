@@ -292,6 +292,7 @@ export class PlaySession {
     this.handleSystemKeys();
     const deltaSeconds = this.tactical ? realDeltaSeconds * TACTICAL_TIME_SCALE : realDeltaSeconds;
     this.elapsed += deltaSeconds;
+    this.deps.session.clock += deltaSeconds;
     const { ship, shipModel, earth, explosions, sound, cameraRig } = this.deps;
     const active = this.shipActive;
     const flying = active && !this.tactical && !this.stationOps.holdingShip && !this.services.berths.holding;
@@ -460,6 +461,7 @@ export class PlaySession {
         autopilot: this.hazards.pullingUp ? 'AUTO PULL-UP' : this.hazards.returning ? 'AUTOPILOT RETURNING' : null,
         thrusting: this.deps.input.isDown('KeyW'),
         braking: this.deps.input.isDown('KeyS'),
+        berthed: this.stationOps.holdingShip || this.services.berths.holding,
         towing: this.services.work.towStatus(),
       },
     });

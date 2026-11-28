@@ -88,6 +88,14 @@
         <div class="hud-caption">Press a number key to buy · I insures the ship (250 cr)</div>
       </section>
 
+      <section id="yard" class="hud-panel hud-workshop" aria-label="Vulcan Yard modules" hidden>
+        <div class="hud-label">Vulcan Yard · modules <span>Balance <strong id="yard-credits" class="money">0 cr</strong></span></div>
+        <div id="yard-fit" class="yard-fit"><span id="yard-slots"></span><span class="yard-handling"><i id="yard-handling-bar"></i></span><span id="yard-handling"></span></div>
+        <ol id="yard-list"></ol>
+        <div class="hud-caption">Number key buys, fits or removes · every module adds mass · uninsured, fitted modules are lost with the ship</div>
+      </section>
+
+      <div id="medal-toast" class="medal-toast" aria-live="polite" hidden><span class="medal-disc"></span><span class="medal-text"><strong></strong><em></em></span></div>
       <div id="hud-message" class="hud-message" role="status" aria-live="polite"></div>
       <div id="radio-line" class="radio-line" aria-live="polite"></div>
       <div id="control-status" class="control-status" aria-label="Control status">
@@ -120,6 +128,7 @@
         <label class="callsign" for="callsign-input">Your call sign <input id="callsign-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" value="VEGA" /></label>
         <button id="start-button" type="button" disabled>Loading…</button>
         <button id="training-button" type="button" class="secondary">Training flight (new pilots start here)</button>
+        <label class="hardcore" for="hardcore-input"><input id="hardcore-input" type="checkbox" /> <span><strong>Hardcore licence</strong> · one ship, no emergency loan, +25% on every payment</span></label>
         <p id="rank-line" class="rank-line">Rank: Cadet</p>
         <dl class="controls">
           <dt>Mouse or arrow keys</dt><dd>Steer</dd>

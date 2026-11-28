@@ -17,7 +17,7 @@ import type { Satellite, SatelliteFleet } from '../satellites/satelliteFleet';
 import type { ShipController } from '../ship/shipController';
 import type { Outposts } from '../station/outposts';
 import type { TowEvent, TowLine } from './towLine';
-import { KIND_LABEL, announceTowEvent, asteroidGone, escapePoint, secondsToStrike, type JobRow, type OpenJob, type Waypoint } from './satelliteJobHelpers';
+import { JOB_FOR, KIND_LABEL, announceTowEvent, jobScore, asteroidGone, escapePoint, secondsToStrike, type JobRow, type OpenJob, type Waypoint } from './satelliteJobHelpers';
 
 export type { JobRow, OpenJob, Waypoint };
 
@@ -38,6 +38,8 @@ interface Job {
   clear: boolean;
   /** The pilot who has taken the job; others cannot tow this satellite. */
   claimedBy: PilotId | null;
+  /** Play clock when it was posted. */
+  postedAt: number;
 }
 
 export interface SatelliteWorkDependencies {
@@ -54,6 +56,8 @@ export interface SatelliteWorkDependencies {
   rng: RandomSource;
   /** Takes parts for a repair from Vulcan's store; false when it has none (the repair is then slower). */
   useYardParts?: () => boolean;
+  /** Seconds of play, for grading the work. */
+  clock?: () => number;
 }
 
 /**
@@ -388,7 +392,7 @@ export class SatelliteWork {
     this.jobs = this.jobs.filter((candidate) => candidate !== job);
     this.completed[pilot] = (this.completed[pilot] ?? 0) + 1;
     if (pilot === 'player') {
-      this.deps.events.emit({ type: 'satellite-job-completed' });
+      this.deps.events.emit({ type: 'satellite-job-completed', job: JOB_FOR[job.kind], score: jobScore(job.kind, (this.deps.clock?.() ?? 0) - job.postedAt, offsetFromSlot), pay: paid });
     } else {
       this.deps.hud.showMessage(`${pilotName(pilot)} finished the ${this.title(job).toLowerCase()} (${formatCredits(paid)})`, 'info', 3.5);
       return;
@@ -465,7 +469,7 @@ export class SatelliteWork {
 
   private addJob(kind: SatelliteJobKind, satellite: Satellite, pay: number, asteroid: Asteroid | null, what: string): void {
     // A reboost is ready to place from the start: there is no rock to wait for.
-    this.jobs.push({ id: this.nextId++, kind, satellite, pay, asteroid, repaired: false, clear: kind === 'reboost', claimedBy: null });
+    this.jobs.push({ id: this.nextId++, kind, satellite, pay, asteroid, repaired: false, clear: kind === 'reboost', claimedBy: null, postedAt: this.deps.clock?.() ?? 0 });
     this.deps.hud.showMessage(`${KIND_LABEL[satellite.kind]} ${what} (${formatCredits(pay)})`, kind === 'repair-tow' ? 'info' : 'warning', 5);
     if (kind === 'dodge') {
       this.deps.sound.alarm();

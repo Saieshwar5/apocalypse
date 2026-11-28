@@ -18,11 +18,11 @@ export interface ModuleDefinition {
 
 /** Order sets the yard's 1-7 keys. */
 export const MODULES: readonly ModuleDefinition[] = [
-  { id: 'cargoPod', name: 'Cargo pod', effect: '+40% haul pay, ore rides in the pod', price: 1200, mass: 0.22 },
-  { id: 'crewCabin', name: 'Crew cabin', effect: '+30% crew and rescue pay, passengers cushioned', price: 900, mass: 0.15 },
+  { id: 'cargoPod', name: 'Cargo pod', effect: '+40% haul pay', price: 1200, mass: 0.22 },
+  { id: 'crewCabin', name: 'Crew cabin', effect: '+30% crew pay, softer ride', price: 900, mass: 0.15 },
   { id: 'auxTank', name: 'Auxiliary tank', effect: '+50% fuel', price: 700, mass: 0.18 },
-  { id: 'heavyWinch', name: 'Heavy winch', effect: 'line 60% stronger, steadies loads faster', price: 1000, mass: 0.12 },
-  { id: 'sweeperNet', name: 'Sweeper net', effect: 'sweep twice as fast, at higher speed', price: 800, mass: 0.08 },
+  { id: 'heavyWinch', name: 'Heavy winch', effect: 'stronger, steadier tow line', price: 1000, mass: 0.12 },
+  { id: 'sweeperNet', name: 'Sweeper net', effect: '2× sweep, faster passes', price: 800, mass: 0.08 },
   { id: 'missilePod', name: 'Missile pod', effect: '+6 missiles', price: 1100, mass: 0.2 },
   { id: 'longScanner', name: 'Long-range scanner', effect: '+40% lock range', price: 950, mass: 0.04 },
 ];
@@ -46,7 +46,7 @@ export interface ModuleEffects {
   massFactor: number;
   haulPay: number;
   crewPay: number;
-  /** Crew hurt by hard hits only above this share of a normal hit. */
+  /** Passengers feel a hit only when it takes more hull than this. */
   crewCushion: number;
   fuelCapacity: number;
   lineStrength: number;
@@ -64,7 +64,7 @@ export function moduleEffects(fitted: readonly ModuleId[]): ModuleEffects {
     massFactor: 1 + mass,
     haulPay: has('cargoPod') ? 1.4 : 1,
     crewPay: has('crewCabin') ? 1.3 : 1,
-    crewCushion: has('crewCabin') ? 2 : 1,
+    crewCushion: has('crewCabin') ? 6 : 1,
     fuelCapacity: has('auxTank') ? 1.5 : 1,
     lineStrength: has('heavyWinch') ? 1.6 : 1,
     lineSteadying: has('heavyWinch') ? 1.8 : 1,

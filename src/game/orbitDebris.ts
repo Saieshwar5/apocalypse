@@ -1,3 +1,4 @@
+import type { ModuleEffects } from '../logic/shipModules';
 import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
@@ -31,6 +32,8 @@ export interface OrbitDebrisDependencies {
   hud: Hud;
   sound: SoundEffects;
   rng: RandomSource;
+  /** What the fitted modules do (the sweeper net). */
+  fit: () => ModuleEffects;
 }
 
 /** The ship's hit sphere against debris. */
@@ -166,7 +169,8 @@ export class OrbitDebris {
         DEBRIS_DAMAGE_PER_SECOND * debrisDamageScale(relativeSpeed) * deltaSeconds,
         'The interceptor was shredded by orbital debris',
       );
-      const tonnes = sweptTonnes(relativeSpeed, cloud.mass, deltaSeconds);
+      const fit = this.deps.fit();
+      const tonnes = sweptTonnes(relativeSpeed, cloud.mass, deltaSeconds, fit.sweepRate, fit.sweepSpeed);
       if (tonnes > 0) {
         cloud.mass -= tonnes;
         this.swept += tonnes;
@@ -178,7 +182,7 @@ export class OrbitDebris {
           this.sweepPay -= whole;
         }
       } else if (!this.damageWarned) {
-        hud.showMessage(`Too fast for the net: slow below ${Math.round(SWEEP.maxRelativeSpeed)} relative to the debris (brake with S)`, 'warning', 3);
+        hud.showMessage(`Too fast for the net: slow below ${Math.round(SWEEP.maxRelativeSpeed * this.deps.fit().sweepSpeed)} relative to the debris (brake with S)`, 'warning', 3);
         this.damageWarned = true;
       }
     }

@@ -1,3 +1,4 @@
+import { handlingShare } from '../logic/shipModules';
 import * as THREE from 'three';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { CameraRig } from '../camera/cameraRig';
@@ -95,7 +96,7 @@ export class FlightHazards {
     const altitude = distance - EARTH_RADIUS;
     const sinkRate = -ship.velocity.dot(ship.position) / Math.max(distance, 1e-6);
 
-    if (!this.pullingUp && needsPullUp(altitude, sinkRate)) {
+    if (!this.pullingUp && needsPullUp(altitude, sinkRate, handlingShare(ship.massFactor))) {
       this.pullingUp = true;
       hud.showMessage('Too low. Automatic pull-up has the ship', 'danger', 3);
     } else if (this.pullingUp && pullUpComplete(altitude, sinkRate)) {

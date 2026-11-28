@@ -44,6 +44,11 @@ export interface TowState {
   loadPosition: Vec3Tuple;
   loadVelocity: Vec3Tuple;
   loadMass: number;
+  /** The ship's mass with its modules; the bare ship is TOW.shipMass. */
+  shipMass?: number;
+  /** A heavy winch: multiplies the stretch the line takes and how fast it steadies. */
+  lineStrength?: number;
+  lineSteadying?: number;
 }
 
 export interface TowStep {
@@ -66,16 +71,18 @@ export function towStep(state: TowState, deltaSeconds: number): TowStep {
   const distance = length(offset);
   const stretch = distance - TOW.length;
   const relative = sub(state.loadVelocity, state.shipVelocity);
+  const shipMass = state.shipMass ?? TOW.shipMass;
+  const steadying = TOW.steadying * (state.lineSteadying ?? 1);
   // Steadying is shared by mass like any internal force, so momentum is kept.
-  const steady = scale(relative, (1 - Math.exp(-TOW.steadying * deltaSeconds)) * (TOW.shipMass / (TOW.shipMass + state.loadMass)));
+  const steady = scale(relative, (1 - Math.exp(-steadying * deltaSeconds)) * (shipMass / (shipMass + state.loadMass)));
   const none: TowStep = {
-    shipDelta: scale(steady, state.loadMass / TOW.shipMass),
+    shipDelta: scale(steady, state.loadMass / shipMass),
     loadDelta: scale(steady, -1),
     tension: 0,
     stretch: Math.max(0, stretch),
     snapped: false,
   };
-  if (stretch > TOW.breakStretch) {
+  if (stretch > TOW.breakStretch * (state.lineStrength ?? 1)) {
     return { ...none, shipDelta: [0, 0, 0], loadDelta: [0, 0, 0], snapped: true };
   }
   if (stretch <= 0 || distance === 0) {
@@ -87,7 +94,7 @@ export function towStep(state: TowState, deltaSeconds: number): TowStep {
   const tension = Math.max(0, TOW.stiffness * stretch + TOW.damping * separating);
   const impulse = tension * deltaSeconds;
   return {
-    shipDelta: add(scale(direction, impulse / TOW.shipMass), none.shipDelta),
+    shipDelta: add(scale(direction, impulse / shipMass), none.shipDelta),
     loadDelta: add(scale(direction, -impulse / state.loadMass), none.loadDelta),
     tension,
     stretch,
