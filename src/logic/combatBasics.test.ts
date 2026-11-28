@@ -91,10 +91,10 @@ describe('ship defence', () => {
 
 describe('units', () => {
   it('formats distances, speeds and countdowns for the HUD', () => {
-    expect(formatDistance(75)).toBe('12,000 km');
-    expect(formatDistance(1)).toBe('160 km');
-    expect(formatSpeed(5)).toBe('21 km/s');
-    expect(formatSpeed(1)).toBe('4.2 km/s');
+    expect(formatDistance(75)).toBe('8,000 km');
+    expect(formatDistance(1)).toBe('110 km');
+    expect(formatSpeed(5)).toBe('19 km/s');
+    expect(formatSpeed(1)).toBe('3.8 km/s');
     expect(formatCountdown(37.2)).toBe('0:38');
     expect(formatCountdown(83)).toBe('1:23');
   });

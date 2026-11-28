@@ -50,7 +50,7 @@ import type { OutpostId } from '../station/outposts';
 export const AIM_DISTANCE = 24;
 /** Time runs this much slower while the tactical map is open. */
 const TACTICAL_TIME_SCALE = 0.3;
-const TACTICAL_DISTANCE = 340;
+const TACTICAL_DISTANCE = 560;
 const TACTICAL_LOOK_SENSITIVITY = 0.004;
 
 export interface PlaySessionDependencies {

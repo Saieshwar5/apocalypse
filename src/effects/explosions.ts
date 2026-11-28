@@ -153,7 +153,7 @@ export class Explosions {
     const up = this.direction.copy(point).normalize().clone();
     const flashPoint = point.clone().multiplyScalar(1.012);
     // Even a small rock is an event; a giant covers a continent.
-    const reach = 1.2 + scale * 1.5;
+    const reach = 1.8 + scale * 2.1;
     this.spawnGlow(flashPoint, STILL, reach * 2.5, reach * 6, 0.45, CORE_FLASH, 1.5);
     this.spawnGlow(flashPoint, STILL, reach * 3, reach * 8, 2.4, IMPACT_FLASH, 1);
     this.spawnGlow(flashPoint, STILL, reach * 5, reach * 9, 5, AFTERGLOW, 1.6);

@@ -18,7 +18,7 @@ export const STORM = {
 } as const;
 
 /** After a storm, satellites below this orbit radius start to sink, at this many units per second. */
-export const SWELL = { belowRadius: 60, sinkPerSecond: 0.11 } as const;
+export const SWELL = { belowRadius: 84, sinkPerSecond: 0.11 } as const;
 
 /** Pay for towing a sinking satellite back up to its orbit slot. */
 export const REBOOST_PAY = 380;

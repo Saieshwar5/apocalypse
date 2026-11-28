@@ -14,15 +14,15 @@ import { PLANET_RADIUS } from './units';
  */
 export const FLIGHT = {
   /** Main engine acceleration, units per second squared. */
-  thrust: 11,
+  thrust: 13,
   boostMultiplier: 2.2,
   /** Side and vertical thrusters. */
   sideThrust: 8,
   /** Retro thrusters: stronger than the main engine so stopping feels safe. */
-  brake: 18,
+  brake: 22,
   /** The engines cannot push the ship past these speeds. */
-  cruiseSpeed: 18,
-  boostSpeed: 38,
+  cruiseSpeed: 24,
+  boostSpeed: 50,
   sideSpeed: 9,
   /** Share of sideways drift the assist removes each second. */
   assistGrip: 1.8,

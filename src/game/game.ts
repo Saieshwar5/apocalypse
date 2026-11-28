@@ -368,7 +368,7 @@ export class Game {
 
   private updateMenu(deltaSeconds: number): void {
     this.menuAngle += deltaSeconds * 0.04;
-    const position = new THREE.Vector3(Math.sin(this.menuAngle) * 118, 22, Math.cos(this.menuAngle) * 118);
+    const position = new THREE.Vector3(Math.sin(this.menuAngle) * 177, 33, Math.cos(this.menuAngle) * 177);
     // Look slightly left of Earth so the planet sits right of the menu card.
     const right = new THREE.Vector3().crossVectors(position, new THREE.Vector3(0, 1, 0)).normalize();
     const lookAt = right.multiplyScalar(27);

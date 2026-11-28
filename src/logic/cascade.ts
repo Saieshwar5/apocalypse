@@ -28,7 +28,7 @@ export const CASCADE = {
   /** A missile's blast vaporises most of a rock: this share is left. */
   missileShare: 0.4,
   /** Fragments made beyond this distance from the planet's centre fly off and never come back. */
-  bandOuterRadius: 150,
+  bandOuterRadius: 260,
   /** Fragments made this low fall into the atmosphere and burn up. */
   bandInnerAltitude: ATMOSPHERE.top + 2,
   /** Drag: share of a cloud's mass lost per second, at the surface and its fall-off height. */

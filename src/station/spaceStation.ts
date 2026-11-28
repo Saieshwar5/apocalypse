@@ -11,7 +11,8 @@ import { orientationFromForward } from '../math/orientation';
 import { requireNode } from '../scene/modelLibrary';
 import { SHIP_SCALE } from '../ship/shipModel';
 
-const ORBIT_RADIUS = 62;
+/** Low orbit, above the weather satellites. */
+const ORBIT_RADIUS = 78;
 const ORBIT_PERIOD_SECONDS = 520;
 /** The station starts this far (radians) ahead of the ship along its path. */
 const START_LEAD = 0.55;

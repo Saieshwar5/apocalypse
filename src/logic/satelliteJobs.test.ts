@@ -15,7 +15,7 @@ describe('satellite dodge threat', () => {
 
   it('never threatens the planet', () => {
     for (const seed of [[1, 0, 0], [0, 1, 0], [0.2, 0.3, -0.9]] as [number, number, number][]) {
-      const target: [number, number, number] = [0, 52, 0];
+      const target: [number, number, number] = [0, PLANET_RADIUS + 12, 0];
       const { position, velocity } = dodgeApproach(target, seed, 4, 40);
       const pass = closestApproach([-position[0], -position[1], -position[2]], [-velocity[0], -velocity[1], -velocity[2]]);
       expect(pass.distance).toBeGreaterThan(PLANET_RADIUS + 5);

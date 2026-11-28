@@ -7,6 +7,7 @@ import type { SiteLabel } from '../sites/siteMarkers';
 import { RATING_COLOR, RATING_LABEL, ratingOf } from '../asteroids/identification';
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import { isEngaged } from '../logic/engagement';
+import { orbitTierAt } from '../logic/orbits';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { CombatFeedback } from './combatFeedback';
 import type { StationMarker } from '../game/orbitServices';
@@ -228,7 +229,9 @@ export class TargetOverlay {
     const point = this.projector.project(station.world);
     // The map keeps to names and distances; prices are read when flying close.
     const name = !map ? station.name : station.shape === 'triangle' ? station.name.split(' ')[0] : station.name.split(' · ')[0];
-    const label = `${name} ${formatDistance(station.world.distanceTo(shipPosition))}`;
+    // On the map a station also says which of the three orbits it is in.
+    const tier = map && station.shape !== 'triangle' && !station.ghost ? ` · ${orbitTierAt(station.world.length()).toUpperCase()}` : '';
+    const label = `${name}${tier} ${formatDistance(station.world.distanceTo(shipPosition))}`;
     context.save();
     context.strokeStyle = station.color ?? '#5fd8ff';
     context.fillStyle = station.color ?? '#5fd8ff';

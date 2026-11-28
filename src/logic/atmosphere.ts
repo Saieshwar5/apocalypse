@@ -1,17 +1,17 @@
 import { stoppingDistance } from './flightModel';
 
-/** Altitudes above the surface, in world units (1 unit is about 159 km). */
+/** Altitudes above the surface, in world units (1 unit is about 106 km). */
 export const ATMOSPHERE = {
   /** "Pull up" warning starts here. */
-  warning: 9,
+  warning: 13.5,
   /** Top of the atmosphere: heating starts. Matches the visible glow shell. */
-  top: 2.4,
+  top: 3.6,
   /** Below this the ship breaks up. */
-  breakup: 0.5,
+  breakup: 0.75,
 } as const;
 
 /** The ship is turned back beyond `limit`; warned from `warning`. */
-export const DEFENCE_ZONE = { warning: 360, limit: 420 } as const;
+export const DEFENCE_ZONE = { warning: 520, limit: 600 } as const;
 
 export type AtmosphereZone = 'space' | 'warning' | 'atmosphere' | 'breakup';
 
@@ -43,10 +43,10 @@ export function entryDamagePerSecond(altitude: number): number {
  * the ship is sinking so fast that braking must start now to stop above that
  * floor (with `PULL_UP_REACTION` seconds allowed for turning the ship).
  */
-export const PULL_UP_FLOOR = ATMOSPHERE.top - 1;
+export const PULL_UP_FLOOR = ATMOSPHERE.top - 1.5;
 const PULL_UP_REACTION = 0.5;
 /** The pull-up hands back control this far above the atmosphere, once climbing. */
-const PULL_UP_CLEARANCE = 3;
+const PULL_UP_CLEARANCE = 4.5;
 
 /** `power`: braking power, below 1 for a heavily fitted ship, which needs more room. */
 export function needsPullUp(altitude: number, sinkRate: number, power = 1): boolean {

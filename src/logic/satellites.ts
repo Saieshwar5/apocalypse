@@ -1,3 +1,4 @@
+import { ORBIT_TIERS } from './orbits';
 import { randomBetween, type RandomSource, type Vec3Tuple } from './random';
 
 export type SatelliteKind = 'comms' | 'nav' | 'weather';
@@ -71,12 +72,13 @@ export function orbitState(orbit: CircularOrbit, seconds: number): OrbitState {
   };
 }
 
-const REFERENCE_RADIUS = 48;
+const REFERENCE_RADIUS = 72;
 const REFERENCE_PERIOD = 260;
 /**
  * Real orbits follow period ∝ radius^1.5, which would make the far
  * satellites take over ten minutes and look frozen. A gentler exponent keeps
- * "higher is slower" while every orbit stays between about 90 and 400 s.
+ * "higher is slower" while a low orbit takes about four minutes and the
+ * highest about fifteen.
  */
 const PERIOD_EXPONENT = 1.1;
 
@@ -92,14 +94,14 @@ export interface OrbitBand {
 }
 
 /**
- * The fleet: three low and fast, three at medium height, two far and slow
- * (the planet's radius is 10). Kinds follow real practice loosely: imaging
- * and weather low, navigation in the middle, relays far out.
+ * The fleet, one band in each of the three orbits, as in real practice:
+ * three weather satellites low and fast, three navigation satellites at
+ * medium height, and two communication relays far out and slow.
  */
 export const ORBIT_BANDS: readonly OrbitBand[] = [
-  { minRadius: 48, maxRadius: 53, kinds: ['weather', 'comms', 'weather'] },
-  { minRadius: 60, maxRadius: 74, kinds: ['nav', 'weather', 'nav'] },
-  { minRadius: 90, maxRadius: 110, kinds: ['comms', 'nav'] },
+  { minRadius: ORBIT_TIERS.low.minRadius, maxRadius: ORBIT_TIERS.low.minRadius + 9, kinds: ['weather', 'weather', 'weather'] },
+  { minRadius: ORBIT_TIERS.medium.minRadius + 2, maxRadius: ORBIT_TIERS.medium.maxRadius, kinds: ['nav', 'nav', 'nav'] },
+  { minRadius: ORBIT_TIERS.high.minRadius, maxRadius: ORBIT_TIERS.high.maxRadius, kinds: ['comms', 'comms'] },
 ];
 
 export interface SatellitePlan {

@@ -1,4 +1,4 @@
-import type { CircularOrbit } from './satellites';
+import { orbitalPeriod, type CircularOrbit } from './satellites';
 
 export type StationId = 'aegis' | 'vulcan' | 'ceres' | 'halo';
 
@@ -25,11 +25,15 @@ export const STATIONS: Record<StationId, StationDefinition> = {
   halo: { id: 'halo', name: 'HALO', role: 'Crew habitat', services: 'passengers and rescue', color: '#cfe3ff' },
 };
 
-/** Orbits of the outposts. Heights sit between the satellite bands so routes cross them. */
+/**
+ * Orbits of the outposts, one in each of the three orbits: Vulcan Yard low
+ * (near the weather satellites it mends most), the Ceres depot in the
+ * middle, and Halo far out. Aegis, the pilot's base, is also low.
+ */
 export const OUTPOST_ORBITS: Record<Exclude<StationId, 'aegis'>, CircularOrbit> = {
-  vulcan: { radius: 82, period: 470, inclination: 0.35, ascendingNode: 2.2, phase: 1.1 },
-  halo: { radius: 70, period: 400, inclination: 0.9, ascendingNode: 4.0, phase: 3.6 },
-  ceres: { radius: 124, period: 760, inclination: 0.2, ascendingNode: 0.6, phase: 5.0 },
+  vulcan: { radius: 82, period: orbitalPeriod(82), inclination: 0.35, ascendingNode: 2.2, phase: 1.1 },
+  ceres: { radius: 126, period: orbitalPeriod(126), inclination: 0.2, ascendingNode: 0.6, phase: 5.0 },
+  halo: { radius: 218, period: orbitalPeriod(218), inclination: 0.9, ascendingNode: 4.0, phase: 3.6 },
 };
 
 /** Seconds the yard takes to repair one satellite. */

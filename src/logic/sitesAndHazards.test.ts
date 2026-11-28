@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { altitudeReadout, atmosphereZone, entryDamagePerSecond, entryHeat,
+import { ATMOSPHERE, PULL_UP_FLOOR, altitudeReadout, atmosphereZone, entryDamagePerSecond, entryHeat,
   needsPullUp,
   pullUpComplete,
 } from './atmosphere';
@@ -62,38 +62,38 @@ describe('atmosphere', () => {
   });
 
   it('heats the ship more the deeper it goes', () => {
-    expect(entryDamagePerSecond(12)).toBe(0);
-    expect(entryHeat(2.4)).toBe(0);
-    expect(entryDamagePerSecond(2.4)).toBe(3);
-    expect(entryDamagePerSecond(1.45)).toBeCloseTo(18);
-    expect(entryHeat(0.3)).toBe(1);
+    expect(entryDamagePerSecond(ATMOSPHERE.top * 5)).toBe(0);
+    expect(entryHeat(ATMOSPHERE.top)).toBe(0);
+    expect(entryDamagePerSecond(ATMOSPHERE.top)).toBe(3);
+    expect(entryDamagePerSecond((ATMOSPHERE.top + ATMOSPHERE.breakup) / 2)).toBeCloseTo(18);
+    expect(entryHeat(ATMOSPHERE.breakup * 0.6)).toBe(1);
   });
 
   it('gives a shielded ship many seconds at the edge before it is in danger', () => {
     // Shield 100 plus hull 100: more than a minute at the very top.
-    expect(200 / entryDamagePerSecond(2.4)).toBeGreaterThan(60);
-    expect(200 / entryDamagePerSecond(0.6)).toBeGreaterThan(5);
+    expect(200 / entryDamagePerSecond(ATMOSPHERE.top)).toBeGreaterThan(60);
+    expect(200 / entryDamagePerSecond(ATMOSPHERE.breakup * 1.2)).toBeGreaterThan(5);
   });
 
   it('pulls up automatically when deep in the atmosphere or falling too fast to stop', () => {
-    expect(needsPullUp(1.2, 0)).toBe(true);
+    expect(needsPullUp(PULL_UP_FLOOR - 0.3, 0)).toBe(true);
     // The ship may skim the top of the atmosphere by its own choice.
-    expect(needsPullUp(2, 0)).toBe(false);
-    expect(needsPullUp(8, 0)).toBe(false);
-    // Sinking at 10 units a second from 8 up: 0.56 s from the top.
-    expect(needsPullUp(8, 10)).toBe(true);
-    expect(needsPullUp(8, 2)).toBe(false);
-    expect(needsPullUp(8, -10)).toBe(false);
-    expect(pullUpComplete(4, -5)).toBe(false);
-    expect(pullUpComplete(6, 3)).toBe(false);
-    expect(pullUpComplete(6, -3)).toBe(true);
+    expect(needsPullUp(ATMOSPHERE.top - 0.4, 0)).toBe(false);
+    expect(needsPullUp(10, 0)).toBe(false);
+    // Sinking fast from 10 up: too little room left to stop.
+    expect(needsPullUp(10, 14)).toBe(true);
+    expect(needsPullUp(10, 2)).toBe(false);
+    expect(needsPullUp(10, -10)).toBe(false);
+    expect(pullUpComplete(ATMOSPHERE.top + 1, -5)).toBe(false);
+    expect(pullUpComplete(ATMOSPHERE.top + 6, 3)).toBe(false);
+    expect(pullUpComplete(ATMOSPHERE.top + 6, -3)).toBe(true);
   });
 
   it('reports distance from the centre, the surface and the atmosphere', () => {
     const readout = altitudeReadout(57, 40);
     expect(readout.fromCentre).toBe(57);
     expect(readout.aboveSurface).toBe(17);
-    expect(readout.aboveAtmosphere).toBeCloseTo(14.6);
+    expect(readout.aboveAtmosphere).toBeCloseTo(17 - ATMOSPHERE.top);
     expect(altitudeReadout(41, 40).aboveAtmosphere).toBeLessThan(0);
   });
 });
