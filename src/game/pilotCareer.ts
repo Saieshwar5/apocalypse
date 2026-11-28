@@ -192,7 +192,7 @@ export class PilotCareer {
     return {
       rank: this.rank,
       progress,
-      next: next ? `${needs} to ${next.name}` : 'Highest rank. The orbit is yours to keep',
+      next: next ? `${needs} to ${next.name}${jobsOpenedAt(next.name).length > 0 ? `, which opens ${jobList(jobsOpenedAt(next.name))}` : ''}` : 'Highest rank. The orbit is yours to keep',
       gold: totalMedals(this.record.medals, 'gold'),
       seasons: this.record.seasons,
       earned: this.record.earned,

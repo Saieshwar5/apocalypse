@@ -60,6 +60,37 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Jobs: cargo between stations, a clearer set of work, and ranks that open it
+
+- **Cargo runs** are the new everyday job. A station has a load for
+  another: berth where it waits and it comes aboard, berth where it is
+  wanted and you are paid. Routine runs carry real fuel and parts from the
+  depot at Ceres Works to whichever station is shortest, so a delivery
+  lowers prices there, speeds Vulcan's repairs or becomes missiles at
+  Aegis. Pay grows with the distance and with how empty the station is. A
+  full hold makes the ship 30% heavier. **Urgent** loads have a clock from
+  loading (late pays half); **fragile** loads lose 15% per hard knock;
+  **passengers** lose 10% per knock or use of the boost, and losing the
+  ship with them aboard counts against the licence. The cargo pod now
+  raises cargo pay.
+- **Deploy a satellite**: Vulcan Yard builds a replacement for a lost
+  satellite; collect it from the cradle and place it in its old slot. A
+  lost satellite is no longer gone for the season.
+- **Guard a satellite** is the old dodge contract under an honest name: you
+  are paid if the satellite survives, whether you destroy the rock, push
+  it away or tow the satellite clear.
+- **Satellite tow** covers both repairs and reboosts on the board.
+- **Retired**: the crew run (its waiting was dull; passengers replace it)
+  and, for now, the rock haul for Ceres, which is kept for a later story
+  mission. Ceres Works is the orbit's fuel and parts depot.
+- **Jobs open by rank.** Cadet: intercepts, cargo runs, debris sweeps.
+  Pilot (2,000 cr): satellite tows, guarding, escorts, urgent and fragile
+  cargo. Senior Pilot (8,000 cr and one season): rescues, passengers,
+  deploys. Rank counts what the current run has earned, so promotion
+  happens in flight and is announced with the work it opens. Until the
+  licence covers satellite tows, storms do not sink satellites. The
+  licence card and the Jobs page in Help show what each rank opens.
+
 ## Difficulty levels and a game controller
 
 - **Difficulty** is chosen on the pilot licence and read when a run starts.
@@ -337,8 +368,8 @@ idle time, every message shown) are what the fixes above came from.
 
   | Module | Price | Mass | Effect |
   | --- | --- | --- | --- |
-  | Cargo pod | 1,200 cr | +22% | +40% pay for rock hauls |
-  | Crew cabin | 900 cr | +15% | +30% pay for crew runs and rescues; passengers only feel hard hits |
+  | Cargo pod | 1,200 cr | +22% | +40% pay for cargo runs |
+  | Crew cabin | 900 cr | +15% | +30% pay for passengers and rescues; passengers only feel hard hits |
   | Auxiliary tank | 700 cr | +18% | +50% fuel capacity (fill it at a station) |
   | Heavy winch | 1,000 cr | +12% | tow line takes 60% more stretch and steadies loads faster |
   | Sweeper net | 800 cr | +8% | sweeps debris twice as fast, and at up to 10 relative speed |
@@ -766,7 +797,7 @@ shuttle routes and haul masses, call signs and radio rationing, career ranks and
 the season's story beats, storm shelter and the swell,
 the scanner projection, fuel, docking and station stock, delivery steps
 and drop zones, routes round the planet, the mission page's readings,
-when a fight counts as close, difficulty levels and the controller mapping. In development builds the running game is available as
+when a fight counts as close, difficulty levels, the controller mapping, cargo pay and planning, and jobs by rank. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
 

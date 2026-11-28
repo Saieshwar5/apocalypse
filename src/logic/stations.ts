@@ -21,8 +21,8 @@ export interface StationDefinition {
 export const STATIONS: Record<StationId, StationDefinition> = {
   aegis: { id: 'aegis', name: 'AEGIS', role: 'Defence base', services: 'fuel · missiles · repairs · upgrades', color: '#5fd8ff' },
   vulcan: { id: 'vulcan', name: 'VULCAN YARD', role: 'Repair yard', services: 'satellite repairs', color: '#ffb347' },
-  ceres: { id: 'ceres', name: 'CERES WORKS', role: 'Refinery', services: 'refines asteroids (coming)', color: '#7dffb0' },
-  halo: { id: 'halo', name: 'HALO', role: 'Crew habitat', services: 'crews and rescue (coming)', color: '#cfe3ff' },
+  ceres: { id: 'ceres', name: 'CERES WORKS', role: 'Refinery', services: 'fuel and parts depot', color: '#7dffb0' },
+  halo: { id: 'halo', name: 'HALO', role: 'Crew habitat', services: 'passengers and rescue', color: '#cfe3ff' },
 };
 
 /** Orbits of the outposts. Heights sit between the satellite bands so routes cross them. */
