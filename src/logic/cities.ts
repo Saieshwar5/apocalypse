@@ -63,3 +63,38 @@ export function stepCity(city: CityId, stock: Stock, deltaSeconds: number): Stoc
   const fuel = working ? Math.min(capacity.fuel, Math.max(0, stock.fuel - use.fuel * deltaSeconds)) : stock.fuel;
   return { fuel, parts };
 }
+
+/**
+ * Meridian is where the orbit's money comes from: when the city thrives
+ * every job pays a little more, and when it is failing, less.
+ */
+export const CITY_PAY: Record<CityState, number> = { thriving: 1.1, steady: 1, short: 0.95, failing: 0.85 };
+
+/** A rock on course for a great station: how long the warning is, what stopping it pays, and what a hit costs. */
+export const STATION_STRIKE = {
+  warningSeconds: 50,
+  speed: 4.4,
+  pay: 520,
+  /** A hit is counted when the rock comes this close to the station's centre. */
+  hitRadius: { meridian: 16, anchor: 13, farwatch: 11 } satisfies Record<CityId, number>,
+  /** Share of each store lost in a hit, and structure lost (of 100). */
+  storesLost: 0.4,
+  damage: 34,
+  /** Structure mended per second, while the station has parts. */
+  repairPerSecond: 0.12,
+} as const;
+
+/** What a hit leaves of a station's stores. */
+export function afterStrike(stock: Stock): Stock {
+  return { fuel: stock.fuel * (1 - STATION_STRIKE.storesLost), parts: stock.parts * (1 - STATION_STRIKE.storesLost) };
+}
+
+/** A station's structure after a hit, never below zero. */
+export function strikeDamage(structure: number): number {
+  return Math.max(0, structure - STATION_STRIKE.damage);
+}
+
+/** A station holed by a rock burns dimmer however full its stores are. */
+export function structureLights(structure: number): number {
+  return 0.35 + 0.65 * Math.min(1, Math.max(0, structure / 100));
+}

@@ -30,6 +30,8 @@ export class GameSession {
   fit: ModuleEffects = moduleEffects([]);
   /** Where the pilot stands in the season's story. */
   story: StoryStage = 'unaware';
+  /** The pay rate set at the start of the run (difficulty, hardcore), before Meridian's state is applied. */
+  payBase = 1;
   /** Mass a loaded hold adds to the ship; set by the cargo work. */
   cargoMass = 0;
   /** The pilot's rank now, counting what this run has earned; set by the career. */

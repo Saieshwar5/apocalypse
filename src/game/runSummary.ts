@@ -21,6 +21,10 @@ export function runSummary(
   victory: boolean,
 ): RunSummary {
   const { citiesStanding, cityCount } = play.sites;
+  // The season's story goes in the logbook, so a pilot can look back on what they chose.
+  if (session.story === 'gave-to-authority' || session.story === 'sold-to-company') {
+    career.note(storyEnding(session.story));
+  }
   const current: RunRecord = {
     earned: session.wallet.earned,
     planet: system.planet,

@@ -16,6 +16,7 @@ import { SpaceWeather } from './spaceWeather';
 import { CargoWork } from './cargoWork';
 import { CityLife } from './cityLife';
 import { StoryArc } from './storyArc';
+import { StationGuard } from './stationGuard';
 import { cargoKindsFor, jobUnlocked } from '../logic/jobAccess';
 import { CITY_STATE_NAME, isCity } from '../logic/cities';
 import { RescueWork } from './rescueWork';
@@ -102,6 +103,8 @@ export class OrbitServices {
   readonly cities: CityLife;
   /** The season's story, as things the pilot does. */
   readonly story: StoryArc;
+  /** Rocks on course for the great stations. */
+  readonly guard: StationGuard;
   readonly rescue: RescueWork;
   readonly escort: EscortWork;
 
@@ -218,6 +221,26 @@ export class OrbitServices {
       radio: deps.radio,
     });
     this.cities = new CityLife({ outposts: this.outposts, stocks: () => this.market.snapshot(), hud: deps.hud, radio: deps.radio });
+    this.guard = new StationGuard({
+      ...job,
+      field: deps.field,
+      outposts: this.outposts,
+      explosions: deps.explosions,
+      onStrike: (city) => {
+        this.market.strike(city);
+        this.cities.strike(city);
+        if (jobUnlocked('rescue', deps.session.rank)) {
+          this.rescue.post();
+        }
+      },
+      allowed: () => jobUnlocked('guard', deps.session.rank),
+      wallet: deps.walletOf('player'),
+      events: deps.session.events,
+      hud: deps.hud,
+      sound: deps.sound,
+      radio: deps.radio,
+      rng: deps.rng,
+    });
     deps.scene.add(this.outposts.group, this.tow.mesh, this.market.group);
     this.debris = new OrbitDebris({
       ...job,
@@ -261,6 +284,7 @@ export class OrbitServices {
     this.cargo.reset();
     this.cities.reset();
     this.story.reset();
+    this.guard.reset();
     this.rescue.reset();
     this.escort.reset();
   }
@@ -279,7 +303,9 @@ export class OrbitServices {
     this.work.update(deltaSeconds);
     this.haul.update();
     this.market.update(deltaSeconds);
-    this.cities.update();
+    this.cities.update(deltaSeconds);
+    this.guard.update(deltaSeconds);
+    this.deps.walletOf('player').payRate = this.deps.session.payBase * this.cities.payFactor;
     this.story.update(deltaSeconds);
     this.berths.update(deltaSeconds, active, pilotBusy);
     this.weather.update(deltaSeconds, active);
@@ -320,7 +346,7 @@ export class OrbitServices {
   }
 
   jobRows(): JobRow[] {
-    return [...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.cargo.rows(), ...this.haul.rows(), ...this.debris.rows()];
+    return [...this.guard.rows(), ...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.cargo.rows(), ...this.haul.rows(), ...this.debris.rows()];
   }
 
   waypoint(): Waypoint | null {
@@ -328,7 +354,7 @@ export class OrbitServices {
       return this.rescue.carrying ? this.rescue.waypoint() : this.haul.waypoint();
     }
     // People aboard come first; otherwise satellite work, then the cargo run.
-    return this.rescue.waypoint() ?? (this.cargo.passengersAboard ? this.cargo.waypoint() : null) ?? this.work.waypoint() ?? this.cargo.waypoint() ?? this.haul.waypoint();
+    return this.guard.waypoint() ?? this.rescue.waypoint() ?? (this.cargo.passengersAboard ? this.cargo.waypoint() : null) ?? this.work.waypoint() ?? this.cargo.waypoint() ?? this.haul.waypoint();
   }
 
   /** The hint line: berthing first, then any storm warning. The tow card already says when to release. */

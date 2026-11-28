@@ -89,7 +89,8 @@ export class PilotCareer {
     const { session } = this.deps;
     session.hardcore = hardcore;
     session.rank = this.rank;
-    session.wallet.payRate = (hardcore ? HARDCORE.payRate : 1) * session.rules.pay;
+    session.payBase = (hardcore ? HARDCORE.payRate : 1) * session.rules.pay;
+    session.wallet.payRate = session.payBase;
     session.wallet.loanAllowed = !hardcore;
     this.medals?.reset();
     this.yard?.reset();

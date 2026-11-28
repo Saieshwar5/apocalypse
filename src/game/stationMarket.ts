@@ -13,7 +13,7 @@ import {
   type Stock,
 } from '../logic/stationEconomy';
 import type { StationId } from '../logic/stations';
-import { CITY_IDS, stepCity } from '../logic/cities';
+import { CITY_IDS, afterStrike, stepCity, type CityId } from '../logic/cities';
 
 function startingStocks(): Record<Exclude<StationId, 'aegis'>, Stock> {
   const stocks = {} as Record<Exclude<StationId, 'aegis'>, Stock>;
@@ -100,6 +100,11 @@ export class StationMarket {
       this.stocks[station][good] = after;
     }
     return after - before;
+  }
+
+  /** A rock struck a great station: part of its stores is lost. */
+  strike(city: CityId): void {
+    this.stocks[city] = afterStrike(this.stocks[city]);
   }
 
   /** Every station's stock now. */

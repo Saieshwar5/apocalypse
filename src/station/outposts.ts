@@ -17,6 +17,8 @@ const MODEL_ROOTS: Record<ModelOutpostId, string> = { vulcan: 'Vulcan', ceres: '
 const BODY_RADIUS: Record<ModelOutpostId, number> = { vulcan: 3.2, ceres: 3.6, halo: 3.8 };
 const CITY_SPIN: Record<CityId, number> = { meridian: 0.1, anchor: 0, farwatch: 0.03 };
 const HALO_SPIN = 0.12;
+/** Meridian's ring as the ship meets it: the circle its tube follows, and the tube's reach. */
+const MERIDIAN_RING = { radius: 15, tube: 2.3 } as const;
 
 export interface Outpost {
   readonly id: OutpostId;
@@ -128,6 +130,9 @@ export class Outposts {
     for (const outpost of this.list) {
       const offset = position.clone().sub(outpost.position);
       const distance = offset.length();
+      if (outpost.id === 'meridian') {
+        this.collideRing(outpost, position, velocity);
+      }
       const radius = outpost.bodyRadius;
       if (distance >= radius || distance === 0) {
         continue;
@@ -139,6 +144,31 @@ export class Outposts {
         velocity.addScaledVector(normal, -inward * 1.4);
       }
     }
+  }
+
+  /** Meridian's habitat ring is solid: the ship is pushed out of the tube it would otherwise fly through. */
+  private collideRing(outpost: Outpost, position: THREE.Vector3, velocity: THREE.Vector3): void {
+    const local = outpost.group.worldToLocal(position.clone());
+    const around = Math.hypot(local.x, local.y);
+    const fromTube = Math.hypot(around - MERIDIAN_RING.radius, local.z);
+    if (fromTube >= MERIDIAN_RING.tube || around < 1e-6 || fromTube < 1e-6) {
+      return;
+    }
+    // Out along the line from the tube's centre circle to the ship.
+    const centre = new THREE.Vector3((local.x / around) * MERIDIAN_RING.radius, (local.y / around) * MERIDIAN_RING.radius, 0);
+    const out = local.clone().sub(centre).normalize();
+    const world = outpost.group.localToWorld(centre.clone().addScaledVector(out, MERIDIAN_RING.tube));
+    const normal = out.transformDirection(outpost.group.matrixWorld);
+    position.copy(world);
+    const inward = velocity.clone().sub(outpost.velocity).dot(normal);
+    if (inward < 0) {
+      velocity.addScaledVector(normal, -inward * 1.4);
+    }
+  }
+
+  /** Where a station will be `seconds` from now. */
+  positionAhead(id: OutpostId, seconds: number): THREE.Vector3 {
+    return new THREE.Vector3().fromArray(orbitState(OUTPOST_ORBITS[id], this.elapsed + seconds).position);
   }
 
   /** How brightly a great station's windows burn, 0..1: it follows the station's supplies. */

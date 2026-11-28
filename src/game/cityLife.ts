@@ -1,5 +1,5 @@
 import type { Hud } from '../hud/hud';
-import { CITY_IDS, CITY_STATE_NAME, WATCH_RANGE, cityLights, cityState, supplyShare, type CityId, type CityState } from '../logic/cities';
+import { CITY_IDS, CITY_PAY, CITY_STATE_NAME, STATION_STRIKE, WATCH_RANGE, cityLights, cityState, strikeDamage, structureLights, supplyShare, type CityId, type CityState } from '../logic/cities';
 import type { Stock } from '../logic/stationEconomy';
 import { STATIONS, type StationId } from '../logic/stations';
 import type { Outposts } from '../station/outposts';
@@ -15,7 +15,7 @@ export interface CityLifeDependencies {
 /** What each station says when its supplies turn for the worse, or recover. */
 const CALLS: Record<CityId, Partial<Record<CityState, string>>> = {
   meridian: {
-    short: 'Meridian to all pilots. The city is running short. Cargo for our docks is paying well.',
+    short: 'Meridian to all pilots. The city is running short, and it is starting to show in what we can pay. Cargo for our docks is paying well.',
     failing: 'This is Mayor Adeyemi. Meridian is rationing. We need fuel and parts now.',
     thriving: 'Meridian here. Stores are full and the lights are on. Thank you, pilots.',
   },
@@ -38,18 +38,39 @@ const CALLS: Record<CityId, Partial<Record<CityState, string>>> = {
  */
 export class CityLife {
   private readonly states = new Map<CityId, CityState>();
+  /** Each station's structure, 100 when whole; a rock that gets through holes it. */
+  private readonly structure = new Map<CityId, number>();
 
   constructor(private readonly deps: CityLifeDependencies) {}
 
   reset(): void {
     this.states.clear();
+    this.structure.clear();
   }
 
-  update(): void {
+  /** A rock got through. */
+  strike(city: CityId): void {
+    this.structure.set(city, strikeDamage(this.structureOf(city)));
+  }
+
+  structureOf(city: CityId): number {
+    return this.structure.get(city) ?? 100;
+  }
+
+  /** Every job pays a little more while Meridian thrives, and less while it fails. */
+  get payFactor(): number {
+    return CITY_PAY[this.stateOf('meridian')];
+  }
+
+  update(deltaSeconds = 0): void {
     const stocks = this.deps.stocks();
     for (const city of CITY_IDS) {
       const share = supplyShare(city, stocks[city]);
-      this.deps.outposts.setCityLights(city, cityLights(share));
+      // A holed station mends itself slowly, while it has parts to mend with.
+      if (stocks[city].parts > 0 && this.structureOf(city) < 100) {
+        this.structure.set(city, Math.min(100, this.structureOf(city) + STATION_STRIKE.repairPerSecond * deltaSeconds));
+      }
+      this.deps.outposts.setCityLights(city, cityLights(share) * structureLights(this.structureOf(city)));
       const state = cityState(share);
       const before = this.states.get(city);
       this.states.set(city, state);
@@ -72,7 +93,8 @@ export class CityLife {
   summary(): { city: CityId; name: string; state: CityState; text: string }[] {
     return CITY_IDS.map((city) => {
       const name = STATIONS[city].name[0] + STATIONS[city].name.slice(1).toLowerCase();
-      return { city, name, state: this.stateOf(city), text: `${name} ${CITY_STATE_NAME[this.stateOf(city)]}` };
+      const holed = this.structureOf(city) < 70 ? ', holed' : '';
+      return { city, name, state: this.stateOf(city), text: `${name} ${CITY_STATE_NAME[this.stateOf(city)]}${holed}` };
     });
   }
 

@@ -16,7 +16,7 @@ import type { Vec3Tuple } from './random';
  */
 export const CASCADE = {
   /** Health lost per tonne of debris in orbit. */
-  healthPerTonne: 0.6,
+  healthPerTonne: 0.48,
   /** Below this health, debris starts to multiply by itself. */
   tippingHealth: 35,
   /** Growth rate per second at zero health, as a share of each cloud's mass. */

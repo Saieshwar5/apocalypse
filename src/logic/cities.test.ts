@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CITY_IDS, WATCH_RANGE, cityLights, cityState, isCity, stepCity, supplyShare } from './cities';
+import { CITY_IDS, CITY_PAY, STATION_STRIKE, WATCH_RANGE, afterStrike, cityLights, cityState, isCity, stepCity, strikeDamage, structureLights, supplyShare } from './cities';
 import { orbitTierAt } from './orbits';
 import { MARKETS } from './stationEconomy';
 import { OUTPOST_ORBITS } from './stations';
@@ -50,5 +50,29 @@ describe('the three great stations', () => {
       const after = stepCity(city, { ...MARKETS[city].start }, 240);
       expect(supplyShare(city, after)).toBeGreaterThan(0.05);
     }
+  });
+});
+
+describe('a rock striking a great station', () => {
+  it('costs the station part of its stores and of its structure', () => {
+    expect(afterStrike({ fuel: 100, parts: 50 })).toEqual({ fuel: 60, parts: 30 });
+    expect(strikeDamage(100)).toBe(100 - STATION_STRIKE.damage);
+    expect(strikeDamage(10)).toBe(0);
+  });
+
+  it('takes three hits to bring a station to nothing', () => {
+    expect(strikeDamage(strikeDamage(100))).toBeGreaterThan(0);
+    expect(strikeDamage(strikeDamage(strikeDamage(100)))).toBe(0);
+  });
+
+  it('dims a holed station', () => {
+    expect(structureLights(100)).toBe(1);
+    expect(structureLights(30)).toBeLessThan(structureLights(70));
+  });
+
+  it('pays every job a little more when Meridian thrives and less when it fails', () => {
+    expect(CITY_PAY.thriving).toBeGreaterThan(1);
+    expect(CITY_PAY.steady).toBe(1);
+    expect(CITY_PAY.failing).toBeLessThan(CITY_PAY.short);
   });
 });
