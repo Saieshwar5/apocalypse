@@ -115,13 +115,13 @@ export class ContractBook {
    * Pays for a neutralised threat, shared by damage dealt. Returns the
    * player's share.
    */
-  complete(asteroid: Asteroid, outcome: ContractOutcome, point: THREE.Vector3, label: string): number {
+  complete(asteroid: Asteroid, outcome: ContractOutcome, point: THREE.Vector3, label: string, leftDebris = true): number {
     const value = this.values.get(asteroid.id) ?? 0;
     const dealt = this.damage.get(asteroid.id) ?? { player: 1 };
     this.values.delete(asteroid.id);
     this.damage.delete(asteroid.id);
     this.chasers.delete(asteroid.id);
-    const payout = contractPayout(value, outcome, asteroid.timeToImpact);
+    const payout = contractPayout(value, outcome, asteroid.timeToImpact, leftDebris);
     const shares = splitPay(payout.amount, dealt);
     const { walletOf, feedback, hud } = this.deps;
     for (const [pilot, amount] of Object.entries(shares) as [PilotId, number][]) {
@@ -137,7 +137,7 @@ export class ContractBook {
       this.fieldEarned += mine;
       this.contractsCompleted += 1;
       const shared = others.length > 0 ? ` (shared with ${others.map(pilotName).join(', ')})` : '';
-      feedback.kill(point, `${label}  +${formatCredits(mine)}${payout.early ? ' EARLY' : ''}${shared}`);
+      feedback.kill(point, `${label}  +${formatCredits(mine)}${payout.early ? ' EARLY' : ''}${payout.clean ? ' CLEAN' : ''}${shared}`);
     } else if (others.length > 0) {
       hud.showMessage(`${others.map(pilotName).join(' and ')} took the ${asteroid.size} ${asteroid.identified ? asteroid.material : 'rock'} (${formatCredits(payout.amount)})`, 'info', 3);
     } else if (dealt.player) {

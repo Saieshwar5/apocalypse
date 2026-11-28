@@ -21,9 +21,13 @@
     </div>
 
     <div id="hud" hidden>
+      <!-- The left-hand panels stack, so a taller panel never covers the next. -->
+      <div class="hud-left">
       <section class="hud-panel hud-status" aria-label="Planet status">
         <div class="hud-label"><span id="planet-label">Earth integrity</span> <span id="integrity-value">100%</span></div>
         <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div>
+        <div class="hud-label" title="Debris in orbit. At 0% the cascade closes orbit">Orbit health <span id="orbit-health-value">100%</span></div>
+        <div class="bar"><div id="orbit-health-bar" class="bar-fill" data-level="stable"></div></div>
         <div class="hud-row"><span>Balance</span><strong id="balance-value" class="money">500 cr</strong></div>
         <div class="hud-row"><span>Earned this run</span><strong id="earned-value">0 cr</strong></div>
         <div id="league-value" class="hud-caption league"></div>
@@ -44,6 +48,7 @@
         <div class="hud-label">Priority sites <span class="hud-label-note">impact in</span></div>
         <ol id="site-list"></ol>
       </section>
+      </div>
 
       <section class="hud-panel hud-threats" aria-label="Contract board">
         <div class="hud-label">Contracts <span class="hud-label-note">Earth Defence Authority</span></div>

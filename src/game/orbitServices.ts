@@ -11,6 +11,8 @@ import type { ShipController } from '../ship/shipController';
 import { Outposts, type OutpostId } from '../station/outposts';
 import { SatelliteWork, type JobRow, type Waypoint } from './satelliteWork';
 import { TowLine } from './towLine';
+import { OrbitDebris } from './orbitDebris';
+import type { SatelliteTraffic } from '../satellites/satelliteTraffic';
 import { FRAGILE } from '../logic/towing';
 import { RivalPilots } from './rivalPilots';
 import type { CombatResolver } from './combatResolver';
@@ -21,6 +23,7 @@ export interface OrbitServicesDependencies {
   scene: THREE.Scene;
   outpostModels: Record<OutpostId, THREE.Object3D>;
   fleet: SatelliteFleet;
+  traffic: SatelliteTraffic;
   ship: ShipController;
   field: AsteroidField;
   walletOf: (pilot: PilotId) => Wallet;
@@ -57,6 +60,8 @@ export class OrbitServices {
   readonly tow: TowLine;
   readonly work: SatelliteWork;
   readonly rivals: RivalPilots;
+  /** The Cascade: debris, Orbit Health and the clean-up job. */
+  readonly debris: OrbitDebris;
 
   constructor(private readonly deps: OrbitServicesDependencies) {
     this.outposts = new Outposts(deps.outpostModels);
@@ -73,6 +78,16 @@ export class OrbitServices {
       rng: deps.rng,
     });
     deps.scene.add(this.outposts.group, this.tow.mesh);
+    this.debris = new OrbitDebris({
+      traffic: deps.traffic,
+      ship: deps.ship,
+      combat: deps.combat,
+      wallet: deps.walletOf('player'),
+      hud: deps.hud,
+      sound: deps.sound,
+      rng: deps.rng,
+    });
+    deps.combat.shatterHook = (asteroid, weapon, position) => this.debris.shatter(asteroid, weapon, position);
     this.rivals = new RivalPilots({
       scene: deps.scene,
       shipSource: deps.shipSource,
@@ -94,6 +109,7 @@ export class OrbitServices {
     this.outposts.reset();
     this.work.reset();
     this.rivals.reset();
+    this.debris.reset();
   }
 
   /** `flying`: the pilot has the controls (not docked, not on the map, no autopilot). */
@@ -109,6 +125,7 @@ export class OrbitServices {
     // The line groans as the pull nears the strain a satellite can take.
     this.deps.sound.towCreak(Math.min(1, this.tow.tension / (FRAGILE.safeTension * 1.4)));
     this.rivals.update(deltaSeconds, active);
+    this.debris.update(deltaSeconds, active);
   }
 
   /** On-screen markers for the outposts; only the job's destination gets an edge arrow. */
@@ -124,7 +141,7 @@ export class OrbitServices {
   }
 
   jobRows(): JobRow[] {
-    return this.work.rows();
+    return [...this.work.rows(), ...this.debris.rows()];
   }
 
   waypoint(): Waypoint | null {

@@ -48,6 +48,36 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 5a: the Cascade and Orbit Health
+
+- The game's name now has a meaning. Debris in orbit hits satellites, every
+  broken satellite adds more debris, and past a tipping point (the
+  Singularity) fragments collide with each other and debris multiplies by
+  itself until orbit is closed. **Orbit Health**, under Earth's integrity,
+  shows how far orbit is from that point.
+- Destroying a rock inside the orbital band (below about 17,000 km from the
+  planet's centre) leaves debris: 2 t for a small rock up to 20 t for a
+  giant, less than half that with a missile, which vaporises most of it.
+  Rocks destroyed far out or very low leave none, and deflected rocks leave
+  none. Every tonne costs 0.8% of Orbit Health; a destroyed satellite
+  leaves 12 t.
+- Debris clouds orbit, spread, glint and are labelled on screen ("DEBRIS
+  12 t"). Drag slowly clears low debris; high debris lasts for many minutes.
+  Satellites passing through a cloud can be torn apart, adding their own
+  wreck: the chain reaction. Below 35% health, clouds start to grow.
+- Contracts pay 20% more for a **clean** stop: a deflection, or a kill that
+  leaves no debris. The kill confirmation says CLEAN, or how much debris it
+  left.
+- The orbit clean-up job: fly slowly (under about 6 units/s relative to the
+  cloud) through debris and the ship's net sweeps it, paying 25 cr a tonne
+  from the Orbital Safety Fund. At speed the net does nothing and debris
+  hurts the ship. The board lists the job whenever there is debris.
+- Warnings at 70%, 50%, 35% and 15%; at 0% the run ends: "The Singularity:
+  debris has closed Earth's orbit". The end screen shows Orbit Health and
+  tonnes swept.
+- The left-hand HUD panels now stack, so a taller panel never covers the
+  next.
+
 ## Quality pass 1: feel and finish
 
 - Live reflections: metal now reflects the real planet, sun and sky as seen
@@ -300,6 +330,8 @@ wave timing, laser range, aim-ahead, blasts, shield and hull, units, priority
 sites, atmosphere zones and the automatic pull-up, the flight model, guidance,
 contract pay, station prices and the wallet, the tow line, placement and
 satellite job paths, rival choices, shared pay, radio rationing, the autopilot,
+the Cascade (debris, drag, growth, sweeping, orbits through a point), automatic
+quality,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.

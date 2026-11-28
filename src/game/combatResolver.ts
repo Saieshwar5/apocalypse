@@ -63,6 +63,9 @@ export interface CombatDependencies {
 export class CombatResolver {
   private shipLostCause: string | null = null;
 
+  /** Turns a destroyed rock into orbital debris; returns the tonnes left. Set by the play session. */
+  shatterHook: ((asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3) => number) | null = null;
+
   constructor(private readonly deps: CombatDependencies) {}
 
   /** Why the ship was destroyed, returned once; null if it was not. */
@@ -266,7 +269,10 @@ export class CombatResolver {
     const { explosions, sound, session, ship } = this.deps;
     const position = asteroid.mesh.position.clone();
     const splits = fragmentsOnDestroy(asteroid.size, weapon) !== null;
-    this.deps.contracts.complete(asteroid, splits ? 'split' : 'destroyed', position, splits ? 'SPLIT' : 'DESTROYED');
+    // Fragments a laser splits off carry on as asteroids; the rest becomes orbital debris.
+    const debris = this.shatterHook?.(asteroid, weapon, position) ?? 0;
+    const label = `${splits ? 'SPLIT' : 'DESTROYED'}${debris > 0 ? ` · DEBRIS +${debris.toFixed(debris < 10 ? 1 : 0)} t` : ''}`;
+    this.deps.contracts.complete(asteroid, splits ? 'split' : 'destroyed', position, label, debris > 0);
     // The pilot's own record (and the field bonus) counts only the pilot's kills.
     if (pilot === 'player') {
       session.asteroidsDestroyed += 1;

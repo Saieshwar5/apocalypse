@@ -3,6 +3,7 @@ import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import type { AltitudeReadout, AtmosphereZone } from '../logic/atmosphere';
 import { integrityLevel, threatRating } from '../logic/planetDamage';
 import { formatCredits } from '../logic/contracts';
+import { CASCADE } from '../logic/cascade';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { ContractListing } from '../game/contractBook';
 import type { JobRow } from '../game/satelliteWork';
@@ -11,6 +12,8 @@ import { SitePanel } from './sitePanel';
 
 export interface HudSnapshot {
   integrity: number;
+  /** Orbit Health: 100 is clean orbit, 0 means the cascade has closed it. */
+  orbitHealth: number;
   wave: number;
   balance: number;
   earned: number;
@@ -98,6 +101,8 @@ export class Hud {
   private readonly root = element<HTMLDivElement>('#hud');
   private readonly integrityBar = element<HTMLDivElement>('#integrity-bar');
   private readonly integrityValue = element<HTMLSpanElement>('#integrity-value');
+  private readonly orbitBar = element<HTMLDivElement>('#orbit-health-bar');
+  private readonly orbitValue = element<HTMLSpanElement>('#orbit-health-value');
   private readonly waveValue = element<HTMLElement>('#wave-value');
   private readonly balanceValue = element<HTMLElement>('#balance-value');
   private readonly earnedValue = element<HTMLElement>('#earned-value');
@@ -144,6 +149,10 @@ export class Hud {
     this.integrityBar.style.width = `${integrity}%`;
     this.integrityBar.dataset.level = integrityLevel(integrity);
     this.integrityValue.textContent = `${integrity.toFixed(0)}%`;
+    const orbit = Math.max(0, snapshot.orbitHealth);
+    this.orbitBar.style.width = `${orbit}%`;
+    this.orbitBar.dataset.level = orbit > 60 ? 'stable' : orbit > CASCADE.tippingHealth ? 'damaged' : 'critical';
+    setText(this.orbitValue, `${orbit.toFixed(0)}%`);
     this.waveValue.textContent = String(snapshot.wave);
     setText(this.balanceValue, formatCredits(snapshot.balance));
     setText(this.earnedValue, formatCredits(snapshot.earned));

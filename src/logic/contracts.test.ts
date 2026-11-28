@@ -24,9 +24,15 @@ describe('defence contracts', () => {
   });
 
   it('adds a bonus for meeting a threat early', () => {
-    expect(contractPayout(200, 'destroyed', 60)).toEqual({ amount: 250, early: true });
-    expect(contractPayout(200, 'destroyed', 10)).toEqual({ amount: 200, early: false });
+    expect(contractPayout(200, 'destroyed', 60)).toEqual({ amount: 250, early: true, clean: false });
+    expect(contractPayout(200, 'destroyed', 10)).toEqual({ amount: 200, early: false, clean: false });
     expect(contractPayout(200, 'deflected', null).early).toBe(true);
+  });
+
+  it('adds a bonus for stopping a rock without leaving debris', () => {
+    expect(contractPayout(200, 'deflected', 10)).toEqual({ amount: 240, early: false, clean: true });
+    expect(contractPayout(200, 'destroyed', 10, false)).toEqual({ amount: 240, early: false, clean: true });
+    expect(contractPayout(200, 'destroyed', 60, false).amount).toBe(290);
   });
 
   it('pays part of the contract when a laser splits a rock', () => {
