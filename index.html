@@ -105,6 +105,7 @@
         <span id="tow-status" data-state="on" hidden></span>
       </div>
       <div id="hud-hint" class="hud-hint">W thrust · S brake · A/D/R/V slide · Shift boost · Click/Space fire · F missile · T tow · Z assist · Tab map</div>
+      <div id="help-chip" class="help-chip"><kbd>H</kbd> help</div>
       <div id="damage-flash" aria-hidden="true"></div>
     </div>
 
@@ -138,6 +139,7 @@
         </div>
         <button id="start-button" type="button" disabled>Loading…</button>
         <button id="training-button" type="button" class="secondary">Training flight (new pilots start here)</button>
+        <button id="menu-help-button" type="button" class="secondary">How to play</button>
         <label class="hardcore" for="hardcore-input"><input id="hardcore-input" type="checkbox" /> <span><strong>Hardcore licence</strong> · one ship, no emergency loan, +25% on every payment</span></label>
         <p id="rank-line" class="rank-line">Rank: Cadet</p>
         <details id="logbook" class="logbook" hidden>
@@ -167,6 +169,104 @@
       </div>
     </div>
 
+    <div id="help" class="screen" hidden>
+      <div class="screen-card help-card" role="dialog" aria-label="Help">
+        <div class="help-head">
+          <h2>Help</h2>
+          <button id="help-close" type="button" class="help-close">Back to flight <kbd>H</kbd></button>
+        </div>
+        <div class="help-tabs" role="tablist">
+          <button type="button" role="tab" data-tab="now" aria-selected="true">What now?</button>
+          <button type="button" role="tab" data-tab="controls">Controls</button>
+          <button type="button" role="tab" data-tab="jobs">Jobs</button>
+          <button type="button" role="tab" data-tab="screen">Reading the screen</button>
+        </div>
+
+        <section class="help-page" data-page="now">
+          <p class="help-lead">Based on where you are and what is happening right now:</p>
+          <ol id="help-now" class="help-now"></ol>
+        </section>
+
+        <section class="help-page" data-page="controls" hidden>
+          <div class="help-columns">
+            <div>
+              <h3>Flying</h3>
+              <dl class="help-keys">
+                <dt><kbd>Mouse</kbd> or <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Steer: turn and pitch</dd>
+                <dt><kbd>W</kbd></dt><dd>Thrust (the ship keeps its speed when you let go)</dd>
+                <dt><kbd>S</kbd></dt><dd>Brake towards a stop</dd>
+                <dt><kbd>A</kbd><kbd>D</kbd></dt><dd>Slide left, right</dd>
+                <dt><kbd>R</kbd><kbd>V</kbd></dt><dd>Slide up, down</dd>
+                <dt><kbd>Q</kbd><kbd>E</kbd></dt><dd>Roll</dd>
+                <dt><kbd>Shift</kbd></dt><dd>Boost (burns fuel fast)</dd>
+                <dt><kbd>Z</kbd></dt><dd>Flight assist on or off (off: pure drift and gravity)</dd>
+              </dl>
+              <h3>Finding your way</h3>
+              <dl class="help-keys">
+                <dt><kbd>G</kbd></dt><dd>Choose what the compass points at: auto, priority rock, job, nearest station, home</dd>
+                <dt>hold <kbd>X</kbd></dt><dd>Turn the nose towards it (you still thrust yourself)</dd>
+                <dt><kbd>B</kbd></dt><dd>Scanner range: auto, close, medium, far</dd>
+                <dt>hold <kbd>B</kbd></dt><dd>Enlarge the scanner</dd>
+                <dt><kbd>Tab</kbd></dt><dd>Tactical map: everything at once, time slowed</dd>
+              </dl>
+            </div>
+            <div>
+              <h3>Fighting</h3>
+              <dl class="help-keys">
+                <dt><kbd>Click</kbd> or <kbd>Space</kbd></dt><dd>Laser: short range, so fly close. Overheats if held too long</dd>
+                <dt><kbd>F</kbd> or right click</dt><dd>Missile at the locked target: destroys big and iron rocks whole. Not too close: the blast hurts you</dd>
+              </dl>
+              <h3>Working</h3>
+              <dl class="help-keys">
+                <dt><kbd>T</kbd></dt><dd>Connect the tow line, or release it</dd>
+                <dt>Brake near a station</dt><dd>Let go of the controls and it docks or berths you. <kbd>W</kbd> launches</dd>
+                <dt><kbd>1</kbd>-<kbd>8</kbd> docked at Aegis</dt><dd>Buy upgrades. <kbd>I</kbd> insures the ship</dd>
+                <dt><kbd>1</kbd>-<kbd>7</kbd> at Vulcan Yard</dt><dd>Buy, fit or remove modules</dd>
+                <dt><kbd>Enter</kbd></dt><dd>Leave a calm zone early (or skip the launch)</dd>
+              </dl>
+              <h3>Camera and more</h3>
+              <dl class="help-keys">
+                <dt><kbd>C</kbd></dt><dd>Chase or cockpit camera</dd>
+                <dt><kbd>P</kbd></dt><dd>Photo mode: Space takes the picture</dd>
+                <dt><kbd>M</kbd></dt><dd>Sound on or off</dd>
+                <dt><kbd>H</kbd></dt><dd>This help</dd>
+                <dt><kbd>Esc</kbd></dt><dd>Pause and settings</dd>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        <section class="help-page" data-page="jobs" hidden>
+          <dl class="help-jobs">
+            <dt>Intercept a rock</dt><dd>Every rock heading for Earth carries a contract. Follow the yellow PRIORITY marker and the compass, get close, fire the laser; use missiles on iron and giants. Pushing a rock off course (a near miss) pays too and leaves less debris than shattering it. Early and clean pays a bonus.</dd>
+            <dt>Satellite tows</dt><dd>Fly to the satellite and match its speed, press <kbd>T</kbd> to connect, take it where the cyan diamond says (Vulcan Yard for repairs, back to its slot afterwards, clear of a rock's path for a dodge), nearly stop, press <kbd>T</kbd> to release. Pull gently: a fragile load is damaged by hard tugs.</dd>
+            <dt>Reboost</dt><dd>A satellite sinking into the swollen atmosphere: tow it back up to its slot before it burns.</dd>
+            <dt>Rock haul (Ceres)</dt><dd>Catch the marked carbon rock with the tow line and bring it to Ceres Works' intake. It is heavy: plan fuel and brake early.</dd>
+            <dt>Crew run (Halo)</dt><dd>Berth at Halo to take a crew aboard, hold beside the satellite while they work, then bring them home. Fly gently: hard hits hurt them.</dd>
+            <dt>Rescue</dt><dd>An escape pod falling towards the atmosphere: catch it with the tow line before it burns up and bring it to Halo's crew port.</dd>
+            <dt>Escort</dt><dd>Rocks will cross the supply rocket's climb: destroy or push them away before they meet it.</dd>
+            <dt>Sweep debris</dt><dd>Fly slowly through a debris cloud (amber rings) to net it, paid by the tonne. It keeps Orbit Health up.</dd>
+            <dt>Photographs</dt><dd>Halo's press office wants a picture: press <kbd>P</kbd>, frame the subject close and near the centre, press <kbd>Space</kbd>.</dd>
+            <dt>Medals</dt><dd>Every job is graded bronze, silver or gold for how well it was done; silver and gold pay extra.</dd>
+          </dl>
+        </section>
+
+        <section class="help-page" data-page="screen" hidden>
+          <dl class="help-legend">
+            <dt><span class="legend compass"><i class="dot"></i></span></dt><dd><b>Target compass</b> beside the crosshair. The dot is your objective: centre is dead ahead; towards an edge means turn that way. A <b>hollow</b> dot is <b>behind</b> you. Blue on the rim is Earth's side. Below: how far to turn, the distance, arrival time, and ▲▼ above or below you.</dd>
+            <dt><span class="legend arc"></span></dt><dd><b>Steering arrow</b> around the crosshair: the way to turn. It shrinks as the nose comes round and disappears ON TARGET.</dd>
+            <dt><span class="legend prograde"></span></dt><dd><b>Velocity marker</b>: where you are really going relative to the objective. Put it on the target to meet it.</dd>
+            <dt><span class="legend chevrons">› › ›</span></dt><dd><b>Approach guide</b> near stations and jobs, with the speed to arrive at.</dd>
+            <dt><span class="legend swatch" style="--c:#ffd23f"></span><span class="legend swatch" style="--c:#8fd3ff"></span><span class="legend swatch" style="--c:#7dffb0"></span><span class="legend swatch" style="--c:#5fd8ff"></span></dt><dd>Objective colours: <b style="color:#ffd23f">priority rock</b>, <b style="color:#8fd3ff">job</b>, <b style="color:#7dffb0">station</b>, <b style="color:#5fd8ff">home (Aegis)</b>.</dd>
+            <dt><span class="legend scanner"></span></dt><dd><b>3D scanner</b> (bottom left): your ship is the green arrow in the middle, nose up. Things stand on stalks: up means above you, a hollow end means below. <b style="color:#ff5a4a">Red</b>/<b style="color:#ffb347">orange</b> diamonds are rocks heading for Earth, faint grey dots are harmless rocks, squares are stations, triangles are rival pilots, dashed amber rings are debris, the pulsing ring is your objective. The faint wedge is what your cameras can see.</dd>
+            <dt><span class="legend reticle"></span></dt><dd><b>Crosshair</b>: green when the target is in laser range, amber when it is at the edge, red when overheated.</dd>
+            <dt><span class="legend ring"></span></dt><dd><b>Red rings on Earth</b> mark where rocks will land; cities show a countdown when threatened.</dd>
+            <dt><span class="legend bar"></span></dt><dd><b>The HUD shows what matters now.</b> Planet, orbit health, money, the league and the sites appear when they change or need you; calm zones show the planning view; <kbd>Tab</kbd> shows everything. HUD density is in the pause settings.</dd>
+          </dl>
+        </section>
+      </div>
+    </div>
+
     <div id="pause" class="screen" hidden>
       <div class="screen-card compact">
         <h2>Paused</h2>
@@ -188,6 +288,7 @@
           </select>
         </div>
         <button id="resume-button" type="button">Resume</button>
+        <button id="pause-help-button" type="button" class="secondary">Help and controls <kbd>H</kbd></button>
       </div>
     </div>
 

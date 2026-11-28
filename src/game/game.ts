@@ -1,3 +1,5 @@
+import { HelpDesk } from './helpDesk';
+import { adviceFor } from './helpFeed';
 import { Navigation } from './navigation';
 import { WorldLayer } from './worldLayer';
 import { liveryById } from '../logic/livery';
@@ -83,6 +85,7 @@ export class Game {
   private career!: PilotCareer;
   private worldLayer!: WorldLayer;
   private navigation!: Navigation;
+  private helpDesk!: HelpDesk;
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -184,6 +187,15 @@ export class Game {
     });
     this.career = new PilotCareer({ session: this.session, hud: this.hud, sound: this.sound, input: this.input, radio: this.radio, showModules: (fitted) => this.shipModel.setModules(fitted) });
     this.career.attach(this.play);
+    this.helpDesk = new HelpDesk({
+      input: this.input,
+      hud: this.hud,
+      advice: () => adviceFor(this.play, this.ship, this.navigation),
+      pause: () => this.pauseFor(),
+      resume: () => this.resume(),
+      showPause: () => this.screens.showPause(),
+      hidePause: () => this.screens.hideAll(),
+    });
     this.navigation = new Navigation({ play: this.play, ship: this.ship, input: this.input, hud: this.hud, overlay: this.overlay, radar: this.radar, session: this.session });
     this.worldLayer = new WorldLayer({
       scene: this.scene, camera: this.camera, earth: this.earth, play: this.play, career: this.career, input: this.input,
@@ -401,7 +413,19 @@ export class Game {
     this.hud.showMessage(STAR_SYSTEMS[this.systemIndex].briefing, 'success', 5);
   }
 
+  /** Freezes flight without the pause screen (help is showing instead). */
+  private pauseFor(): void {
+    this.phase = 'paused';
+    this.input.clear();
+    this.sound.setEngine(0, false);
+    this.input.releasePointerLock();
+  }
+
   private updatePlaying(deltaSeconds: number): void {
+    this.helpDesk.update();
+    if (this.phase !== 'playing') {
+      return;
+    }
     if (this.worldLayer.update(deltaSeconds, this.play.shipActive)) {
       return;
     }
