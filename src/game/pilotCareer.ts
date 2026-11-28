@@ -87,7 +87,7 @@ export class PilotCareer {
   startRun(hardcore: boolean): void {
     const { session } = this.deps;
     session.hardcore = hardcore;
-    session.wallet.payRate = hardcore ? HARDCORE.payRate : 1;
+    session.wallet.payRate = (hardcore ? HARDCORE.payRate : 1) * session.rules.pay;
     session.wallet.loanAllowed = !hardcore;
     this.medals?.reset();
     this.yard?.reset();

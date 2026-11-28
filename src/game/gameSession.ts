@@ -1,3 +1,4 @@
+import { DIFFICULTY, type Difficulty, type DifficultyRules } from '../logic/difficulty';
 import { moduleEffects, type ModuleEffects } from '../logic/shipModules';
 import { MAX_PLANET_INTEGRITY } from '../logic/planetDamage';
 import { Wallet } from '../logic/economy';
@@ -27,6 +28,13 @@ export class GameSession {
   fit: ModuleEffects = moduleEffects([]);
   /** Hardcore licence: no replacement ships, no loan, better pay. */
   hardcore = false;
+  /** Set at the start of each run from the pilot's settings. */
+  difficulty: Difficulty = 'standard';
+
+  /** How this run's difficulty changes damage and pay. */
+  get rules(): DifficultyRules {
+    return DIFFICULTY[this.difficulty];
+  }
 
   /** New star system in the same campaign: the planet is fresh, the money carries on. */
   resetForNextSystem(): void {

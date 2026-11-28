@@ -2132,6 +2132,36 @@ button.confirming {
   font-variant-numeric: tabular-nums;
 }
 
+/* Difficulty: a quiet row on the licence card. */
+.difficulty {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #8e9bb0;
+}
+
+.difficulty select {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(111, 183, 255, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #e8f1ff;
+  font: inherit;
+}
+
+.difficulty select:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.difficulty option {
+  background: #0b1420;
+  color: #e8f1ff;
+}
+
 .title-screen .hardcore {
   justify-content: flex-start;
   margin: 0;

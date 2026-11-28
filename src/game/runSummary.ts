@@ -1,3 +1,4 @@
+import { DIFFICULTY } from '../logic/difficulty';
 import { saveRun } from './runHistory';
 import { orbitRating } from '../logic/orbitPlan';
 import type { RunRecord } from '../logic/bestRuns';
@@ -46,6 +47,7 @@ export function runSummary(
     rank: career.recordRun(session.wallet.earned, victory && play.licence.stage === 'good', reason),
     medals: career.runMedals(),
     hardcore: session.hardcore,
+    difficulty: DIFFICULTY[session.difficulty].label,
     debrisSwept: play.services.debris.swept,
     league: session.league().map(({ pilot, earned }) => ({ name: pilotName(pilot), earned, you: pilot === 'player' })),
     wavesCleared: session.wavesCleared,

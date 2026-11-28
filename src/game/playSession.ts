@@ -1,3 +1,4 @@
+import { DIFFICULTY, type Difficulty } from '../logic/difficulty';
 import * as THREE from 'three';
 import { AsteroidField, type Asteroid } from '../asteroids/asteroidField';
 import { updateIdentification } from '../asteroids/identification';
@@ -259,7 +260,8 @@ export class PlaySession {
   }
 
   /** `keepUpgrades` carries the workshop upgrades into the next star system. */
-  reset(system: StarSystem = STAR_SYSTEMS[0], keepUpgrades = false, training = false): void {
+  reset(system: StarSystem = STAR_SYSTEMS[0], keepUpgrades = false, training = false, difficulty: Difficulty = 'standard'): void {
+    this.deps.session.difficulty = difficulty;
     this.sites.setDefinitions(system.sites);
     this.siteMarkers.rebuild();
     this.field.clear();
@@ -270,7 +272,7 @@ export class PlaySession {
     this.feedback.clear();
     this.laser.reset();
     this.missiles.reset();
-    this.campaign.reset(system.difficulty, keepUpgrades, training);
+    this.campaign.reset(system.difficulty + DIFFICULTY[difficulty].waveShift, keepUpgrades, training);
     this.plumes.clear();
     this.hazards.reset();
     this.stationOps.reset();

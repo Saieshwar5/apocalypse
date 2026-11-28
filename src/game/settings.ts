@@ -1,3 +1,4 @@
+import { DIFFICULTIES, DIFFICULTY, sanitizeDifficulty, type Difficulty } from '../logic/difficulty';
 import { HUD_DENSITIES, type HudDensity } from '../logic/hudFocus';
 import { LIVERIES, liveryById, sanitizeShipName } from '../logic/livery';
 import type { QualityPreference } from '../logic/qualityTier';
@@ -19,9 +20,11 @@ export interface Settings {
   shipName: string;
   /** How much the HUD shows at once. */
   hudDensity: HudDensity;
+  /** How hard a season is; read when a run starts. */
+  difficulty: Difficulty;
 }
 
-export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, quality: 'auto', callSign: DEFAULT_CALL_SIGN, hardcore: false, livery: 'factory', shipName: '', hudDensity: 'standard' };
+export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, quality: 'auto', callSign: DEFAULT_CALL_SIGN, hardcore: false, livery: 'factory', shipName: '', hudDensity: 'standard', difficulty: 'standard' };
 const STORAGE_KEY = 'singularity.settings.v1';
 
 /** Clamps and repairs stored settings, which may be missing or edited by hand. */
@@ -36,6 +39,7 @@ export function sanitizeSettings(value: unknown): Settings {
     livery: liveryById(typeof candidate.livery === 'string' ? candidate.livery : '').id,
     shipName: sanitizeShipName(candidate.shipName),
     hudDensity: HUD_DENSITIES.includes(candidate.hudDensity as HudDensity) ? (candidate.hudDensity as HudDensity) : 'standard',
+    difficulty: sanitizeDifficulty(candidate.difficulty),
   };
 }
 
@@ -65,7 +69,8 @@ export function bindSettingsControls(settings: Settings, onChange: (settings: Se
   const livery = document.querySelector<HTMLSelectElement>('#livery-input');
   const shipName = document.querySelector<HTMLInputElement>('#shipname-input');
   const density = document.querySelector<HTMLSelectElement>('#density-input');
-  if (!slider || !quality || !callSign || !hardcore || !livery || !shipName || !density) {
+  const difficulty = document.querySelector<HTMLSelectElement>('#difficulty-input');
+  if (!slider || !quality || !callSign || !hardcore || !livery || !shipName || !density || !difficulty) {
     throw new Error('Settings controls are missing from index.html');
   }
   slider.value = String(settings.sensitivity);
@@ -76,8 +81,10 @@ export function bindSettingsControls(settings: Settings, onChange: (settings: Se
   livery.value = settings.livery;
   shipName.value = settings.shipName;
   density.value = settings.hudDensity;
+  difficulty.replaceChildren(...DIFFICULTIES.map((level) => new Option(`${DIFFICULTY[level].label}: ${DIFFICULTY[level].summary}`, level)));
+  difficulty.value = settings.difficulty;
   const update = (): void => {
-    const next = sanitizeSettings({ sensitivity: Number(slider.value), quality: quality.value, callSign: callSign.value, hardcore: hardcore.checked, livery: livery.value, shipName: shipName.value, hudDensity: density.value });
+    const next = sanitizeSettings({ sensitivity: Number(slider.value), quality: quality.value, callSign: callSign.value, hardcore: hardcore.checked, livery: livery.value, shipName: shipName.value, hudDensity: density.value, difficulty: difficulty.value });
     saveSettings(next);
     onChange(next);
   };
@@ -86,6 +93,7 @@ export function bindSettingsControls(settings: Settings, onChange: (settings: Se
   hardcore.addEventListener('change', update);
   livery.addEventListener('change', update);
   density.addEventListener('change', update);
+  difficulty.addEventListener('change', update);
   shipName.addEventListener('change', () => {
     update();
     shipName.value = sanitizeShipName(shipName.value);

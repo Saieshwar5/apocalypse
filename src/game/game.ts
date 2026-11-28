@@ -1,3 +1,4 @@
+import type { Difficulty } from '../logic/difficulty';
 import { TitleScreen } from '../hud/titleScreen';
 import { showShipOnTitle } from './titleShip';
 import { FlightSystems } from './flightSystems';
@@ -78,6 +79,7 @@ export class Game {
   private autoQuality: GraphicsQuality = 'high';
   private callSign = DEFAULT_CALL_SIGN;
   private hardcore = false;
+  private difficulty: Difficulty = 'standard';
   private shipName = '';
   private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => this.flight.career.rank });
   private flight!: FlightSystems;
@@ -109,7 +111,7 @@ export class Game {
     this.hud.onUrgent = (text) => this.sound.announce(text);
     this.radar = new Radar(radarCanvas);
     this.screens = new GameScreens({
-      onStart: () => this.firstBriefing(() => this.startRun(0)),
+      onStart: () => this.flight.help.briefOnce(() => this.startRun(0)),
       onTraining: () => this.startRun(0, true),
       onResume: () => this.resume(),
       onRestart: () => this.startRun(0),
@@ -203,6 +205,7 @@ export class Game {
       this.qualityPreference = settings.quality;
       this.callSign = settings.callSign;
       this.hardcore = settings.hardcore;
+      this.difficulty = settings.difficulty;
       this.shipName = settings.shipName;
       this.hud.density = settings.hudDensity;
       const paint = liveryById(settings.livery).tint;
@@ -224,15 +227,6 @@ export class Game {
     this.pipeline.renderer.setAnimationLoop(this.frame);
   }
 
-  /** Before the very first launch the pilot reads the mission page. */
-  private firstBriefing(start: () => void): void {
-    if (this.flight.help.needsBriefing) {
-      this.flight.help.brief(start);
-    } else {
-      start();
-    }
-  }
-
   /** Starts a run in the given star system; systems after the first continue the campaign. */
   private startRun(systemIndex: number, training = false): void {
     const system = STAR_SYSTEMS[systemIndex] ?? STAR_SYSTEMS[0];
@@ -244,7 +238,7 @@ export class Game {
     } else {
       this.session.reset();
     }
-    this.play.reset(system, continuing, training);
+    this.play.reset(system, continuing, training, this.difficulty);
     this.flight.startRun(this.hardcore, training);
     this.applySystemLook();
     this.radio.reset();

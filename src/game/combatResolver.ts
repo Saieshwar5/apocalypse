@@ -126,7 +126,8 @@ export class CombatResolver {
         continue;
       }
       const lost = this.deps.contracts.lose(asteroid);
-      session.integrity = applyPlanetDamage(session.integrity, asteroid.planetDamage);
+      const planetDamage = asteroid.planetDamage * session.rules.planetDamage;
+      session.integrity = applyPlanetDamage(session.integrity, planetDamage);
       session.impactsThisWave += 1;
       session.totalImpacts += 1;
       earth.addImpact(point, craterAngularRadius(asteroid.size));
@@ -146,7 +147,7 @@ export class CombatResolver {
       }
       const { latitude, longitude } = localDirectionToLatLon(earth.worldToLocalDirection(point));
       hud.showMessage(
-        `${SIZE_NAME[asteroid.size]} impact at ${formatCoordinate(latitude, 'N', 'S')} ${formatCoordinate(longitude, 'E', 'W')}: integrity -${asteroid.planetDamage.toFixed(0)}%${lost > 0 ? `. Contract lost: ${formatCredits(lost)}` : ''}`,
+        `${SIZE_NAME[asteroid.size]} impact at ${formatCoordinate(latitude, 'N', 'S')} ${formatCoordinate(longitude, 'E', 'W')}: integrity -${planetDamage.toFixed(0)}%${lost > 0 ? `. Contract lost: ${formatCredits(lost)}` : ''}`,
         weight >= 0.6 ? 'danger' : 'warning',
         3.5,
       );
@@ -356,7 +357,7 @@ export class CombatResolver {
     if (!this.deps.shipActive() || ship.hull <= 0) {
       return;
     }
-    const result = ship.applyDamage(amount);
+    const result = ship.applyDamage(amount * this.deps.session.rules.shipDamage);
     const local = ship.object.worldToLocal(source.clone());
     hud.flashDamage(local, result.hullDamage > 0 ? 1 : 0.45);
     if (result.absorbedByShield > 0) {

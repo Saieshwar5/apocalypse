@@ -30,6 +30,8 @@ export interface RunSummary {
   /** "Medals: 2 gold · 3 silver · 1 bronze". */
   medals: string;
   hardcore: boolean;
+  /** Relaxed, Standard or Veteran. */
+  difficulty: string;
   /** Tonnes of debris swept from orbit. */
   debrisSwept: number;
   /** Every pilot's earnings, best first. */
@@ -105,6 +107,7 @@ export class GameScreens {
   showGameOver(summary: RunSummary): void {
     const rows: [string, string][] = [
       ['Licence', `${summary.hardcore ? 'HARDCORE · ' : ''}${LICENCE_LABEL[summary.licence] ?? summary.licence} · ${Math.round(summary.reputation)}`],
+      ['Difficulty', summary.difficulty],
       ['Medals this run', summary.medals.replace(/^Medals: /, '')],
       ['Ships lost', String(summary.shipsLost)],
       ['Career rank', summary.rank],

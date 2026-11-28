@@ -81,6 +81,15 @@ export class HelpDesk {
     }
   }
 
+  /** Before the very first launch the pilot reads the mission page; after that `start` runs at once. */
+  briefOnce(start: () => void): void {
+    if (this.needsBriefing) {
+      this.brief(start);
+    } else {
+      start();
+    }
+  }
+
   /** A new pilot's first launch: the mission page first, then `start`. */
   brief(start: () => void): void {
     try {
