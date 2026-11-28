@@ -356,8 +356,7 @@ export class PlaySession {
     this.guidance = computeGuidance(ship, ranked, this.satellites.all);
     this.beeps.update(realDeltaSeconds, Boolean(this.targeting?.collision || this.guidance.satelliteAhead), this.field.all);
     this.updateCamera(realDeltaSeconds);
-    // In the cockpit the hull would block the view.
-    shipModel.group.visible = this.shipActive && (cameraRig.view === 'chase' || this.tactical || this.stationOps.holdingShip);
+    shipModel.group.visible = this.shipActive && (cameraRig.view === 'chase' || this.tactical || this.stationOps.holdingShip); // the hull would block the cockpit view
     this.updateHud(realDeltaSeconds, ranked);
   }
 
@@ -433,6 +432,7 @@ export class PlaySession {
       orbitHealth: this.services.debris.health,
       licence: { summary: this.licence.summary, stage: this.licence.stage },
       wave: Math.max(1, this.campaign.director.wave),
+      focus: { calm: this.campaign.director.phase !== 'field', tactical: this.tactical },
       missileCapacity: this.missiles.capacity,
       fuelCapacity: ship.fuelCapacity,
       shieldCapacity: ship.shieldCapacity,

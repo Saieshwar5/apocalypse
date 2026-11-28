@@ -23,29 +23,29 @@
     <div id="hud" hidden>
       <!-- The left-hand panels stack, so a taller panel never covers the next. -->
       <div class="hud-left">
-      <section class="hud-panel hud-status" aria-label="Planet status">
-        <div class="hud-label"><span id="planet-label">Earth integrity</span> <span id="integrity-value">100%</span></div>
-        <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div>
-        <div class="hud-label" title="Debris in orbit. At 0% the cascade closes orbit">Orbit health <span id="orbit-health-value">100%</span></div>
-        <div class="bar"><div id="orbit-health-bar" class="bar-fill" data-level="stable"></div></div>
-        <div class="hud-row"><span>Licence</span><strong id="licence-value" class="licence" data-stage="good">GOOD STANDING · 60</strong></div>
-        <div class="hud-row"><span>Balance</span><strong id="balance-value" class="money">500 cr</strong></div>
-        <div class="hud-row"><span>Earned this run</span><strong id="earned-value">0 cr</strong></div>
+      <section id="status-panel" class="hud-panel hud-status" aria-label="Planet status">
+        <div id="integrity-group" class="hud-group"><div class="hud-label"><span id="planet-label">Earth integrity</span> <span id="integrity-value">100%</span></div>
+        <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div></div>
+        <div id="orbit-group" class="hud-group"><div class="hud-label" title="Debris in orbit. At 0% the cascade closes orbit">Orbit health <span id="orbit-health-value">100%</span></div>
+        <div class="bar"><div id="orbit-health-bar" class="bar-fill" data-level="stable"></div></div></div>
+        <div id="licence-row" class="hud-row"><span>Licence</span><strong id="licence-value" class="licence" data-stage="good">GOOD STANDING · 60</strong></div>
+        <div id="balance-row" class="hud-row"><span>Balance</span><strong id="balance-value" class="money">500 cr</strong></div>
+        <div id="earned-row" class="hud-row"><span>Earned this run</span><strong id="earned-value">0 cr</strong></div>
         <div id="league-value" class="hud-caption league"></div>
         <span id="wave-value" hidden>1</span>
       </section>
 
-      <section class="hud-panel hud-position" aria-label="Ship position">
+      <section id="position-panel" class="hud-panel hud-position" aria-label="Ship position">
         <div class="hud-label">Position <span id="zone-value" class="zone-value">Space</span></div>
         <div class="hud-row"><span>From planet centre</span><strong id="centre-value">0 km</strong></div>
         <div class="hud-row"><span>Above surface</span><strong id="surface-value">0 km</strong></div>
         <div class="hud-row"><span>Above atmosphere</span><strong id="atmosphere-value">0 km</strong></div>
-        <div class="hud-row station-row"><span>Aegis station</span><strong id="station-value">—</strong></div>
+        <div id="station-rows" class="hud-group"><div class="hud-row station-row"><span>Aegis station</span><strong id="station-value">—</strong></div>
         <div class="hud-row"><span>Stock</span><strong id="stock-value"></strong></div>
-        <div class="hud-row"><span>Station</span><strong id="station-health-value"></strong></div>
+        <div class="hud-row"><span>Station</span><strong id="station-health-value"></strong></div></div>
       </section>
 
-      <section class="hud-panel hud-sites" aria-label="Priority sites">
+      <section id="sites-panel" class="hud-panel hud-sites" aria-label="Priority sites">
         <div class="hud-label">Priority sites <span class="hud-label-note">impact in</span></div>
         <ol id="site-list"></ol>
       </section>
@@ -63,10 +63,10 @@
       </section>
 
       <section class="hud-panel hud-systems" aria-label="Ship systems">
-        <div class="hud-label">Laser heat</div>
-        <div class="bar"><div id="heat-bar" class="bar-fill" data-level="stable"></div></div>
-        <div class="hud-label">Boost</div>
-        <div class="bar"><div id="boost-bar" class="bar-fill boost"></div></div>
+        <div id="heat-group" class="hud-group"><div class="hud-label">Laser heat</div>
+        <div class="bar"><div id="heat-bar" class="bar-fill" data-level="stable"></div></div></div>
+        <div id="boost-group" class="hud-group"><div class="hud-label">Boost</div>
+        <div class="bar"><div id="boost-bar" class="bar-fill boost"></div></div></div>
         <div class="hud-label">Fuel</div>
         <div class="bar"><div id="fuel-bar" class="bar-fill" data-level="stable"></div></div>
         <div class="hud-label">Shield</div>
@@ -179,6 +179,12 @@
             <option value="auto">Automatic (measures your computer)</option>
             <option value="high">High (bloom, full resolution)</option>
             <option value="low">Low (faster)</option>
+          </select>
+          <label for="density-input">HUD</label>
+          <select id="density-input">
+            <option value="standard">Standard (what matters now; Tab shows all)</option>
+            <option value="minimal">Minimal (the fewest readings)</option>
+            <option value="full">Full (every reading, always)</option>
           </select>
         </div>
         <button id="resume-button" type="button">Resume</button>

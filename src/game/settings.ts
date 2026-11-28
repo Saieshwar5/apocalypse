@@ -1,3 +1,4 @@
+import { HUD_DENSITIES, type HudDensity } from '../logic/hudFocus';
 import { LIVERIES, liveryById, sanitizeShipName } from '../logic/livery';
 import type { QualityPreference } from '../logic/qualityTier';
 import { DEFAULT_CALL_SIGN, sanitizeCallSign } from '../logic/cast';
@@ -16,9 +17,11 @@ export interface Settings {
   /** Paint scheme id (see logic/livery) and the ship's name. */
   livery: string;
   shipName: string;
+  /** How much the HUD shows at once. */
+  hudDensity: HudDensity;
 }
 
-export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, quality: 'auto', callSign: DEFAULT_CALL_SIGN, hardcore: false, livery: 'factory', shipName: '' };
+export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, quality: 'auto', callSign: DEFAULT_CALL_SIGN, hardcore: false, livery: 'factory', shipName: '', hudDensity: 'standard' };
 const STORAGE_KEY = 'singularity.settings.v1';
 
 /** Clamps and repairs stored settings, which may be missing or edited by hand. */
@@ -32,6 +35,7 @@ export function sanitizeSettings(value: unknown): Settings {
     hardcore: candidate.hardcore === true,
     livery: liveryById(typeof candidate.livery === 'string' ? candidate.livery : '').id,
     shipName: sanitizeShipName(candidate.shipName),
+    hudDensity: HUD_DENSITIES.includes(candidate.hudDensity as HudDensity) ? (candidate.hudDensity as HudDensity) : 'standard',
   };
 }
 
@@ -60,7 +64,8 @@ export function bindSettingsControls(settings: Settings, onChange: (settings: Se
   const hardcore = document.querySelector<HTMLInputElement>('#hardcore-input');
   const livery = document.querySelector<HTMLSelectElement>('#livery-input');
   const shipName = document.querySelector<HTMLInputElement>('#shipname-input');
-  if (!slider || !quality || !callSign || !hardcore || !livery || !shipName) {
+  const density = document.querySelector<HTMLSelectElement>('#density-input');
+  if (!slider || !quality || !callSign || !hardcore || !livery || !shipName || !density) {
     throw new Error('Settings controls are missing from index.html');
   }
   slider.value = String(settings.sensitivity);
@@ -70,8 +75,9 @@ export function bindSettingsControls(settings: Settings, onChange: (settings: Se
   livery.replaceChildren(...LIVERIES.map((option) => new Option(option.name, option.id)));
   livery.value = settings.livery;
   shipName.value = settings.shipName;
+  density.value = settings.hudDensity;
   const update = (): void => {
-    const next = sanitizeSettings({ sensitivity: Number(slider.value), quality: quality.value, callSign: callSign.value, hardcore: hardcore.checked, livery: livery.value, shipName: shipName.value });
+    const next = sanitizeSettings({ sensitivity: Number(slider.value), quality: quality.value, callSign: callSign.value, hardcore: hardcore.checked, livery: livery.value, shipName: shipName.value, hudDensity: density.value });
     saveSettings(next);
     onChange(next);
   };
@@ -79,6 +85,7 @@ export function bindSettingsControls(settings: Settings, onChange: (settings: Se
   quality.addEventListener('change', update);
   hardcore.addEventListener('change', update);
   livery.addEventListener('change', update);
+  density.addEventListener('change', update);
   shipName.addEventListener('change', () => {
     update();
     shipName.value = sanitizeShipName(shipName.value);

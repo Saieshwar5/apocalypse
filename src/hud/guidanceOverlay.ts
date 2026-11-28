@@ -28,6 +28,8 @@ const SATELLITE_LABEL_RANGE = 130;
 export interface GuidanceFrame {
   guidance: Guidance;
   satellites: readonly Satellite[];
+  /** Quiet labels: satellites are named only when close or in the way. */
+  quiet?: boolean;
   shipPosition: THREE.Vector3;
   shipVelocity: THREE.Vector3;
   /** Flight assist off: show where the ship is really moving. */
@@ -133,7 +135,7 @@ function drawSatellites(context: CanvasRenderingContext2D, projector: ScreenProj
     }
     const distance = satellite.position.distanceTo(frame.shipPosition);
     const danger = satellite === ahead;
-    if (distance > SATELLITE_LABEL_RANGE && !danger) {
+    if (distance > (frame.quiet ? SATELLITE_LABEL_RANGE / 3 : SATELLITE_LABEL_RANGE) && !danger) {
       continue;
     }
     const point = projector.project(satellite.position);
