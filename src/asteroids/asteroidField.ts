@@ -44,6 +44,8 @@ export interface Asteroid {
   assessedDamage: number;
   /** Spawned on a path that never threatens the planet. */
   passerBy: boolean;
+  /** Wanted for a job (a haul): never removed for flying away. */
+  kept?: boolean;
 }
 
 export interface PlanetImpact {
@@ -196,6 +198,7 @@ export class AsteroidField {
     const escaped = this.asteroids.filter(
       (asteroid) =>
         asteroid.timeToImpact === null &&
+        !asteroid.kept &&
         asteroid.mesh.position.dot(asteroid.velocity) > 0 &&
         asteroid.mesh.position.length() > this.planetRadius * 5,
     );
