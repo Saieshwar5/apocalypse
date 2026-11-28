@@ -29,12 +29,13 @@ export const TOW = {
 } as const;
 
 /**
- * With a fragile satellite on the line the retro thrusters ease off to this
- * share, so stopping does not send the load sailing past and jerk the line.
+ * With a load on the line the retro thrusters ease off to this share, so
+ * stopping does not send the load sailing past and jerk the line: a fragile
+ * satellite would be damaged, and a heavy rock would snap the line.
  */
 export const TOW_BRAKE_SHARE = 0.45;
-/** Speeds worth reaching with a load: a satellite is towed gently, a rock without boost. */
-export const TOW_SPEED = { fragile: 10, heavy: 18 } as const;
+/** Speeds worth reaching with a load: a satellite is towed gently, a rock steadily. */
+export const TOW_SPEED = { fragile: 10, heavy: 13 } as const;
 
 /** Masses relative to the ship. */
 export const LOAD_MASS = { satellite: 0.7 } as const;

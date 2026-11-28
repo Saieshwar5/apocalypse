@@ -303,8 +303,8 @@ export class PlaySession {
     const flying = active && !this.tactical && !this.stationOps.holdingShip && !this.services.berths.holding;
     const piloted = flying ? this.hazards.filterInput(readFlightInput(this.deps.input), deltaSeconds) : IDLE_INPUT;
     const flown = flying && !this.hazards.autopilot && this.autopilot ? this.autopilot(piloted, deltaSeconds) : piloted;
-    // A fragile load on the line: the retro thrusters ease off so it is not jerked.
-    const input = this.services.tow.load ? { ...flown, brake: flown.brake * TOW_BRAKE_SHARE } : flown;
+    // A load on the line: the retro thrusters ease off so it is not jerked.
+    const input = this.services.tow.loadMass > 0 ? { ...flown, brake: flown.brake * TOW_BRAKE_SHARE } : flown;
     ship.assistOverride = this.hazards.autopilot || this.autopilotLabel !== null;
     ship.update(deltaSeconds, input);
     shipModel.group.updateMatrixWorld();

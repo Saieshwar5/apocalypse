@@ -309,7 +309,7 @@ export class Navigation {
     // A load on the line is dragged to a stop by the ship: the same thrusters slow more mass.
     const tow = this.deps.play.services.tow;
     const fragile = tow.load !== null;
-    const brake = (FLIGHT.brake * ship.thrustMultiplier * handlingShare(ship.massFactor) * ship.massFactor * (fragile ? TOW_BRAKE_SHARE : 1)) / (ship.massFactor + tow.loadMass);
+    const brake = (FLIGHT.brake * ship.thrustMultiplier * handlingShare(ship.massFactor) * ship.massFactor * (tow.loadMass > 0 ? TOW_BRAKE_SHARE : 1)) / (ship.massFactor + tow.loadMass);
     this.speedCap = fragile ? TOW_SPEED.fragile : tow.loadMass > 0 ? TOW_SPEED.heavy : Infinity;
     const first = directorAdvice(this.directorInput(world, velocity, arriveSpeed, arriveRange, brake));
     // Aim where the target will be when the ship gets there, unless it is already close.
