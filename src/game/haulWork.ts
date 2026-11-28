@@ -73,7 +73,8 @@ export class HaulWork {
     }
     const { field, rng, hud, sound } = this.deps;
     const position = new THREE.Vector3(...randomUnitVector(rng)).multiplyScalar(randomBetween(rng, 72, 100));
-    const drift = new THREE.Vector3(...randomUnitVector(rng)).cross(position).setLength(1.2);
+    // A slow drift: at the old 1.2 a rock left the orbit band (and was removed) before most pilots reached it.
+    const drift = new THREE.Vector3(...randomUnitVector(rng)).cross(position).setLength(0.35);
     const rock = field.spawnFragment('medium', 'carbon', position, drift);
     rock.passerBy = true;
     rock.identified = true;
