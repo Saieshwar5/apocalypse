@@ -37,10 +37,10 @@ import type { GameSession } from './gameSession';
 import { computeGuidance, type Guidance } from './guidance';
 import { computeTargeting, type TargetingInfo } from './targeting';
 import { Campaign } from './campaign';
+import type { RadioNet } from './radioNet';
 import { WarningBeeps } from './warningBeeps';
 import { Licence } from './licence';
 import { ShipLoss } from './shipLoss';
-import { RIVALS, pilotName } from '../logic/rivals';
 import { OrbitServices } from './orbitServices';
 import type { OutpostId } from '../station/outposts';
 
@@ -74,6 +74,8 @@ export interface PlaySessionDependencies {
   ship: ShipController;
   /** Shows or hides the cockpit frame overlay. */
   setCockpitFrame: (visible: boolean) => void;
+  /** The shared radio channel: mission control, station chiefs, rivals. */
+  radio: RadioNet;
 }
 
 /**
@@ -114,7 +116,7 @@ export class PlaySession {
   constructor(private readonly deps: PlaySessionDependencies) {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
     this.beeps = new WarningBeeps(deps.sound);
-    this.licence = new Licence({ session: deps.session, hud: deps.hud, sound: deps.sound });
+    this.licence = new Licence({ session: deps.session, hud: deps.hud, sound: deps.sound, radio: deps.radio });
     this.loss = new ShipLoss({
       ship: deps.ship,
       missiles: this.missiles,
@@ -123,12 +125,14 @@ export class PlaySession {
       sound: deps.sound,
       cameraRig: deps.cameraRig,
       hud: deps.hud,
-      station: () => this.stationNow(),
+      station: () => this.stationOps.whereabouts(),
       onReplaced: () => this.rcs.reset(),
+      radio: deps.radio,
     });
     this.contracts = new ContractBook({
       walletOf: (pilot) => deps.session.walletOf(pilot),
       events: deps.session.events,
+      radio: deps.radio,
       hud: deps.hud,
       feedback: this.feedback,
     });
@@ -211,8 +215,9 @@ export class PlaySession {
       combat: this.combat,
       session: deps.session,
       playerProjectiles: [this.laser.group, this.missiles.group],
-      station: () => this.stationNow(),
+      station: () => this.stationOps.whereabouts(),
       playerGoodStanding: () => this.licence.inGoodStanding,
+      radio: deps.radio,
       aegisStock: () => (this.stationOps.present ? this.stationOps.station.stock : null),
     });
     this.campaign = new Campaign({
@@ -233,6 +238,7 @@ export class PlaySession {
       extraHint: () => this.services.berths.hint,
       postHaul: () => this.services.haul.post(),
       workingSatellites: () => this.satellites.fleet.aliveCount,
+      radio: deps.radio,
     });
   }
 
@@ -272,6 +278,7 @@ export class PlaySession {
   /** Called when the launch hands over control. */
   beginDefence(): void {
     this.stationOps.begin();
+    this.deps.radio.moment('run-start');
     // Start with the station dead ahead, so the pilot sees where home is.
     const { ship } = this.deps;
     const toStation = this.stationOps.station.position.clone().sub(ship.position).normalize();
@@ -416,10 +423,6 @@ export class PlaySession {
     cameraRig.place(position, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), deltaSeconds);
   }
 
-  private stationNow(): { position: THREE.Vector3; velocity: THREE.Vector3 } | null {
-    return this.stationOps.present ? { position: this.stationOps.station.position, velocity: this.stationOps.station.velocity } : null;
-  }
-
   private updateHud(deltaSeconds: number, ranked: readonly Asteroid[], showTargets = true): void {
     const { hud, radar, overlay, ship, shipModel, session, camera } = this.deps;
     hud.update(deltaSeconds, {
@@ -432,12 +435,7 @@ export class PlaySession {
       shieldCapacity: ship.shieldCapacity,
       balance: session.wallet.balance,
       earned: session.wallet.earned,
-      league: session.league().map(({ pilot, earned }) => ({
-        name: pilotName(pilot),
-        earned,
-        color: pilot === 'player' ? '#7dffb0' : (RIVALS.find((rival) => rival.id === pilot)?.color ?? '#e8f1ff'),
-        you: pilot === 'player',
-      })),
+      league: session.leagueRows(),
       contracts: this.contracts.listings(ranked),
       jobs: this.services.jobRows(),
       contractSummary: this.contracts.summary(this.campaign.director.phase === 'field'),

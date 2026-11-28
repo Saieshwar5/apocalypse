@@ -49,6 +49,25 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 6a: people and voices
+
+- Choose **your call sign** on the menu (letters, digits, spaces and hyphens,
+  up to 14); it is saved with the settings and everyone on the radio uses
+  it.
+- A cast with names: **Capcom Reyes** (mission control, on Halo), **Chief
+  Okafor** (Vulcan Yard), **Foreman Patel** (Ceres Works), **Commander Sato**
+  (Halo), and the rivals Kestrel and Moth. Each has a colour on the radio
+  line and a voice pitch of their own.
+- One shared radio channel queues and spaces every line (4 s between any
+  two lines, 10 s per speaker) so voices never talk over each other or over
+  mission control's urgent calls.
+- They speak at the moments that matter: the start of a run, each field and
+  calm zone, when Vulcan or Ceres post work, when a haul is delivered, when
+  you save a city, when you lose your ship, when your licence goes under
+  review or recovers. In calm zones the channel fills with banter (Aegis
+  coffee, Moth's thirty years in orbit, Halo's cat in the airlock again).
+- Keys typed into the call sign box no longer reach the ship's controls.
+
 ## Stage 5c: the station economy
 
 - Every station keeps a store of **fuel** and **parts**. Prices follow
@@ -377,7 +396,7 @@ contract pay, station prices and the wallet, the tow line, placement and
 satellite job paths, rival choices, shared pay, radio rationing, the autopilot,
 the Cascade (debris, drag, growth, sweeping, orbits through a point), automatic
 quality, reputation, probation, insurance and the emergency loan, station prices,
-shuttle routes and haul masses,
+shuttle routes and haul masses, call signs and radio rationing,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.

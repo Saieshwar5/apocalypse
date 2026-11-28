@@ -8,6 +8,7 @@ import type { ShipController } from '../ship/shipController';
 import type { MissileLauncher } from '../weapons/missileLauncher';
 import { loanNote, type Licence } from './licence';
 import { deliverReplacementShip } from './shipRecovery';
+import type { RadioNet } from './radioNet';
 
 /** After the ship is destroyed, play continues this long so the player sees it. */
 const SHIP_LOST_SECONDS = 2.5;
@@ -23,6 +24,7 @@ export interface ShipLossDependencies {
   station: () => { position: THREE.Vector3; velocity: THREE.Vector3 } | null;
   /** Called when a replacement ship is in place, to reset effects tied to the old one. */
   onReplaced: () => void;
+  radio: RadioNet;
 }
 
 /**
@@ -56,6 +58,7 @@ export class ShipLoss {
     cameraRig.addShake(1.2);
     this.cause = cause;
     this.timer = SHIP_LOST_SECONDS;
+    this.deps.radio.moment('ship-lost');
     hud.showMessage(`Interceptor destroyed: ${cause.replace(/^The interceptor was /, '').toLowerCase()}`, 'danger', SHIP_LOST_SECONDS);
   }
 

@@ -156,6 +156,11 @@ export class StationOperations {
   }
 
   /** Markers for the overlay: the station, its commanded destination and any supply rocket. */
+  /** Where Aegis is and how it moves, or null once it is destroyed. */
+  whereabouts(): { position: THREE.Vector3; velocity: THREE.Vector3 } | null {
+    return this.present ? { position: this.station.position, velocity: this.station.velocity } : null;
+  }
+
   markers(): { world: THREE.Vector3; name: string; ghost: boolean }[] {
     if (!this.present) {
       return [];

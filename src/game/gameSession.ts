@@ -1,7 +1,7 @@
 import { MAX_PLANET_INTEGRITY } from '../logic/planetDamage';
 import { Wallet } from '../logic/economy';
 import { GameEvents } from './gameEvents';
-import { RIVALS, type PilotId, type RivalId } from '../logic/rivals';
+import { RIVALS, pilotName, type PilotId, type RivalId } from '../logic/rivals';
 
 /** Money and progress for one play-through. */
 export class GameSession {
@@ -37,6 +37,16 @@ export class GameSession {
       rows.push({ pilot: rival.id, earned: this.rivalWallets[rival.id].earned });
     }
     return rows.sort((a, b) => b.earned - a.earned);
+  }
+
+  /** The league for the HUD: names, earnings and colours, best first. */
+  leagueRows(): { name: string; earned: number; color: string; you: boolean }[] {
+    return this.league().map(({ pilot, earned }) => ({
+      name: pilotName(pilot),
+      earned,
+      color: pilot === 'player' ? '#7dffb0' : (RIVALS.find((rival) => rival.id === pilot)?.color ?? '#e8f1ff'),
+      you: pilot === 'player',
+    }));
   }
 
   /** The wallet of any pilot. */

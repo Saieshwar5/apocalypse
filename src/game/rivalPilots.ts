@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { AsteroidField } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
-import { RIVAL_HIT_FINE, RIVALS, mayTalk, type RivalId } from '../logic/rivals';
+import { RIVAL_HIT_FINE, RIVALS, type RivalId } from '../logic/rivals';
+import type { RadioNet } from './radioNet';
 import { segmentSphereHit } from '../logic/satellites';
 import { formatCredits } from '../logic/contracts';
 import { EARTH_RADIUS } from '../scene/earth';
@@ -31,6 +32,8 @@ export interface RivalPilotsDependencies {
   playerProjectiles: THREE.Group[];
   station: () => { position: THREE.Vector3; velocity: THREE.Vector3 } | null;
   playerGoodStanding: () => boolean;
+  /** The shared radio channel. */
+  radio: RadioNet;
 }
 
 /** Hit sphere of a rival ship, in world units. */
@@ -42,8 +45,8 @@ const LINES: Record<RivalId, Record<'hunt-big' | 'hunt' | 'satellite' | 'refuel'
     hunt: ['Kestrel, engaging.', 'Kestrel. Taking this one.'],
     satellite: ['Kestrel. Fine, I will move the satellite.'],
     refuel: ['Kestrel, running dry. Heading to Aegis.'],
-    beaten: ['Nice shot, Singularity.', 'You beat me to it. Next one is mine.'],
-    hit: ['Watch your fire, Singularity!', 'Hey! I am on your side!'],
+    beaten: ['Nice shot, {callsign}.', 'You beat me to it. Next one is mine.'],
+    hit: ['Watch your fire, {callsign}!', 'Hey! I am on your side!'],
   },
   moth: {
     'hunt-big': ['Moth. Going for the heavy one, nice and slow.'],
@@ -63,8 +66,6 @@ const LINES: Record<RivalId, Record<'hunt-big' | 'hunt' | 'satellite' | 'refuel'
 export class RivalPilots {
   readonly rivals: RivalPilot[];
   private elapsed = 0;
-  private lastAnyLine = -Infinity;
-  private readonly lastLine = new Map<RivalId, number>();
   private readonly huntTargets = new Map<RivalId, { id: number; earnedBefore: number }>();
   /** Last time each rival was hit by the player, so one burst is one fine. */
   private readonly lastHit = new Map<RivalId, number>();
@@ -79,8 +80,6 @@ export class RivalPilots {
 
   reset(): void {
     this.elapsed = 0;
-    this.lastAnyLine = -Infinity;
-    this.lastLine.clear();
     this.huntTargets.clear();
     this.lastHit.clear();
     this.rivals.forEach((rival, index) => {
@@ -191,19 +190,7 @@ export class RivalPilots {
   }
 
   private say(id: RivalId, line: keyof (typeof LINES)['kestrel'], urgent = false): void {
-    const last = this.lastLine.get(id) ?? -Infinity;
-    if (!urgent && !mayTalk(this.elapsed, last, this.lastAnyLine)) {
-      return;
-    }
     const options = LINES[id][line];
-    const text = options[Math.floor(Math.random() * options.length)];
-    const rival = this.rivals.find((candidate) => candidate.definition.id === id);
-    if (!rival) {
-      return;
-    }
-    this.lastLine.set(id, this.elapsed);
-    this.lastAnyLine = this.elapsed;
-    this.deps.hud.showRadio(rival.definition.name, rival.definition.color, text);
-    this.deps.sound.chatter(text, rival.definition.pitch);
+    this.deps.radio.say(id, options[Math.floor(Math.random() * options.length)], urgent);
   }
 }

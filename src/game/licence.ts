@@ -17,11 +17,13 @@ import {
 } from '../logic/reputation';
 import { formatCountdown } from '../logic/units';
 import type { GameSession } from './gameSession';
+import type { RadioNet } from './radioNet';
 
 export interface LicenceDependencies {
   session: GameSession;
   hud: Hud;
   sound: SoundEffects;
+  radio: RadioNet;
 }
 
 const STAGE_LABEL: Record<LicenceStage, string> = { good: 'GOOD STANDING', warning: 'WARNING', probation: 'PROBATION', recalled: 'RECALLED' };
@@ -151,6 +153,9 @@ export class Licence {
 
   private setStage(stage: LicenceStage, message: string, tone: 'success' | 'warning' | 'danger'): void {
     this.stage = stage;
+    if (stage === 'warning' || stage === 'good') {
+      this.deps.radio.moment(stage === 'warning' ? 'licence-warning' : 'licence-good');
+    }
     this.deps.hud.showMessage(`Mission control: ${message}`, tone, 5);
     if (tone === 'danger') {
       this.deps.sound.alarm();
