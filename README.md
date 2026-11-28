@@ -59,6 +59,34 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Combat feel: a clear fight screen, and explosions and impacts that land
+
+- **The fight screen is clear when it matters.** Once the locked rock is on
+  screen and within laser reach (or simply large in view), it wears only
+  the turning lock ring, one line (`L STONY · IMPACT 0:18`) and its health
+  bar. The bracket, the three-line label, the priority ring and its words,
+  the target compass, the flight director and the impact tags all stand
+  down until the fight is over; the target card at the bottom keeps the
+  detail. About fifteen overlapping labels became one.
+- **Fewer repeats before the fight too.** The priority rock no longer wears
+  both a bracket label and the priority words (the priority line now says
+  what the rock is), and the compass repeats the impact time only while the
+  rock is out of view.
+- **Explosions throw light.** Every kill sends out a thin blast ring, lights
+  the ship's hull and nearby rocks for a moment, and leaves embers that
+  fade slowly as they fly.
+- **A warhead is plainly bigger than a laser kill**: a harder white flash, a
+  second ring, embers thrown several times further, a stronger shake and a
+  brief warm glare over the view.
+- **A rock hitting Earth is an event.** A blinding flash; a bright shock
+  front racing outwards over the curved surface with a slower pressure wave
+  behind it; a column of fire and dust climbing out of the atmosphere; a
+  skirt of dust along the ground; and a glare and shake that grow with the
+  rock. The fall through the air leaves a longer streak of fire. The
+  fires, smoke and scar that were already there remain afterwards.
+- Small fixes: the Balance row stays on one line while a payment shows, and
+  the end screen's values no longer wrap.
+
 ## Your mission, towing with a destination, and a map you can plan on
 
 - **Your mission** is a new first page in Help, and a new pilot reads it
@@ -722,7 +750,8 @@ quality, reputation, probation, insurance and the emergency loan, station prices
 shuttle routes and haul masses, call signs and radio rationing, career ranks and
 the season's story beats, storm shelter and the swell,
 the scanner projection, fuel, docking and station stock, delivery steps
-and drop zones, routes round the planet, and the mission page's readings. In development builds the running game is available as
+and drop zones, routes round the planet, the mission page's readings, and
+when a fight counts as close. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
 
