@@ -8,10 +8,11 @@ import { formatCredits } from '../logic/contracts';
 import type { Wallet } from '../logic/economy';
 import { randomBetween, randomUnitVector, type RandomSource } from '../logic/random';
 import { HAUL_PAY_PER_TONNE, haulLoadMass, haulTonnes } from '../logic/stationEconomy';
-import { TOW, isPlaced } from '../logic/towing';
+import { PLACEMENT, TOW, isPlaced } from '../logic/towing';
 import { formatDistance } from '../logic/units';
 import type { Outposts } from '../station/outposts';
 import type { GameEvents } from './gameEvents';
+import type { DeliverySource } from './delivery';
 import type { JobRow, Waypoint } from './satelliteJobHelpers';
 import type { StationMarket } from './stationMarket';
 import { rockBody, type TowBody, type TowLine } from './towLine';
@@ -168,6 +169,32 @@ export class HaulWork {
       this.deps.tow.snapped = false;
       this.deps.hud.showMessage('Tow line snapped: the rock was pulled too hard', 'danger', 3);
     }
+  }
+
+  /** The haul rock while it is on the tow line: the ship nudges it rather than crashing into it. */
+  get towedRock(): Asteroid | null {
+    return this.haul && this.deps.tow.body === this.haul.body ? this.haul.rock : null;
+  }
+
+  /** The rock on the line and where it goes: Ceres's intake, the only place that buys rocks. */
+  delivery(): DeliverySource | null {
+    const haul = this.haul;
+    if (!haul || this.deps.tow.body !== haul.body) {
+      return null;
+    }
+    const { outposts } = this.deps;
+    return {
+      load: `${haul.tonnes.toFixed(1)} t rock`,
+      place: 'Ceres Works intake',
+      world: outposts.portPosition('ceres'),
+      velocity: outposts.get('ceres').velocity,
+      radius: INTAKE_RANGE,
+      maxSpeed: PLACEMENT.maxSpeed,
+      loadPosition: haul.rock.mesh.position,
+      loadVelocity: haul.rock.velocity,
+      condition: null,
+      contact: 'ceres',
+    };
   }
 
   rows(): JobRow[] {

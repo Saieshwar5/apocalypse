@@ -59,9 +59,9 @@ export interface HudSnapshot {
     braking: boolean;
     /** Held at a station berth or docked. */
     berthed: boolean;
-    /** What is on the tow line, or null. */
-    towing: string | null;
   };
+  /** What is on the tow line, where it goes and the next step; null with a clear line. */
+  tow: { title: string; step: string; state: string } | null;
   /** Satellite contracts, shown above the defence contracts. */
   jobs: readonly JobRow[];
   /** For deciding what to show: calm zone or field, and whether the tactical map is open. */
@@ -138,7 +138,9 @@ export class Hud {
   private readonly steerStatus = element<HTMLElement>('#steer-status');
   private readonly assistStatus = element<HTMLElement>('#assist-status');
   private readonly motionStatus = element<HTMLElement>('#motion-status');
-  private readonly towStatus = element<HTMLElement>('#tow-status');
+  private readonly towCard = element<HTMLElement>('#tow-card');
+  private readonly towTitle = element<HTMLElement>('#tow-title');
+  private readonly towStep = element<HTMLElement>('#tow-step');
   private readonly damageFlash = element<HTMLDivElement>('#damage-flash');
   private readonly defaultHint = this.hint.textContent ?? '';
   private sitePanel: SitePanel | null = null;
@@ -288,7 +290,7 @@ export class Hud {
       assist: controls.assist,
       berthed: controls.berthed,
       braking: controls.braking,
-      towing: controls.towing !== null,
+      towing: snapshot.tow !== null,
       newPilot: this.newPilot,
     });
     this.visibility = visibility;
@@ -375,8 +377,15 @@ export class Hud {
     setStatus(this.assistStatus, controls.assist ? 'on' : 'off', controls.assist ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF: DRIFTING');
     const motion = controls.berthed ? 'BERTHED' : controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING';
     setStatus(this.motionStatus, controls.braking ? 'off' : 'on', motion);
-    this.towStatus.hidden = controls.towing === null;
-    setStatus(this.towStatus, 'off', controls.towing ?? '');
+    const tow = snapshot.tow;
+    this.towCard.hidden = tow === null;
+    if (tow) {
+      setText(this.towTitle, tow.title);
+      setStatus(this.towStep, tow.state, tow.step);
+      if (this.towCard.dataset.state !== tow.state) {
+        this.towCard.dataset.state = tow.state;
+      }
+    }
   }
 
   private renderPosition(snapshot: HudSnapshot): void {

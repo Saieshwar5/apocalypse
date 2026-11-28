@@ -12,7 +12,7 @@ import type { ShipController } from '../ship/shipController';
 import type { ShipModel } from '../ship/shipModel';
 import type { GameSession } from './gameSession';
 import { HelpDesk } from './helpDesk';
-import { adviceFor } from './helpFeed';
+import { adviceFor, missionReadings } from './helpFeed';
 import { Navigation } from './navigation';
 import { PilotCareer } from './pilotCareer';
 import type { PlaySession } from './playSession';
@@ -66,6 +66,7 @@ export class FlightSystems {
       input,
       hud,
       advice: () => adviceFor(play, ship, this.navigation),
+      readings: () => missionReadings(play, session.integrity),
       pause: deps.pause,
       resume: deps.resume,
       showPause: deps.showPause,
@@ -118,7 +119,7 @@ export class FlightSystems {
         this.deps.radio.chatter('halo', "You're listening to Orbit FM, ambient from Halo deck three. Fly safe out there.");
       }
     }
-    this.navigation.update(deltaSeconds, play.shipActive && !play.tactical);
+    this.navigation.update(deltaSeconds, play.shipActive && !play.tactical, play.shipActive && play.tactical);
     return true;
   }
 

@@ -109,7 +109,7 @@ export class Game {
     this.hud.onUrgent = (text) => this.sound.announce(text);
     this.radar = new Radar(radarCanvas);
     this.screens = new GameScreens({
-      onStart: () => this.startRun(0),
+      onStart: () => this.firstBriefing(() => this.startRun(0)),
       onTraining: () => this.startRun(0, true),
       onResume: () => this.resume(),
       onRestart: () => this.startRun(0),
@@ -221,6 +221,15 @@ export class Game {
     // Connecting to the document stops a huge delta after the tab was hidden.
     this.timer.connect(document);
     this.pipeline.renderer.setAnimationLoop(this.frame);
+  }
+
+  /** Before the very first launch the pilot reads the mission page. */
+  private firstBriefing(start: () => void): void {
+    if (this.flight.help.needsBriefing) {
+      this.flight.help.brief(start);
+    } else {
+      start();
+    }
   }
 
   /** Starts a run in the given star system; systems after the first continue the campaign. */

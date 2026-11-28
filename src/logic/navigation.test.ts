@@ -53,6 +53,13 @@ describe('objectives', () => {
     expect(resolveObjective('auto', { ...all, threat: false, job: false })).toBeNull();
   });
 
+  it('points at the delivery while something is on the tow line', () => {
+    expect(resolveObjective('auto', { ...all, committed: true })).toBe('job');
+    expect(resolveObjective('auto', { ...all, committed: true, needsHome: true })).toBe('job');
+    // The pilot can still choose otherwise.
+    expect(resolveObjective('home', { ...all, committed: true })).toBe('home');
+  });
+
   it('keeps the pilot choice while it exists', () => {
     expect(resolveObjective('station', all)).toBe('station');
     expect(resolveObjective('job', { ...all, job: false })).toBe('threat');

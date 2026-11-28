@@ -41,6 +41,7 @@ import { WarningBeeps } from './warningBeeps';
 import { Licence } from './licence';
 import { ShipLoss } from './shipLoss';
 import { OrbitServices } from './orbitServices';
+import { TOW_BRAKE_SHARE } from '../logic/towing';
 import { feedHud } from './hudFeed';
 import type { OutpostId } from '../station/outposts';
 
@@ -301,7 +302,9 @@ export class PlaySession {
     const active = this.shipActive;
     const flying = active && !this.tactical && !this.stationOps.holdingShip && !this.services.berths.holding;
     const piloted = flying ? this.hazards.filterInput(readFlightInput(this.deps.input), deltaSeconds) : IDLE_INPUT;
-    const input = flying && !this.hazards.autopilot && this.autopilot ? this.autopilot(piloted, deltaSeconds) : piloted;
+    const flown = flying && !this.hazards.autopilot && this.autopilot ? this.autopilot(piloted, deltaSeconds) : piloted;
+    // A load on the line: the retro thrusters ease off so it is not jerked.
+    const input = this.services.tow.loadMass > 0 ? { ...flown, brake: flown.brake * TOW_BRAKE_SHARE } : flown;
     ship.assistOverride = this.hazards.autopilot || this.autopilotLabel !== null;
     ship.update(deltaSeconds, input);
     shipModel.group.updateMatrixWorld();
@@ -312,9 +315,12 @@ export class PlaySession {
       this.updateWeapons(deltaSeconds);
     }
     this.loss.update(deltaSeconds);
-    // The docking guides will not take a ship with a load on its tow line.
-    const pilotBusy =
-      input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || this.deps.input.firingPrimary || this.services.tow.load !== null;
+    // Stations will not take a ship with anything on its tow line (a satellite, a rock or a pod):
+    // once held, the pilot could not release the load.
+    const loadOnLine = this.services.tow.load !== null || this.services.tow.body !== null;
+    this.stationOps.docking.loadOnLine = loadOnLine;
+    this.services.berths.loadOnLine = loadOnLine;
+    const pilotBusy = input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || this.deps.input.firingPrimary || loadOnLine;
     this.stationOps.update(deltaSeconds, active, this.tactical, pilotBusy);
     shipModel.group.updateMatrixWorld();
     this.hazards.update(deltaSeconds, active);
@@ -323,6 +329,7 @@ export class PlaySession {
     this.combat.resolvePlanetImpacts(impacts, this.deps.camera.position);
     this.combat.resolveWeaponHits(this.laser.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'laser');
     this.combat.resolveWeaponHits(this.missiles.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'missile');
+    this.combat.shipIgnores = this.services.haul.towedRock;
     this.combat.resolveShipCollisions();
     this.combat.resolveEscaped(this.field.collectEscaped());
     this.satellites.shipIgnores = this.services.work.towed;
@@ -357,7 +364,7 @@ export class PlaySession {
     shipModel.update(this.elapsed);
     sound.setEngine(this.shipActive ? ship.throttle : 0, ship.boosting);
 
-    this.targeting = this.shipActive ? computeTargeting(ship, this.missiles.lockedTarget, this.field.all) : null;
+    this.targeting = this.shipActive ? computeTargeting(ship, this.missiles.lockedTarget, this.combat.shipIgnores ? this.field.all.filter((rock) => rock !== this.combat.shipIgnores) : this.field.all) : null;
     this.guidance = computeGuidance(ship, ranked, this.satellites.all);
     this.beeps.update(realDeltaSeconds, Boolean(this.targeting?.collision || this.guidance.satelliteAhead), this.field.all);
     this.updateCamera(realDeltaSeconds);
@@ -381,7 +388,7 @@ export class PlaySession {
         input.consumeLook();
       }
       cameraRig.snap();
-      hud.showMessage(this.tactical ? 'Tactical map: time slowed. Mouse rotates, Q/E move the station, Tab returns' : 'Back in the cockpit', 'info', 2.5);
+      hud.showMessage(this.tactical ? 'Map open: time is slowed. Tab returns to the cockpit' : 'Back in the cockpit', 'info', 3);
     }
     if (input.consumePress('KeyI') && this.stationOps.docking.state === 'docked') {
       this.licence.buyInsurance();
@@ -400,7 +407,8 @@ export class PlaySession {
     if (this.laser.tryFire(deltaSeconds, input.firingPrimary, group, ship.velocity, shipModel.gunPorts)) {
       sound.laser();
     }
-    this.missiles.updateLock(group, this.field.all);
+    const towed = this.services.haul.towedRock;
+    this.missiles.updateLock(group, towed ? this.field.all.filter((rock) => rock !== towed) : this.field.all);
     if (input.consumePress('KeyF') || input.consumePress('MouseRight')) {
       if (this.missiles.tryFire(group, ship.velocity)) {
         sound.missile();

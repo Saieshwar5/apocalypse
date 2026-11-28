@@ -142,6 +142,11 @@ export class CrewWork {
     return [{ title: `Crew service: ${name}`, detail, pay: CREW_CALL.pay, urgent: false }];
   }
 
+  /** A crew is aboard (out to the satellite, or on the way home). */
+  get aboard(): boolean {
+    return this.satellite !== null && this.stage !== 'pickup';
+  }
+
   waypoint(): Waypoint | null {
     if (!this.satellite) {
       return null;

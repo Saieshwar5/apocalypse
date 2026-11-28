@@ -28,7 +28,7 @@
         <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div></div>
         <div id="orbit-group" class="hud-group"><div class="hud-label" title="Debris in orbit. At 0% the cascade closes orbit">Orbit health <span id="orbit-health-value">100%</span></div>
         <div class="bar"><div id="orbit-health-bar" class="bar-fill" data-level="stable"></div></div></div>
-        <div id="licence-row" class="hud-row"><span>Licence</span><strong id="licence-value" class="licence" data-stage="good">GOOD STANDING · 60</strong></div>
+        <div id="licence-row" class="hud-row"><span>Licence</span><strong id="licence-value" class="licence-standing" data-stage="good">GOOD STANDING · 60</strong></div>
         <div id="balance-row" class="hud-row"><span>Balance</span><strong id="balance-value" class="money">500 cr</strong></div>
         <div id="earned-row" class="hud-row"><span>Earned this run</span><strong id="earned-value">0 cr</strong></div>
         <div id="league-value" class="hud-caption league"></div>
@@ -102,13 +102,13 @@
         <span id="steer-status" data-state="off">CLICK FOR MOUSE STEERING</span>
         <span id="assist-status" data-state="on">FLIGHT ASSIST ON</span>
         <span id="motion-status" data-state="on">COASTING</span>
-        <span id="tow-status" data-state="on" hidden></span>
       </div>
+      <div id="tow-card" class="tow-card" data-state="travel" hidden><strong id="tow-title"></strong><span id="tow-step"></span></div>
       <div id="hud-hint" class="hud-hint">W thrust · S brake · A/D/R/V slide · Shift boost · Click/Space fire · F missile · T tow · Z assist · Tab map</div>
       <section id="nav-computer" class="hud-panel nav-computer" aria-label="Navigation computer" hidden>
         <div class="hud-label">Nav computer <span id="nav-page" class="hud-label-note">N closes</span></div>
         <ol id="nav-list"></ol>
-        <div class="hud-caption">Number key sets the target · 0 clears it · U autopilot</div>
+        <div id="nav-caption" class="hud-caption">Number key sets the target · 0 clears it · U autopilot</div>
       </section>
       <section id="radio-log" class="hud-panel radio-log" aria-label="Radio log" hidden>
         <div class="hud-label">Radio log <span class="hud-label-note">L closes</span></div>
@@ -201,15 +201,18 @@
     <div id="help" class="screen" hidden>
       <div class="screen-card help-card" role="dialog" aria-label="Help">
         <div class="help-head">
-          <h2>Help</h2>
+          <h2 id="help-title">Help</h2>
           <button id="help-close" type="button" class="help-close">Back to flight <kbd>H</kbd></button>
         </div>
         <div class="help-tabs" role="tablist">
+          <button type="button" role="tab" data-tab="mission">Your mission</button>
           <button type="button" role="tab" data-tab="now" aria-selected="true">What now?</button>
           <button type="button" role="tab" data-tab="controls">Controls</button>
           <button type="button" role="tab" data-tab="jobs">Jobs</button>
           <button type="button" role="tab" data-tab="screen">Reading the screen</button>
         </div>
+
+        <section id="help-mission" class="help-page mission" data-page="mission" hidden></section>
 
         <section class="help-page" data-page="now">
           <p class="help-lead">Based on where you are and what is happening right now:</p>
@@ -232,14 +235,11 @@
               </dl>
               <h3>Finding your way</h3>
               <dl class="help-keys">
-                <dt><kbd>N</kbd> then <kbd>1</kbd>-<kbd>9</kbd></dt><dd>Navigation computer: pick any job, station, satellite, pilot or debris cloud by name. <kbd>0</kbd> clears it</dd>
-                <dt><kbd>U</kbd></dt><dd>Approach autopilot to the target: flies there and stops beside it. Any control takes over</dd>
-                <dt><kbd>G</kbd></dt><dd>Choose what the compass points at: auto, priority rock, job, nearest station, home</dd>
-                <dt>hold <kbd>X</kbd></dt><dd>Turn the nose towards it (you still thrust yourself)</dd>
-                <dt><kbd>B</kbd></dt><dd>Scanner range: auto, close, medium, far</dd>
-                <dt>hold <kbd>B</kbd></dt><dd>Enlarge the scanner</dd>
-                <dt><kbd>Tab</kbd></dt><dd>Tactical map: everything at once, time slowed</dd>
+                <dt><kbd>Tab</kbd></dt><dd>The map: everything around Earth, with a numbered list of places to go. Press a number to set your destination; the route is drawn. Time is slowed</dd>
+                <dt><kbd>N</kbd> then <kbd>1</kbd>-<kbd>9</kbd></dt><dd>The same list without leaving the cockpit. <kbd>0</kbd> clears the destination</dd>
+                <dt><kbd>U</kbd></dt><dd>Autopilot: flies to the destination and stops beside it. Any control takes over</dd>
               </dl>
+              <p class="help-note">Those three are all you need. For finer control: <kbd>G</kbd> switches what the compass points at, holding <kbd>X</kbd> turns the nose to it, <kbd>B</kbd> changes the scanner's range (hold to enlarge it), and <kbd>Q</kbd><kbd>E</kbd> on the map move Aegis along its orbit.</p>
             </div>
             <div>
               <h3>Fighting</h3>
@@ -272,11 +272,11 @@
         <section class="help-page" data-page="jobs" hidden>
           <dl class="help-jobs">
             <dt>Intercept a rock</dt><dd>Every rock heading for Earth carries a contract. Follow the yellow PRIORITY marker and the compass, get close, fire the laser; use missiles on iron and giants. Pushing a rock off course (a near miss) pays too and leaves less debris than shattering it. Early and clean pays a bonus.</dd>
-            <dt>Satellite tows</dt><dd>Fly to the satellite and match its speed, press <kbd>T</kbd> to connect, take it where the cyan diamond says (Vulcan Yard for repairs, back to its slot afterwards, clear of a rock's path for a dodge), nearly stop, press <kbd>T</kbd> to release. Pull gently: a fragile load is damaged by hard tugs.</dd>
+            <dt>Satellite tows</dt><dd>Fly to the satellite and match its speed, press <kbd>T</kbd> to connect. The tow card at the bottom then names where the load goes (Vulcan Yard for repairs, back to its slot afterwards, clear of a rock's path for a dodge) and the compass points there. Fly into the dashed drop zone, slow down, and press <kbd>T</kbd> when the card turns green. Pull gently: a fragile load is damaged by hard tugs.</dd>
             <dt>Reboost</dt><dd>A satellite sinking into the swollen atmosphere: tow it back up to its slot before it burns.</dd>
-            <dt>Rock haul (Ceres)</dt><dd>Catch the marked carbon rock with the tow line and bring it to Ceres Works' intake. It is heavy: plan fuel and brake early.</dd>
+            <dt>Rock haul (Ceres)</dt><dd>Catch the marked carbon rock with the tow line and bring it to the drop zone at Ceres Works' intake, then release it (<kbd>T</kbd>) to be paid. It is heavy: plan fuel and brake early. A station will not berth you while a load is on the line.</dd>
             <dt>Crew run (Halo)</dt><dd>Berth at Halo to take a crew aboard, hold beside the satellite while they work, then bring them home. Fly gently: hard hits hurt them.</dd>
-            <dt>Rescue</dt><dd>An escape pod falling towards the atmosphere: catch it with the tow line before it burns up and bring it to Halo's crew port.</dd>
+            <dt>Rescue</dt><dd>An escape pod falling towards the atmosphere: catch it with the tow line before it burns up, bring it to the drop zone at Halo's crew port and release it.</dd>
             <dt>Escort</dt><dd>Rocks will cross the supply rocket's climb: destroy or push them away before they meet it.</dd>
             <dt>Sweep debris</dt><dd>Fly slowly through a debris cloud (amber rings) to net it, paid by the tonne. It keeps Orbit Health up.</dd>
             <dt>Medals</dt><dd>Every job is graded bronze, silver or gold for how well it was done; silver and gold pay extra.</dd>
@@ -291,10 +291,11 @@
             <dt><span class="legend chevrons">› › ›</span></dt><dd><b>Approach guide</b> near stations and jobs, with the speed to arrive at.</dd>
             <dt><span class="legend swatch" style="--c:#e48cff"></span></dt><dd><b>Flight director</b> under the compass: one instruction at a time. TURN to the dot, BURN up to the speed shown, COAST until it says brake, BRAKE NOW, then MATCH SPEED. For moving targets a dashed route leads to a <b>MEET HERE</b> mark: where the target will be when you arrive.</dd>
             <dt><span class="legend swatch" style="--c:#ffd23f"></span><span class="legend swatch" style="--c:#8fd3ff"></span><span class="legend swatch" style="--c:#7dffb0"></span><span class="legend swatch" style="--c:#5fd8ff"></span></dt><dd>Objective colours: <b style="color:#ffd23f">priority rock</b>, <b style="color:#8fd3ff">job</b>, <b style="color:#7dffb0">station</b>, <b style="color:#5fd8ff">home (Aegis)</b>.</dd>
+            <dt><span class="legend swatch" style="--c:#8fd3ff"></span></dt><dd><b>Tow card</b> (bottom, while something is on the line): what you are towing, where it goes, and the next step. The <b>drop zone</b> is the dashed ring in space; card and ring turn green when it is time to release (<kbd>T</kbd>).</dd>
             <dt><span class="legend scanner"></span></dt><dd><b>3D scanner</b> (bottom left): your ship is the green arrow in the middle, nose up. Things stand on stalks: up means above you, a hollow end means below. <b style="color:#ff5a4a">Red</b>/<b style="color:#ffb347">orange</b> diamonds are rocks heading for Earth, faint grey dots are harmless rocks, squares are stations, triangles are rival pilots, dashed amber rings are debris, the pulsing ring is your objective. The faint wedge is what your cameras can see.</dd>
             <dt><span class="legend reticle"></span></dt><dd><b>Crosshair</b>: green when the target is in laser range, amber when it is at the edge, red when overheated.</dd>
             <dt><span class="legend ring"></span></dt><dd><b>Red rings on Earth</b> mark where rocks will land; cities show a countdown when threatened.</dd>
-            <dt><span class="legend bar"></span></dt><dd><b>The HUD shows what matters now.</b> Planet, orbit health, money, the league and the sites appear when they change or need you; calm zones show the planning view; <kbd>Tab</kbd> shows everything. HUD density is in the pause settings.</dd>
+            <dt><span class="legend bar"></span></dt><dd><b>The HUD shows what matters now.</b> Planet, orbit health, money, the league and the sites appear when they change or need you; calm zones show the planning view; <kbd>Tab</kbd> opens the map. HUD density is in the pause settings.</dd>
           </dl>
         </section>
       </div>

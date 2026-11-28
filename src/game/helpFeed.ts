@@ -1,5 +1,7 @@
 import { MATERIAL_TRAITS } from '../logic/asteroidClasses';
+import type { MissionReadings } from '../logic/mission';
 import { OBJECTIVE_NAME } from '../logic/navigation';
+import { STATION_STOCK } from '../logic/stationSupply';
 import { inPlanetShadow } from '../logic/spaceWeather';
 import { whatNow } from '../logic/whatNow';
 import { EARTH_RADIUS } from '../scene/earth';
@@ -13,6 +15,7 @@ export function adviceFor(play: PlaySession, ship: ShipController, navigation: N
   const priority = play.guidance.priority;
   const rock = priority?.item ?? null;
   const job = play.services.jobRows()[0] ?? null;
+  const delivery = play.services.delivery();
   const berthedAt = play.services.berths.berthedAt;
   const docked = play.stationOps.docking.state === 'docked';
   return whatNow({
@@ -34,11 +37,26 @@ export function adviceFor(play: PlaySession, ship: ShipController, navigation: N
     missiles: play.missiles.ammunition,
     docked,
     berthedAt: berthedAt ? play.services.outposts.get(berthedAt).name : null,
-    towing: play.services.work.towStatus() !== null,
+    towing: delivery ? { load: delivery.load, place: delivery.place, step: delivery.step.text } : null,
     storm: play.services.weather.phase,
     sheltered: docked || berthedAt !== null || inPlanetShadow(ship.position.toArray(), SUN_DIRECTION.toArray(), EARTH_RADIUS),
     licenceGood: play.licence.stage === 'good',
     orbitHealth: play.services.debris.health,
     objective: navigation.objective ? `${OBJECTIVE_NAME[navigation.objective.kind]} (${navigation.objective.label})` : null,
   });
+}
+
+/** How the five duties stand right now, for the mission page. */
+export function missionReadings(play: PlaySession, integrity: number): MissionReadings {
+  const stock = play.stationOps.present ? play.stationOps.station.stock : null;
+  return {
+    earth: integrity,
+    sitesStanding: play.sites.sites.filter((site) => site.health > 0).length,
+    sitesTotal: play.sites.sites.length,
+    orbitHealth: play.services.debris.health,
+    satellitesWorking: play.satellites.fleet.aliveCount,
+    satellitesTotal: play.satellites.fleet.satellites.length,
+    aegis: stock ? { fuel: stock.fuel / STATION_STOCK.capacity.fuel, missiles: stock.missiles / STATION_STOCK.capacity.missiles } : null,
+    licence: { stage: play.licence.stage, score: play.licence.reputation },
+  };
 }

@@ -11,6 +11,7 @@ import type { CombatFeedback } from './combatFeedback';
 import type { StationMarker } from '../game/orbitServices';
 import { drawGuidance, type GuidanceFrame } from './guidanceOverlay';
 import { drawReticle } from './reticle';
+import { drawMap, type MapFrame } from './mapOverlay';
 import { ScreenProjector, type ScreenPoint } from './screenProjector';
 
 const SIZE_LABEL: Record<AsteroidSize, string> = { small: 'S', medium: 'M', large: 'L', giant: 'GIANT' };
@@ -77,6 +78,8 @@ export class TargetOverlay {
   quietLabels = false;
   /** True while the target compass shows the way: the old off-screen arrows step aside. */
   compassActive = false;
+  /** True while a towed load's drop zone is shown. */
+  delivering = false;
   private quiet = false;
 
   draw(deltaSeconds: number, frame: OverlayFrame): void {
@@ -88,9 +91,10 @@ export class TargetOverlay {
     context.font = `600 11px ${MONO}`;
     const lockedId = frame.targeting.target?.id ?? null;
     this.quiet = this.quietLabels && !frame.tactical;
-    this.drawSiteLabels(frame.sites);
+    // On the map a site is named only when it is in danger or damaged.
+    this.drawSiteLabels(frame.sites, this.quiet || frame.tactical);
     for (const marker of frame.stationMarkers) {
-      this.drawStation(marker, frame.shipPosition);
+      this.drawStation(marker, frame.shipPosition, frame.tactical);
     }
 
     frame.ranked.forEach((asteroid, rank) => {
@@ -103,7 +107,8 @@ export class TargetOverlay {
         if (asteroid.id === lockedId || asteroid.health < asteroid.maxHealth) {
           this.drawHealthBar(point.x, point.y + size + 6, Math.max(28, size * 1.6), asteroid, asteroid.id === lockedId);
         }
-        if (rank < (frame.tactical ? MAX_TACTICAL_LABELS : MAX_LABELLED)) {
+        // On the map only rocks that will hit are named; the rest are marks.
+        if (frame.tactical ? rank < MAX_TACTICAL_LABELS && asteroid.timeToImpact !== null : rank < MAX_LABELLED) {
           this.drawLabel(asteroid, point.x + size + 6, point.y, color, frame.shipPosition);
         }
       } else if (rank < MAX_ARROWS && asteroid.timeToImpact !== null) {
@@ -126,7 +131,7 @@ export class TargetOverlay {
     if (frame.tactical) {
       this.drawShipMarker(frame.shipPosition);
     } else {
-      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet, compass: this.compassActive }, this.elapsed);
+      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet, compass: this.compassActive, delivering: this.delivering }, this.elapsed);
       drawReticle(context, this.projector, frame.aimPoint, frame.targeting, frame.feedback, frame.overheated, this.elapsed);
     }
   }
@@ -150,6 +155,11 @@ export class TargetOverlay {
     context.restore();
   }
 
+  /** The tactical map's navigation layer; call after draw(). */
+  drawMap(frame: MapFrame): void {
+    drawMap(this.context, this.projector, frame);
+  }
+
   /** Navigation aids on top of this frame's overlay; call after draw(), which sets up the projector. */
   drawNavigationAids(frame: Omit<NavigationFrame, 'aim'>, aimPoint: THREE.Vector3): void {
     const aim = this.projector.project(aimPoint);
@@ -157,7 +167,7 @@ export class TargetOverlay {
     drawNavigation(this.context, this.projector, { ...frame, aim: aim.visible ? aim : centre }, this.elapsed);
   }
 
-  private drawSiteLabels(sites: readonly SiteLabel[]): void {
+  private drawSiteLabels(sites: readonly SiteLabel[], quiet: boolean): void {
     const context = this.context;
     context.save();
     context.font = `700 11px ${MONO}`;
@@ -167,7 +177,7 @@ export class TargetOverlay {
         continue;
       }
       const threatened = site.threatenedIn !== null && condition !== 'destroyed';
-      if (this.quiet && !threatened && condition === 'intact') {
+      if (quiet && !threatened && condition === 'intact') {
         continue;
       }
       const color = threatened ? '#ff5a4a' : SITE_LABEL_COLOR[condition];
@@ -192,10 +202,12 @@ export class TargetOverlay {
   }
 
   /** Cyan marker on the station, or an arrow at the screen edge towards it. */
-  private drawStation(station: StationMarker, shipPosition: THREE.Vector3): void {
+  private drawStation(station: StationMarker, shipPosition: THREE.Vector3, map: boolean): void {
     const context = this.context;
     const point = this.projector.project(station.world);
-    const label = `${station.name} ${formatDistance(station.world.distanceTo(shipPosition))}`;
+    // The map keeps to names and distances; prices are read when flying close.
+    const name = !map ? station.name : station.shape === 'triangle' ? station.name.split(' ')[0] : station.name.split(' · ')[0];
+    const label = `${name} ${formatDistance(station.world.distanceTo(shipPosition))}`;
     context.save();
     context.strokeStyle = station.color ?? '#5fd8ff';
     context.fillStyle = station.color ?? '#5fd8ff';

@@ -44,6 +44,23 @@ export class ScreenProjector {
     return { x, y, visible: x >= 0 && x <= this.width && y >= 0 && y <= this.height, depth };
   }
 
+  /** True when a sphere of `radius` at the origin sits between the camera and `position`. */
+  hiddenBehindSphere(position: THREE.Vector3, radius: number): boolean {
+    const eye = this.requireCamera().position;
+    const toPoint = this.cameraSpace.copy(position).sub(eye);
+    const length = toPoint.length();
+    if (length < 1e-6) {
+      return false;
+    }
+    toPoint.divideScalar(length);
+    // Closest approach of the sight line to the planet's centre.
+    const along = -eye.dot(toPoint);
+    if (along <= 0 || along >= length) {
+      return false;
+    }
+    return eye.lengthSq() - along * along < radius * radius;
+  }
+
   /** On-screen radius in pixels of a sphere at the given depth. */
   projectedRadius(radius: number, depth: number): number {
     const camera = this.requireCamera();

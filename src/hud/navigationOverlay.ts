@@ -25,8 +25,14 @@ export interface NavigationObjective {
   approachRange: number;
   /** Where to meet a moving target: where it will be when the ship arrives. */
   meet?: THREE.Vector3;
+  /** Earth is in the way: steer for this point first, round the planet. */
+  via?: THREE.Vector3;
   /** The flight director's advice for this trip. */
   director?: DirectorAdvice;
+  /** One more line under the instruction: for a rock, when it lands and whether you can make it. */
+  note?: { text: string; color: string };
+  /** A drop zone around the objective: release a towed load inside it. */
+  zone?: { center: THREE.Vector3; radius: number; state: string; text: string };
 }
 
 export interface NavigationFrame {
@@ -61,13 +67,14 @@ function toLocal(frame: NavigationFrame, world: THREE.Vector3): THREE.Vector3 {
 export function drawNavigation(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: NavigationFrame, elapsed: number): void {
   const { objective } = frame;
   // Steer for the meeting point; distances and the approach guide use the target itself.
-  const aim = objective.meet ?? objective.world;
+  const aim = objective.via ?? objective.meet ?? objective.world;
   const local = toLocal(frame, aim);
   const distance = toLocal(frame, objective.world).length();
   const point = compassPoint(local.toArray());
   context.save();
   context.font = `700 11px ${MONO}`;
   drawRoute(context, projector, frame, elapsed);
+  drawZone(context, projector, frame, elapsed);
   drawApproach(context, projector, frame, distance, elapsed);
   drawVelocityMarker(context, projector, frame);
   drawSteering(context, frame, local, elapsed);
@@ -176,19 +183,63 @@ function drawCompass(
   // The flight director: one instruction at a time.
   const advice = objective.director;
   if (advice) {
-    const instruction = DIRECTOR_TEXT[advice.phase](advice);
+    const instruction = `${DIRECTOR_TEXT[advice.phase](advice)}${objective.via ? ' · ROUND EARTH' : ''}`;
     context.font = `800 12px ${MONO}`;
     const width = context.measureText(instruction).width + 14;
     context.fillStyle = 'rgba(4, 10, 18, 0.72)';
     context.fillRect(cx - width / 2, line - 11, width, 17);
     context.fillStyle = DIRECTOR_COLOR[advice.phase];
     context.fillText(instruction, cx, line + 2);
+    line += 17;
+    context.font = `700 11px ${MONO}`;
+    if (objective.note) {
+      context.fillStyle = objective.note.color;
+      context.fillText(objective.note.text, cx, line);
+      line += 14;
+    }
     if (frame.autopilot) {
       context.font = `700 10px ${MONO}`;
       context.fillStyle = '#e48cff';
-      context.fillText('AUTOPILOT · any control takes over', cx, line + 17);
+      context.fillText('AUTOPILOT · any control takes over', cx, line);
     }
   }
+}
+
+/** The drop zone: a ring as big as the zone really is, green when it is time to let go. */
+function drawZone(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: NavigationFrame, elapsed: number): void {
+  const zone = frame.objective.zone;
+  if (!zone) {
+    return;
+  }
+  const point = projector.project(zone.center);
+  if (!point.visible) {
+    return;
+  }
+  const ready = zone.state === 'release' || zone.state === 'safe';
+  const color = ready ? ON_TARGET_COLOR : zone.state === 'travel' ? frame.objective.color : '#ffb347';
+  const radius = Math.max(18, projector.projectedRadius(zone.radius, point.depth));
+  context.save();
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = ready ? 3 : 2;
+  context.setLineDash(ready ? [] : [10, 7]);
+  context.lineDashOffset = -elapsed * 14;
+  context.globalAlpha = 0.9;
+  context.beginPath();
+  context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  context.stroke();
+  context.globalAlpha = ready ? 0.14 + 0.06 * Math.sin(elapsed * 6) : 0.06;
+  context.fill();
+  context.globalAlpha = 1;
+  context.setLineDash([]);
+  context.font = `800 12px ${MONO}`;
+  context.textAlign = 'center';
+  const width = context.measureText(zone.text).width + 14;
+  context.fillStyle = 'rgba(4, 10, 18, 0.75)';
+  context.fillRect(point.x - width / 2, point.y - radius - 26, width, 18);
+  context.fillStyle = color;
+  context.fillText(zone.text, point.x, point.y - radius - 13);
+  context.restore();
 }
 
 const DIRECTOR_TEXT: Record<DirectorAdvice['phase'], (advice: DirectorAdvice) => string> = {
@@ -210,6 +261,32 @@ const DIRECTOR_COLOR: Record<DirectorAdvice['phase'], string> = {
 };
 
 /**
+ * Points along the route: straight to the meeting point, or to the corner
+ * round the planet and then in an arc that stays as high as the corner.
+ */
+export function routePoints(ship: THREE.Vector3, via: THREE.Vector3 | null, meet: THREE.Vector3): THREE.Vector3[] {
+  const points: THREE.Vector3[] = [];
+  if (!via) {
+    for (let index = 1; index <= 24; index += 1) {
+      points.push(ship.clone().lerp(meet, index / 24));
+    }
+    return points;
+  }
+  for (let index = 1; index <= 10; index += 1) {
+    points.push(ship.clone().lerp(via, index / 10));
+  }
+  const height = via.length();
+  for (let index = 1; index <= 20; index += 1) {
+    const point = via.clone().lerp(meet, index / 20);
+    if (point.length() < height) {
+      point.setLength(height);
+    }
+    points.push(point);
+  }
+  return points;
+}
+
+/**
  * The route: a dashed line of light from the ship to the meeting point,
  * and a ghost marker there when it is away from where the target is now.
  */
@@ -227,9 +304,8 @@ function drawRoute(context: CanvasRenderingContext2D, projector: ScreenProjector
   context.globalAlpha = 0.45;
   context.beginPath();
   let started = false;
-  const steps = 24;
-  for (let index = 1; index <= steps; index += 1) {
-    const point = projector.project(frame.shipPosition.clone().lerp(meet, index / steps));
+  for (const world of routePoints(frame.shipPosition, objective.via ?? null, meet)) {
+    const point = projector.project(world);
     if (point.depth < 1) {
       started = false;
       continue;
@@ -345,7 +421,7 @@ function drawApproach(context: CanvasRenderingContext2D, projector: ScreenProjec
   context.globalAlpha = 1;
   const target = projector.project(to);
   const speed = frame.shipVelocity.clone().sub(objective.velocity).length();
-  if (target.visible && distance < objective.approachRange * 0.6) {
+  if (target.visible && distance < objective.approachRange * 0.6 && !objective.zone) {
     const tooFast = speed > objective.approachSpeed;
     context.textAlign = 'center';
     context.fillStyle = tooFast ? '#ffb347' : ON_TARGET_COLOR;

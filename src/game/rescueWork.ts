@@ -8,13 +8,14 @@ import { ATMOSPHERE } from '../logic/atmosphere';
 import { formatCredits } from '../logic/contracts';
 import type { Wallet } from '../logic/economy';
 import { randomBetween, randomUnitVector, type RandomSource } from '../logic/random';
-import { TOW, isPlaced } from '../logic/towing';
+import { PLACEMENT, TOW, isPlaced } from '../logic/towing';
 import { formatCountdown } from '../logic/units';
 import { getGlowTexture } from '../scene/glowTexture';
 import { EARTH_RADIUS } from '../scene/earth';
 import type { Outposts } from '../station/outposts';
 import type { GameEvents } from './gameEvents';
 import type { RadioNet } from './radioNet';
+import type { DeliverySource } from './delivery';
 import type { JobRow, Waypoint } from './satelliteJobHelpers';
 import type { TowBody, TowLine } from './towLine';
 
@@ -197,6 +198,27 @@ export class RescueWork {
     const altitude = pod.position.length() - EARTH_RADIUS - ATMOSPHERE.top;
     const left = sink > 0.05 ? ` · burns up in ${formatCountdown(altitude / sink)}` : '';
     return [{ title: 'Rescue: falling escape pod', detail: this.carrying ? 'take it to Halo\'s crew port and release (T)' : `catch it with the tow line (T)${left}`, pay: this.pay, urgent: true }];
+  }
+
+  /** The pod on the line and where it goes: Halo's crew port. */
+  delivery(): DeliverySource | null {
+    const pod = this.pod;
+    if (!pod || !this.carrying) {
+      return null;
+    }
+    const { outposts } = this.deps;
+    return {
+      load: 'the escape pod',
+      place: 'Halo crew port',
+      world: outposts.portPosition('halo'),
+      velocity: outposts.get('halo').velocity,
+      radius: PORT_RANGE,
+      maxSpeed: PLACEMENT.maxSpeed,
+      loadPosition: pod.position,
+      loadVelocity: pod.velocity,
+      condition: null,
+      contact: 'halo',
+    };
   }
 
   waypoint(): Waypoint | null {

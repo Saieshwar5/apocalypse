@@ -536,18 +536,18 @@ body {
   color: #ffd75e;
 }
 
-.licence {
+.licence-standing {
   font-size: 11px !important;
   letter-spacing: 0.04em;
   color: var(--accent);
 }
 
-.licence[data-stage='warning'] {
+.licence-standing[data-stage='warning'] {
   color: #ffb347;
 }
 
-.licence[data-stage='probation'],
-.licence[data-stage='recalled'] {
+.licence-standing[data-stage='probation'],
+.licence-standing[data-stage='recalled'] {
   color: var(--danger);
 }
 
@@ -1362,6 +1362,12 @@ body[data-photo-filter='mono'] #scene {
   color: var(--hud-dim, #9aa8bf);
 }
 
+.help-note {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--hud-dim, #9aa8bf);
+}
+
 .help-now {
   margin: 0;
   padding-left: 22px;
@@ -1408,6 +1414,121 @@ body[data-photo-filter='mono'] #scene {
 .help-jobs dd,
 .help-legend dd {
   margin: 0;
+}
+
+/* Help: the "Your mission" page. */
+.mission-role p {
+  margin: 0 0 6px;
+  max-width: 74ch;
+  color: var(--hud-dim, #9aa8bf);
+}
+
+.mission-role p:first-child {
+  font-size: 16px;
+  line-height: 1.45;
+  color: #ffffff;
+}
+
+.mission h3 {
+  margin-top: 16px;
+}
+
+.mission-duties {
+  display: grid;
+  gap: 8px;
+}
+
+.mission-duty {
+  --state: rgba(160, 200, 255, 0.35);
+  padding: 9px 14px 10px;
+  border-left: 3px solid var(--state);
+  border-radius: 0 8px 8px 0;
+  background: rgba(120, 170, 255, 0.05);
+}
+
+.mission-duty[data-state='good'] {
+  --state: #7dffb0;
+}
+
+.mission-duty[data-state='watch'] {
+  --state: #ffb347;
+}
+
+.mission-duty[data-state='bad'] {
+  --state: var(--danger);
+}
+
+.mission-duty header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 4px;
+}
+
+.mission-duty h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: #ffffff;
+}
+
+.mission-reading {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--state);
+}
+
+.mission-duty dl {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+
+.mission-duty dt,
+.mission-people dt,
+.mission-endings dt {
+  color: var(--hud-dim, #9aa8bf);
+}
+
+.mission-duty dd,
+.mission-people dd,
+.mission-endings dd {
+  margin: 0;
+}
+
+.mission-foot {
+  margin-top: 4px;
+}
+
+.mission-people,
+.mission-endings {
+  display: grid;
+  gap: 1px 0;
+  margin: 0;
+}
+
+.mission-people dt,
+.mission-endings dt {
+  margin-top: 6px;
+  font-weight: 600;
+  color: #e8f1ff;
+}
+
+.mission-endings dt[data-win='true'] {
+  color: #7dffb0;
+}
+
+.mission-endings dt[data-win='false'] {
+  color: #ff9a8f;
+}
+
+@media (max-width: 720px) {
+  .mission-duty dl {
+    grid-template-columns: 1fr;
+  }
 }
 
 kbd {
@@ -1575,6 +1696,22 @@ button.confirming {
   width: min(520px, calc(100vw - 32px));
   transform: translate(-50%, -62%);
   background: rgba(4, 10, 18, 0.86);
+}
+
+/* Beside the tactical map the list sits on the left, clear of the planet. */
+.nav-computer.on-map {
+  top: 200px;
+  left: 16px;
+  width: min(400px, calc(100vw - 32px));
+  transform: none;
+}
+
+.nav-computer.on-map #nav-list li {
+  grid-template-columns: 22px 34px 1fr 76px;
+}
+
+.nav-computer.on-map #nav-list li span:nth-child(n + 5) {
+  display: none;
 }
 
 #nav-list {
@@ -2051,5 +2188,53 @@ button.confirming {
 
   .licence-ship {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Tow card: what is on the line, where it goes, and the next step. */
+.tow-card {
+  position: absolute;
+  left: 50%;
+  bottom: 118px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 2px;
+  min-width: 320px;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 7px 16px 8px;
+  border: 1px solid rgba(143, 211, 255, 0.5);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgba(4, 12, 22, 0.82);
+  text-align: center;
+  --tow: #8fd3ff;
+  border-color: var(--tow);
+}
+
+.tow-card strong {
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: #eef5ff;
+}
+
+.tow-card span {
+  font-size: 13px;
+  color: var(--tow);
+}
+
+.tow-card[data-state='slow'],
+.tow-card[data-state='hold'] {
+  --tow: #ffb347;
+}
+
+.tow-card[data-state='release'],
+.tow-card[data-state='safe'] {
+  --tow: #7dffb0;
+  animation: tow-ready 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes tow-ready {
+  to {
+    box-shadow: 0 0 22px rgba(125, 255, 176, 0.45);
   }
 }

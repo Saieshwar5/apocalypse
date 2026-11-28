@@ -1,3 +1,4 @@
+import { currentDelivery, type Delivery } from './delivery';
 import type * as THREE from 'three';
 import type { AsteroidField } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
@@ -242,7 +243,9 @@ export class OrbitServices {
     const { input, ship } = this.deps;
     this.outposts.update(deltaSeconds);
     this.outposts.collide(ship.position, ship.velocity);
-    if (input.consumePress('KeyT') && flying) {
+    // T always works with something on the line, even if a station is holding the ship.
+    const loadOnLine = this.tow.load !== null || this.tow.body !== null;
+    if (input.consumePress('KeyT') && (flying || (active && loadOnLine))) {
       this.toggleTow();
     }
     this.work.update(deltaSeconds);
@@ -280,6 +283,11 @@ export class OrbitServices {
     return [...this.outposts.list.map((outpost) => ({ position: outpost.position, color: outpost.color })), ...this.rivals.radarContacts(), ...clouds];
   }
 
+  /** What is on the player's tow line and where it goes, or null with a clear line. */
+  delivery(): Delivery | null {
+    return currentDelivery(this.tow, this.work, this.haul, this.rescue, this.deps.fleet, this.outposts);
+  }
+
   jobRows(): JobRow[] {
     return [...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.crew.rows(), ...this.haul.rows(), ...this.debris.rows()];
   }
@@ -291,8 +299,11 @@ export class OrbitServices {
     return this.rescue.waypoint() ?? this.crew.waypoint() ?? this.work.waypoint() ?? this.haul.waypoint();
   }
 
-  /** The hint line: berthing first, then any storm warning. */
+  /** The hint line: berthing first, then any storm warning. The tow card already says when to release. */
   get hint(): string | null {
+    if (this.berths.loadOnLine && this.delivery()?.step.state !== 'travel') {
+      return this.weather.hint;
+    }
     return this.berths.hint ?? this.weather.hint;
   }
 

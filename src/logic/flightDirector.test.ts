@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bearingArrow, directorAdvice, meetingPoint, sortNavEntries, type DirectorInput } from './flightDirector';
+import { bearingArrow, directorAdvice, meetingPoint, sortNavEntries, viaAround, type DirectorInput } from './flightDirector';
 
 const trip: DirectorInput = {
   distance: 300,
@@ -46,6 +46,42 @@ describe('flight director', () => {
     expect(meet.point[1]).toBeGreaterThan(40);
     expect(Math.hypot(...meet.point) / 20).toBeCloseTo(meet.seconds, 1);
     expect(meetingPoint([0, 0, 0], [100, 0, 0], [0, 50, 0], 1, 30).seconds).toBe(30);
+  });
+});
+
+describe('routes round the planet', () => {
+  it('goes straight when the planet is not in the way', () => {
+    expect(viaAround([100, 0, 0], [100, 80, 0], 50, 8)).toBeNull();
+    // Arriving at a low target, or leaving a low start: the closest approach is an end of the line.
+    expect(viaAround([120, 0, 0], [48, 0, 0], 50, 8)).toBeNull();
+  });
+
+  it('steers for a point clear of the planet when the line crosses it', () => {
+    const via = viaAround([90, 10, 0], [-90, 10, 0], 50, 8);
+    expect(via).not.toBeNull();
+    expect(Math.hypot(...(via as [number, number, number]))).toBeCloseTo(58);
+    // On the side the line already leans towards.
+    expect((via as [number, number, number])[1]).toBeGreaterThan(0);
+    // Dead through the centre still gives a way round.
+    expect(Math.hypot(...(viaAround([90, 0, 0], [-90, 0, 0], 50, 8) as [number, number, number]))).toBeCloseTo(58);
+  });
+
+  it('leads a ship all the way round without entering the safe radius', () => {
+    let ship: [number, number, number] = [82, 0, 5];
+    const target: [number, number, number] = [-70, 0, -8];
+    let lowest = Infinity;
+    for (let step = 0; step < 2000; step += 1) {
+      const aim = viaAround(ship, target, 50, 8) ?? target;
+      const offset = [aim[0] - ship[0], aim[1] - ship[1], aim[2] - ship[2]];
+      const distance = Math.hypot(...offset);
+      if (aim === target && distance < 1) {
+        break;
+      }
+      ship = [ship[0] + (offset[0] / distance) * 0.5, ship[1] + (offset[1] / distance) * 0.5, ship[2] + (offset[2] / distance) * 0.5];
+      lowest = Math.min(lowest, Math.hypot(...ship));
+    }
+    expect(Math.hypot(ship[0] - target[0], ship[1] - target[1], ship[2] - target[2])).toBeLessThan(1.5);
+    expect(lowest).toBeGreaterThan(49);
   });
 });
 

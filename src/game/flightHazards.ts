@@ -28,6 +28,8 @@ export interface HazardDependencies {
   explosions: Explosions;
 }
 
+/** Below this sink rate the pull-up climbs instead of braking. */
+const PULL_UP_SLOW_SINK = 0.6;
 /** Low-altitude messages are not repeated within this many seconds. */
 const ALTITUDE_QUIET_SECONDS = 15;
 
@@ -117,8 +119,11 @@ export class FlightHazards {
       const along = ship.forward().addScaledVector(outward, -ship.forward().dot(outward));
       const climb = outward.multiplyScalar(1.4).add(along.lengthSq() > 1e-6 ? along.normalize() : along).normalize();
       ship.object.quaternion.slerp(orientationFromForward(climb, ship.up()), damping(3.5, deltaSeconds));
-      // Retro thrusters stop the fall first; the main engine then climbs away.
-      return { ...IDLE_INPUT, thrust: sinkRate > 0 ? 0 : 1, brake: sinkRate > 0 ? 1 : 0 };
+      // Retro thrusters stop the fall first; the main engine then climbs away. A slow sink
+      // is climbed out of, not braked: a load on the tow line can keep tugging the ship
+      // down a little, and braking for ever against that left the ship hanging there.
+      const falling = sinkRate > PULL_UP_SLOW_SINK;
+      return { ...IDLE_INPUT, thrust: falling ? 0 : 1, brake: falling ? 1 : 0 };
     }
 
     if (!this.returning && distance > DEFENCE_ZONE.limit) {

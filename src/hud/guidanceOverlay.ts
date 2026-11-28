@@ -9,13 +9,13 @@ import type { ScreenProjector } from './screenProjector';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const PRIORITY_COLOR = '#ffd75e';
-const VERDICT_TEXT: Record<InterceptVerdict, string> = {
+export const VERDICT_TEXT: Record<InterceptVerdict, string> = {
   'in-range': 'IN RANGE: FIRE',
   'in-time': 'YOU CAN MAKE IT',
   tight: 'HURRY: BOOST',
   'too-late': 'TOO LATE TO REACH',
 };
-const VERDICT_COLOR: Record<InterceptVerdict, string> = {
+export const VERDICT_COLOR: Record<InterceptVerdict, string> = {
   'in-range': '#7dffb0',
   'in-time': '#7dffb0',
   tight: '#ffb347',
@@ -29,8 +29,10 @@ export interface GuidanceFrame {
   satellites: readonly Satellite[];
   /** Quiet labels: satellites are named only when close or in the way. */
   quiet?: boolean;
-  /** The target compass is showing the way: no extra off-screen arrows. */
+  /** The target compass is showing the way: no extra off-screen arrows or text. */
   compass?: boolean;
+  /** A load is being delivered: its drop zone marks the destination, so the job diamond is not drawn. */
+  delivering?: boolean;
   shipPosition: THREE.Vector3;
   shipVelocity: THREE.Vector3;
   /** Flight assist off: show where the ship is really moving. */
@@ -97,7 +99,10 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
     return;
   }
 
-  // Out of view: an arrow on a ring around the reticle shows which way to turn (unless the compass does).
+  // Out of view: the compass beside the crosshair shows the way and says what matters about it.
+  if (frame.compass) {
+    return;
+  }
   const angle = Math.atan2(point.y - centreY, point.x - centreX);
   const ring = Math.min(projector.width, projector.height) * 0.2;
   const x = centreX + Math.cos(angle) * ring;
@@ -193,7 +198,7 @@ const WAYPOINT_COLOR = '#8fd3ff';
 /** The satellite job's next stop: a cyan diamond, or an arrow above the reticle when out of view. */
 function drawWaypoint(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: GuidanceFrame, elapsed: number): void {
   const waypoint = frame.waypoint;
-  if (!waypoint) {
+  if (!waypoint || frame.delivering) {
     return;
   }
   const point = projector.project(waypoint.world);
@@ -215,6 +220,10 @@ function drawWaypoint(context: CanvasRenderingContext2D, projector: ScreenProjec
     context.textAlign = 'center';
     context.fillText(waypoint.label, point.x, point.y + size + 16);
     context.fillText(distance, point.x, point.y + size + 29);
+    context.restore();
+    return;
+  }
+  if (frame.compass) {
     context.restore();
     return;
   }
