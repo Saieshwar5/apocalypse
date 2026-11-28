@@ -28,12 +28,12 @@ export const CASCADE = {
   /** A missile's blast vaporises most of a rock: this share is left. */
   missileShare: 0.4,
   /** Fragments made beyond this distance from the planet's centre fly off and never come back. */
-  bandOuterRadius: 260,
+  bandOuterRadius: 216,
   /** Fragments made this low fall into the atmosphere and burn up. */
   bandInnerAltitude: ATMOSPHERE.top + 2,
   /** Drag: share of a cloud's mass lost per second, at the surface and its fall-off height. */
   dragAtSurface: 0.012,
-  dragScaleHeight: 12,
+  dragScaleHeight: 18,
 } as const;
 
 /** The orbit clean-up job: sweeping debris with the ship's net. */
