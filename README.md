@@ -73,7 +73,7 @@ what is worth showing:
 - **Messages take turns** on one line: a danger interrupts, job news waits
   until it is done, a repeated message just stays up longer, and news that
   waited more than six seconds is dropped instead of shown late.
-- **Quieter world labels**: stations are named only within 8,000 km,
+- **Quieter world labels**: stations are named only within about 12,700 km,
   healthy cities are not labelled, and satellites are named only when close
   or in the way. Icons stay.
 - **In a fight the board lists the rocks first** (after anything with a
