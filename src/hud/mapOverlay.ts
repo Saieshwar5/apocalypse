@@ -9,6 +9,8 @@ const GROUP_COLOR: Record<NavGroup, string> = { job: '#8fd3ff', station: '#7dffb
 /** Stations and pilots already carry their own names on the map. */
 const NAMED_ELSEWHERE: readonly NavGroup[] = ['station', 'pilot'];
 const LABEL_LENGTH = 26;
+/** Right edge of the destination list beside the map, in pixels. */
+const LIST_EDGE = 428;
 
 export interface MapTag {
   number: number;
@@ -77,10 +79,13 @@ export function drawMap(context: CanvasRenderingContext2D, projector: ScreenProj
       context.textAlign = 'center';
       const text = `${route.label} · ${formatDistance(route.end.distanceTo(frame.shipPosition))}`;
       const width = context.measureText(text).width + 12;
+      // Keep the name clear of the destination list on the left and inside the screen.
+      const left = (frame.tags.length > 0 ? LIST_EDGE : 8) + width / 2;
+      const x = Math.min(Math.max(end.x, left), projector.width - width / 2 - 8);
       context.fillStyle = 'rgba(4, 10, 18, 0.78)';
-      context.fillRect(end.x - width / 2, end.y - ring - 24, width, 18);
+      context.fillRect(x - width / 2, end.y - ring - 24, width, 18);
       context.fillStyle = route.color;
-      context.fillText(text, end.x, end.y - ring - 11);
+      context.fillText(text, x, end.y - ring - 11);
       context.textAlign = 'left';
     }
   }
