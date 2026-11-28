@@ -38,12 +38,12 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | R / V | Slide up / down |
 | Q / E | Roll |
 | Shift | Boost |
-| T | Connect the tow line to a contract satellite, or release it |
+| T | Connect the tow line, or release the load (the tow card says where it goes and when) |
 | I (docked) | Insure the ship |
 | Z | Flight assist on or off |
 | Left click or Space | Laser (short range; overheats if held too long) |
 | F or right click | Missile at the locked target |
-| Tab | Tactical map (time slows; mouse rotates the view) |
+| Tab | The map (time slows; mouse rotates the view). A number sets a destination from the list beside it |
 | C | Switch between chase and cockpit camera |
 | P | Photo mode: the action freezes; mouse orbits, W/S zoom, 1-4 looks, Space takes the picture |
 | G | Choose what the target compass points at: auto, priority rock, job, nearest station, home |
@@ -54,10 +54,55 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | L | Radio log |
 | O | Orbit FM: calm generated music, off by default |
 | Esc | Pause: settings, help, Restart run, Quit to menu |
-| H | Help: what to do now, controls, jobs, how to read the screen |
+| H | Help: your mission, what to do now, controls, jobs, how to read the screen |
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## Your mission, towing with a destination, and a map you can plan on
+
+- **Your mission** is a new first page in Help, and a new pilot reads it
+  once before the first launch. It says who you are (a contract pilot for
+  the Earth Defence Authority, for one orbit of 14 sectors) and lists the
+  five things in your care: protect Earth, keep the orbit clean, look
+  after the satellites, keep the stations supplied, and protect people.
+  Each one says why it matters, which jobs serve it and what neglect
+  costs, with a live reading from the current run (Earth and sites, Orbit
+  Health, satellites working, Aegis's stock, licence standing) coloured
+  green, amber or red; the one in the worst state is marked "needs you
+  now". Below: the people on the radio, and the one way to win and four
+  ways to lose a run.
+- **A towed load always has a destination.** While anything is on the tow
+  line a **tow card** at the bottom names the load, where it goes and the
+  next step: `Towing 8.7 t rock → Ceres Works intake · 6,200 km to the
+  drop zone`, then `slow below 10 km/s`, then `release now (T)` in green.
+  The compass switches to that place the moment the line connects, the
+  **drop zone** is drawn in space as a dashed ring at its true size, and
+  the station that wants the load calls you on the radio. Repair tows name
+  the Vulcan Yard cradle and then the satellite's orbit slot; a dodge tow
+  points clear of the rock's path.
+- **Stations no longer grab a ship that is towing.** A berth or dock waits
+  until the line is released, and T works whenever something is on the
+  line, so a rock can always be handed over for its pay.
+- **The autopilot (U) delivers.** With a load it flies to the drop zone,
+  slows to the release speed and tells you to release. It plans its
+  braking for the load's mass, brakes gently so the line does not snap,
+  keeps heavy rocks to a steadier towing speed, and when Earth is in the
+  way it routes round the planet (the compass says ROUND EARTH and the
+  route line bends).
+- **Your own load is not a threat.** The towed rock no longer takes the
+  missile lock, raises a collision alert or damages the ship; it nudges
+  the ship aside.
+- **The map (Tab) is for planning.** The destination list sits beside the
+  planet, with its numbers repeated on the objects; a number sets the
+  destination and the route to it is drawn, round Earth if needed, with
+  the distance. Only rocks that will hit and sites in danger are named,
+  stations show name and distance, names that would overlap give way to
+  their number, nothing is drawn through the planet, and a legend sits
+  below. The flying readouts step aside while the map is open.
+- **Three keys to find your way**: Tab (map and list), N (the list in the
+  cockpit), U (autopilot). G, X and B are still there for finer control;
+  Help now says so in that order.
 
 ## Navigation computer, flight director, a living radio, and a new title screen
 
@@ -676,7 +721,8 @@ the Cascade (debris, drag, growth, sweeping, orbits through a point), automatic
 quality, reputation, probation, insurance and the emergency loan, station prices,
 shuttle routes and haul masses, call signs and radio rationing, career ranks and
 the season's story beats, storm shelter and the swell,
-the scanner projection, fuel, docking and station stock. In development builds the running game is available as
+the scanner projection, fuel, docking and station stock, delivery steps
+and drop zones, routes round the planet, and the mission page's readings. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
 
