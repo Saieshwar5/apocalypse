@@ -1,3 +1,4 @@
+import { OrbitFm } from './orbitFm';
 import { AmbientMusic } from './ambientMusic';
 import { RadioVoice } from './radioVoice';
 
@@ -18,6 +19,7 @@ export class SoundEffects {
   private atmosphereGain: GainNode | null = null;
   private muted = false;
   private music: AmbientMusic | null = null;
+  private fm: OrbitFm | null = null;
   private readonly voice = new RadioVoice();
 
   /** Call from a click or key handler. Safe to call more than once. */
@@ -42,6 +44,21 @@ export class SoundEffects {
   /** Background score intensity, 0 (calm) to 1 (severe threat close). */
   setTension(level: number): void {
     this.music?.setTension(level);
+    this.fm?.setTension(level);
+  }
+
+  /** Orbit FM on or off (O). Returns whether it is now playing. */
+  toggleRadioMusic(): boolean {
+    if (!this.context || !this.master) {
+      return false;
+    }
+    this.fm ??= new OrbitFm(this.context, this.master, this.noise);
+    if (this.fm.playing) {
+      this.fm.stop();
+      return false;
+    }
+    this.fm.start();
+    return true;
   }
 
   /** Mission control reads an urgent message aloud. */
@@ -49,9 +66,33 @@ export class SoundEffects {
     this.voice.speak(text);
   }
 
-  /** A rival pilot on the radio: own pitch, never interrupts mission control. */
-  chatter(text: string, pitch: number): void {
-    this.voice.speak(text, pitch, false);
+  /**
+   * A radio transmission: the squelch opens with a click and a burst of
+   * static, the speaker talks in their own voice, and the squelch closes
+   * when they finish. Emergencies cut off whoever is talking.
+   */
+  radioLine(text: string, voice: { voice: number; pitch: number; rate: number }, seconds: number, urgent: boolean): void {
+    this.squelch();
+    this.voice.speak(text, voice.pitch, urgent, voice.rate, voice.voice);
+    window.setTimeout(() => this.squelch(), seconds * 1000);
+  }
+
+  /** The click and short hiss of a radio squelch opening or closing. */
+  private squelch(): void {
+    if (!this.context || !this.master) {
+      return;
+    }
+    this.noiseBurst({ duration: 0.09, volume: 0.05, filterFrom: 3800, filterTo: 1700, highpass: 700 });
+    const click = this.context.createOscillator();
+    const gain = this.context.createGain();
+    const now = this.context.currentTime;
+    click.type = 'square';
+    click.frequency.value = 1400;
+    gain.gain.setValueAtTime(0.03, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+    click.connect(gain).connect(this.master);
+    click.start(now);
+    click.stop(now + 0.04);
   }
 
   toggleMute(): boolean {

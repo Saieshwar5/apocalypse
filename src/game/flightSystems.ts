@@ -1,3 +1,5 @@
+import { RadioLog } from '../hud/radioLog';
+import { RadioTraffic } from './radioTraffic';
 import type * as THREE from 'three';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
@@ -51,9 +53,12 @@ export class FlightSystems {
   readonly navigation: Navigation;
   readonly help: HelpDesk;
   readonly world: WorldLayer;
+  readonly radioLog = new RadioLog();
+  private readonly traffic: RadioTraffic;
 
   constructor(private readonly deps: FlightSystemsDependencies) {
     const { play, ship, input, hud, sound, radio, session } = deps;
+    this.traffic = new RadioTraffic(play, radio, deps.rng);
     this.career = new PilotCareer({ session, hud, sound, input, radio, showModules: (fitted) => deps.shipModel.setModules(fitted) });
     this.career.attach(play);
     this.navigation = new Navigation({ play, ship, input, hud, overlay: deps.overlay, radar: deps.radar, session, radio, scene: deps.scene });
@@ -80,6 +85,7 @@ export class FlightSystems {
       wallet: session.wallet,
       ship: () => deps.shipModel.group,
       setInterface: deps.setInterface,
+      onLaunch: (site) => this.traffic.launch(site),
     });
   }
 
@@ -87,6 +93,8 @@ export class FlightSystems {
     this.career.startRun(hardcore && !training);
     this.world.reset();
     this.navigation.reset();
+    this.traffic.reset();
+    this.radioLog.close();
     this.deps.hud.newPilot = training || this.career.record.runs < 2;
   }
 
@@ -100,6 +108,16 @@ export class FlightSystems {
     if (this.world.update(deltaSeconds, play.shipActive)) {
       return false;
     }
+    if (this.deps.input.consumePress('KeyL')) {
+      this.radioLog.toggle();
+    }
+    if (this.deps.input.consumePress('KeyO')) {
+      const on = this.deps.sound.toggleRadioMusic();
+      this.deps.hud.showMessage(on ? 'Orbit FM on: ambient from Halo deck three (O turns it off)' : 'Orbit FM off', 'info', 2.5);
+      if (on) {
+        this.deps.radio.chatter('halo', "You're listening to Orbit FM, ambient from Halo deck three. Fly safe out there.");
+      }
+    }
     this.navigation.update(deltaSeconds, play.shipActive && !play.tactical);
     return true;
   }
@@ -108,5 +126,7 @@ export class FlightSystems {
   afterPlay(deltaSeconds: number): void {
     this.navigation.draw();
     this.career.update(deltaSeconds);
+    this.traffic.update(deltaSeconds);
+    this.radioLog.update(this.deps.radio.log);
   }
 }

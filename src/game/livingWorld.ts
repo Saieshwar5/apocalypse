@@ -12,13 +12,13 @@ import type { RadioNet } from './radioNet';
 import type { JobRow } from './satelliteJobHelpers';
 
 /** Real launch sites, by latitude and longitude. */
-const LAUNCH_SITES: readonly [number, number][] = [
-  [28.5, -80.6],
-  [45.9, 63.3],
-  [5.2, -52.8],
-  [40.9, 100.3],
-  [13.7, 80.2],
-  [30.4, 131.0],
+const LAUNCH_SITES: readonly [number, number, string][] = [
+  [28.5, -80.6, 'Cape Canaveral'],
+  [45.9, 63.3, 'Baikonur'],
+  [5.2, -52.8, 'Kourou'],
+  [40.9, 100.3, 'Jiuquan'],
+  [13.7, 80.2, 'Sriharikota'],
+  [30.4, 131.0, 'Tanegashima'],
 ];
 const LAUNCH_EVERY = [50, 110] as const;
 const SHOWER_SECONDS = 45;
@@ -43,6 +43,8 @@ export interface LivingWorldDependencies {
   note: (text: string) => void;
   /** Solar storm phase, so the aurora photo job can be posted. */
   stormPhase: () => 'clear' | 'warning' | 'storm';
+  /** A rocket has left the pad (for the radio's traffic call). */
+  onLaunch?: (site: string) => void;
 }
 
 /**
@@ -114,8 +116,9 @@ export class LivingWorld {
     if (this.launchIn <= 0) {
       const [min, max] = LAUNCH_EVERY;
       this.launchIn = min + this.deps.rng() * (max - min);
-      const [latitude, longitude] = LAUNCH_SITES[Math.floor(this.deps.rng() * LAUNCH_SITES.length)];
+      const [latitude, longitude, site] = LAUNCH_SITES[Math.floor(this.deps.rng() * LAUNCH_SITES.length)];
       this.traffic.launch(latLonToLocalDirection(latitude, longitude));
+      this.deps.onLaunch?.(site);
     }
     this.showerLeft = Math.max(0, this.showerLeft - deltaSeconds);
     const night = this.deps.earth.surfaceNight();

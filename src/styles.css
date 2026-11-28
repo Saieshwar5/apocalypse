@@ -610,6 +610,96 @@ body {
   margin-right: 6px;
 }
 
+/* A transmission: channel chip, a waveform that moves while they talk, the speaker and the words. */
+.radio-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  border-left: 2px solid rgba(143, 211, 255, 0.6);
+}
+
+.radio-line.self {
+  border-left-color: rgba(215, 255, 233, 0.7);
+  background: rgba(10, 26, 20, 0.62);
+}
+
+.radio-channel {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(143, 211, 255, 0.14);
+  color: #9fc9ea;
+  font: 700 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-style: normal;
+  letter-spacing: 0.1em;
+}
+
+.radio-wave {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 1.5px;
+  height: 10px;
+}
+
+.radio-wave i {
+  display: block;
+  width: 2px;
+  height: 3px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.7;
+  animation: radio-wave 0.6s ease-in-out infinite alternate;
+}
+
+.radio-wave i:nth-child(2) { animation-delay: -0.15s; }
+.radio-wave i:nth-child(3) { animation-delay: -0.3s; }
+.radio-wave i:nth-child(4) { animation-delay: -0.45s; }
+.radio-wave i:nth-child(5) { animation-delay: -0.2s; }
+
+@keyframes radio-wave {
+  to {
+    height: 10px;
+  }
+}
+
+.radio-words {
+  min-width: 0;
+}
+
+/* Radio log (L). */
+.radio-log {
+  top: 330px;
+  right: 16px;
+  width: min(400px, calc(100vw - 32px));
+  max-height: max(170px, calc(100vh - 560px));
+  overflow-y: auto;
+  background: rgba(4, 10, 18, 0.86);
+}
+
+#radio-log-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#radio-log-list li {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#radio-log-list time {
+  margin-right: 6px;
+  color: var(--hud-dim, #9aa8bf);
+  font-variant-numeric: tabular-nums;
+}
+
+#radio-log-list strong {
+  margin-right: 6px;
+}
+
 .hud-message {
   position: absolute;
   top: 18%;

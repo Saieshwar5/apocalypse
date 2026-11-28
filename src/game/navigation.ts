@@ -21,6 +21,7 @@ import {
 } from '../logic/navigation';
 import { handlingShare } from '../logic/shipModules';
 import { DOCKING } from '../logic/stationSupply';
+import { formatSpeed } from '../logic/units';
 import { TOW } from '../logic/towing';
 import { damping, orientationFromForward } from '../math/orientation';
 import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipController';
@@ -104,7 +105,15 @@ export class Navigation {
       const entry = this.computer.current();
       if (entry) {
         hud.showMessage(`Nav target: ${entry.label}. Follow the compass and the flight director`, 'info', 3);
-        this.deps.radio?.navCallout(entry.label, entry.world.distanceTo(this.deps.ship.position));
+        const { ship } = this.deps;
+        const local = entry.world.clone().sub(ship.position).applyQuaternion(ship.object.quaternion.clone().invert());
+        const tip =
+          entry.group === 'satellite' || (entry.group === 'job' && entry.velocity)
+            ? 'It is moving: fly for the meet-here mark, not where it is now.'
+            : entry.group === 'station'
+              ? `Come alongside under ${formatSpeed(entry.arriveSpeed + 0.5)}.`
+              : null;
+        this.deps.radio?.navCallout(entry.label, entry.world.distanceTo(ship.position), [local.x, local.y, local.z], tip);
       }
     }
     const options = this.options();
