@@ -17,7 +17,7 @@ import type { Satellite, SatelliteFleet } from '../satellites/satelliteFleet';
 import type { ShipController } from '../ship/shipController';
 import type { Outposts } from '../station/outposts';
 import type { TowEvent, TowLine } from './towLine';
-import { JOB_FOR, KIND_LABEL, announceTowEvent, jobScore, asteroidGone, escapePoint, secondsToStrike, type JobRow, type OpenJob, type Waypoint } from './satelliteJobHelpers';
+import { JOB_FOR, announceTowEvent, jobScore, asteroidGone, escapePoint, secondsToStrike, type JobRow, type OpenJob, type Waypoint } from './satelliteJobHelpers';
 
 export type { JobRow, OpenJob, Waypoint };
 
@@ -250,13 +250,13 @@ export class SatelliteWork {
         if (job) {
           job.repaired = true;
         }
-        this.deps.hud.showMessage(`Vulcan Yard: ${KIND_LABEL[this.inYard.kind]} repaired. Collect it and return it to its orbit`, 'success', 5);
+        this.deps.hud.showMessage(`Vulcan Yard: ${this.inYard.name} repaired. Collect it and return it to its orbit`, 'success', 5);
         this.deps.sound.chime();
       }
     }
     for (const job of [...this.jobs]) {
       if (!job.satellite.alive) {
-        this.fail(job, `${KIND_LABEL[job.satellite.kind]} was destroyed. Contract lost`);
+        this.fail(job, `${job.satellite.name} was destroyed. Contract lost`);
         continue;
       }
       if (job.kind === 'dodge' && !job.clear && job.asteroid && asteroidGone(job.asteroid, job.satellite)) {
@@ -300,7 +300,7 @@ export class SatelliteWork {
   /** The tow status for the control line, or null when not towing. */
   towStatus(): string | null {
     const load = this.deps.tow.load;
-    return load ? `TOWING ${KIND_LABEL[load.kind]} ${Math.round(load.condition)}% · T LETS GO` : null;
+    return load ? `TOWING ${load.name} ${Math.round(load.condition)}% · T LETS GO` : null;
   }
 
   /** Ignored by the ship's collision test while on the line. */
@@ -325,7 +325,7 @@ export class SatelliteWork {
   private handleRival(event: TowEvent, pilot: PilotId): void {
     if (event.type === 'wrecked') {
       this.deps.fleet.destroy(event.satellite);
-      this.deps.hud.showMessage(`${pilotName(pilot)} broke the ${KIND_LABEL[event.satellite.kind]} apart`, 'warning', 3);
+      this.deps.hud.showMessage(`${pilotName(pilot)} broke the ${event.satellite.name} apart`, 'warning', 3);
     } else if (event.type === 'released') {
       this.placeReleased(event.satellite, pilot);
     }
@@ -383,7 +383,7 @@ export class SatelliteWork {
     if (!player) {
       return;
     }
-    hud.showMessage(`${KIND_LABEL[satellite.kind]} released. It drifts until you connect again (T)`, 'info', 3);
+    hud.showMessage(`${satellite.name} released. It drifts until you connect again (T)`, 'info', 3);
   }
 
   private complete(job: Job, offsetFromSlot: number | null, pilot: PilotId): void {
@@ -438,7 +438,7 @@ export class SatelliteWork {
   private destination(job: Job): Waypoint | null {
     const { satellite } = job;
     const onLine = this.onAnyLine(satellite);
-    const name = KIND_LABEL[satellite.kind];
+    const name = satellite.name;
     if (job.kind === 'repair-tow') {
       if (satellite.mode === 'yard') {
         return job.repaired ? { world: satellite.position.clone(), label: `COLLECT ${name}` } : { world: satellite.position.clone(), label: `REPAIRING ${formatCountdown(this.repairLeft)}` };
@@ -470,7 +470,7 @@ export class SatelliteWork {
   private addJob(kind: SatelliteJobKind, satellite: Satellite, pay: number, asteroid: Asteroid | null, what: string): void {
     // A reboost is ready to place from the start: there is no rock to wait for.
     this.jobs.push({ id: this.nextId++, kind, satellite, pay, asteroid, repaired: false, clear: kind === 'reboost', claimedBy: null, postedAt: this.deps.clock?.() ?? 0 });
-    this.deps.hud.showMessage(`${KIND_LABEL[satellite.kind]} ${what} (${formatCredits(pay)})`, kind === 'repair-tow' ? 'info' : 'warning', 5);
+    this.deps.hud.showMessage(`${satellite.name} ${what} (${formatCredits(pay)})`, kind === 'repair-tow' ? 'info' : 'warning', 5);
     if (kind === 'dodge') {
       this.deps.sound.alarm();
     } else {
@@ -479,7 +479,7 @@ export class SatelliteWork {
   }
 
   private title(job: Job): string {
-    const name = KIND_LABEL[job.satellite.kind];
+    const name = job.satellite.name;
     return job.kind === 'dodge' ? `Move ${name} clear` : job.kind === 'reboost' ? `Reboost ${name}` : `Repair tow: ${name}`;
   }
 

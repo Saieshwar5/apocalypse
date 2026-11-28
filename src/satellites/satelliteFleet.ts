@@ -6,6 +6,7 @@ import {
   type CircularOrbit,
   type SatelliteKind,
   type SatellitePlan,
+  satelliteNames,
 } from '../logic/satellites';
 import { orientationFromForward } from '../math/orientation';
 import { requireNode } from '../scene/modelLibrary';
@@ -18,6 +19,8 @@ export interface Satellite {
   /** Unique within the fleet and stable for the whole run. */
   readonly id: number;
   readonly kind: SatelliteKind;
+  /** Unique call sign, e.g. "WX-2 CIRRUS". */
+  readonly name: string;
   /** World position. After destruction it stays where the satellite died. */
   readonly position: THREE.Vector3;
   /** World velocity in units per second. */
@@ -250,7 +253,9 @@ export class SatelliteFleet {
     }
     this.debris.reset();
     this.elapsed = 0;
-    this.live = planFleet(this.rng).map((plan, index) => this.launch(plan, index + 1));
+    const plans = planFleet(this.rng);
+    const names = satelliteNames(plans.map((plan) => plan.kind));
+    this.live = plans.map((plan, index) => this.launch(plan, index + 1, names[index]));
     this.update(0);
   }
 
@@ -354,7 +359,7 @@ export class SatelliteFleet {
     this.live = [];
   }
 
-  private launch(plan: SatellitePlan, id: number): LiveSatellite {
+  private launch(plan: SatellitePlan, id: number, name: string): LiveSatellite {
     const object = new THREE.Group();
     object.name = `satellite-${id}-${plan.kind}`;
     const model = this.prototypes[plan.kind].clone(true);
@@ -367,6 +372,7 @@ export class SatelliteFleet {
     return {
       id,
       kind: plan.kind,
+      name,
       position: object.position,
       velocity: new THREE.Vector3(),
       radius: COLLISION_RADIUS[plan.kind],

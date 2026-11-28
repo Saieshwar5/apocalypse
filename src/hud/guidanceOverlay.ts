@@ -21,7 +21,6 @@ const VERDICT_COLOR: Record<InterceptVerdict, string> = {
   tight: '#ffb347',
   'too-late': '#ff5a4a',
 };
-const SATELLITE_LABEL: Record<Satellite['kind'], string> = { comms: 'COMMS SAT', nav: 'NAV SAT', weather: 'WEATHER SAT' };
 /** Satellites are labelled inside this distance, so the sky is not covered in text. */
 const SATELLITE_LABEL_RANGE = 130;
 
@@ -157,7 +156,7 @@ function drawSatellites(context: CanvasRenderingContext2D, projector: ScreenProj
     context.lineTo(point.x - size, point.y);
     context.closePath();
     context.stroke();
-    const label = danger ? `${SATELLITE_LABEL[satellite.kind]} · STEER CLEAR` : `${SATELLITE_LABEL[satellite.kind]} ${formatDistance(distance)}`;
+    const label = danger ? `${satellite.name} · STEER CLEAR` : `${satellite.name} ${formatDistance(distance)}`;
     context.fillText(label, point.x + size + 6, point.y + 4);
   }
   context.globalAlpha = 1;

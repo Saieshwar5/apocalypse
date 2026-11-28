@@ -162,3 +162,24 @@ export function segmentSphereHit(start: Vec3Tuple, end: Vec3Tuple, centre: Vec3T
   const t = (-b - Math.sqrt(discriminant)) / a;
   return t <= 1 ? t : null;
 }
+
+/** Call-sign prefixes and names, in fleet order, so every satellite can be told apart. */
+const CALL_SIGNS: Record<SatelliteKind, { prefix: string; names: readonly string[] }> = {
+  weather: { prefix: 'WX', names: ['NIMBUS', 'CIRRUS', 'STRATUS', 'CUMULUS'] },
+  nav: { prefix: 'NAV', names: ['POLARIS', 'RIGEL', 'ALTAIR', 'DENEB'] },
+  comms: { prefix: 'COM', names: ['ECHO', 'RELAY', 'TELSTAR', 'MERCURY'] },
+};
+
+/**
+ * Unique names for a fleet laid out in order: the third weather satellite
+ * is "WX-3 STRATUS". Contracts, labels, the scanner and the radio all use them.
+ */
+export function satelliteNames(kinds: readonly SatelliteKind[]): string[] {
+  const counts: Partial<Record<SatelliteKind, number>> = {};
+  return kinds.map((kind) => {
+    const index = counts[kind] ?? 0;
+    counts[kind] = index + 1;
+    const { prefix, names } = CALL_SIGNS[kind];
+    return `${prefix}-${index + 1} ${names[index % names.length]}`;
+  });
+}
