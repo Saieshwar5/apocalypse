@@ -30,6 +30,8 @@ export interface GuidanceFrame {
   satellites: readonly Satellite[];
   /** Quiet labels: satellites are named only when close or in the way. */
   quiet?: boolean;
+  /** The target compass is showing the way: no extra off-screen arrows. */
+  compass?: boolean;
   shipPosition: THREE.Vector3;
   shipVelocity: THREE.Vector3;
   /** Flight assist off: show where the ship is really moving. */
@@ -96,7 +98,7 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
     return;
   }
 
-  // Out of view: an arrow on a ring around the reticle shows which way to turn.
+  // Out of view: an arrow on a ring around the reticle shows which way to turn (unless the compass does).
   const angle = Math.atan2(point.y - centreY, point.x - centreX);
   const ring = Math.min(projector.width, projector.height) * 0.2;
   const x = centreX + Math.cos(angle) * ring;
@@ -104,7 +106,7 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
   context.save();
   context.translate(x, y);
   context.rotate(angle);
-  context.globalAlpha = 0.7 + 0.3 * Math.sin(elapsed * 6);
+  context.globalAlpha = frame.compass ? 0 : 0.7 + 0.3 * Math.sin(elapsed * 6);
   context.fillStyle = PRIORITY_COLOR;
   context.beginPath();
   context.moveTo(20, 0);
@@ -119,7 +121,7 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
   const textY = centreY + ring + 34;
   context.textAlign = 'center';
   context.fillStyle = PRIORITY_COLOR;
-  context.fillText(`PRIORITY${pay} · TURN ${priority.cue} · ${formatDistance(priority.distance)}`, centreX, textY);
+  context.fillText(frame.compass ? `PRIORITY${pay} · ${formatDistance(priority.distance)}` : `PRIORITY${pay} · TURN ${priority.cue} · ${formatDistance(priority.distance)}`, centreX, textY);
   context.fillStyle = 'rgba(232, 241, 255, 0.9)';
   context.fillText(times, centreX, textY + 13);
   context.fillStyle = VERDICT_COLOR[priority.verdict];
@@ -221,6 +223,7 @@ function drawWaypoint(context: CanvasRenderingContext2D, projector: ScreenProjec
   const centreY = projector.height / 2;
   const angle = Math.atan2(point.y - centreY, point.x - centreX);
   const ring = Math.min(projector.width, projector.height) * 0.2 + 14;
+  context.globalAlpha = frame.compass ? 0 : 1;
   context.translate(centreX + Math.cos(angle) * ring, centreY + Math.sin(angle) * ring);
   context.rotate(angle);
   context.beginPath();
@@ -232,6 +235,7 @@ function drawWaypoint(context: CanvasRenderingContext2D, projector: ScreenProjec
   context.fill();
   context.rotate(-angle);
   context.translate(-(centreX + Math.cos(angle) * ring), -(centreY + Math.sin(angle) * ring));
+  context.globalAlpha = 1;
   context.textAlign = 'center';
   // Below the priority lines, where the message banner cannot cover it.
   context.fillText(`JOB · ${waypoint.label} · ${distance}`, centreX, centreY + ring + 78);

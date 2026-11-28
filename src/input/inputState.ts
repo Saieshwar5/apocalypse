@@ -10,6 +10,8 @@ export class InputState {
   private lookX = 0;
   private lookY = 0;
   private primaryHeld = false;
+  /** When the pilot last touched a key or the mouse (performance.now() milliseconds). */
+  lastActivity = performance.now();
 
   constructor(private readonly target: HTMLElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -50,6 +52,11 @@ export class InputState {
     const wasPressed = this.pressed.has(code);
     this.pressed.delete(code);
     return wasPressed;
+  }
+
+  /** True while any key or the mouse button is held: the pilot is busy, not idle. */
+  get busy(): boolean {
+    return this.held.size > 0 || this.primaryHeld;
   }
 
   get firingPrimary(): boolean {
@@ -96,6 +103,7 @@ export class InputState {
     if (!event.repeat) {
       this.pressed.add(event.code);
     }
+    this.lastActivity = performance.now();
     this.held.add(event.code);
   };
 
@@ -108,6 +116,7 @@ export class InputState {
   };
 
   private readonly onMouseDown = (event: MouseEvent): void => {
+    this.lastActivity = performance.now();
     if (event.button === 0) {
       this.primaryHeld = true;
     } else if (event.button === 2) {
@@ -123,6 +132,7 @@ export class InputState {
 
   private readonly onMouseMove = (event: MouseEvent): void => {
     if (this.pointerLocked) {
+      this.lastActivity = performance.now();
       this.lookX += event.movementX;
       this.lookY += event.movementY;
     }

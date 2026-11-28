@@ -1,0 +1,76 @@
+import type { Hud } from '../hud/hud';
+import { HelpScreen } from '../hud/helpScreen';
+import type { InputState } from '../input/inputState';
+
+/** No key or mouse for this long in flight: suggest the help screen. */
+const IDLE_SECONDS = 15;
+
+export interface HelpDeskDependencies {
+  input: InputState;
+  hud: Hud;
+  /** Advice for "What now?" from the current run. */
+  advice: () => string[];
+  /** Freezes play (no pause screen); resumes flight; shows the pause screen again. */
+  pause: () => void;
+  resume: () => void;
+  showPause: () => void;
+  hidePause: () => void;
+}
+
+/**
+ * Opens help from flight (H), from the pause screen and from the menu, and
+ * returns to wherever the pilot came from. Also suggests it when the pilot
+ * has been idle for a while.
+ */
+export class HelpDesk {
+  private readonly screen = new HelpScreen();
+  private from: 'flight' | 'pause' | 'menu' = 'flight';
+  private idlePrompted = false;
+
+  constructor(private readonly deps: HelpDeskDependencies) {
+    this.screen.onClose = () => this.close();
+    document.querySelector('#menu-help-button')?.addEventListener('click', () => {
+      this.from = 'menu';
+      this.screen.show([], 'controls');
+    });
+    document.querySelector('#pause-help-button')?.addEventListener('click', () => {
+      this.from = 'pause';
+      deps.hidePause();
+      this.screen.show(deps.advice());
+    });
+  }
+
+  get open(): boolean {
+    return this.screen.open;
+  }
+
+  /** In flight: H opens help; a long idle spell suggests it. */
+  update(): void {
+    const { input, hud } = this.deps;
+    if (input.consumePress('KeyH')) {
+      this.from = 'flight';
+      this.deps.pause();
+      this.screen.show(this.deps.advice());
+      return;
+    }
+    if (input.busy) {
+      input.lastActivity = performance.now();
+    }
+    const idle = (performance.now() - input.lastActivity) / 1000 > IDLE_SECONDS;
+    if (idle && !this.idlePrompted) {
+      hud.showMessage('Not sure what to do? Press H for help', 'info', 4);
+      this.idlePrompted = true;
+    } else if (!idle) {
+      this.idlePrompted = false;
+    }
+  }
+
+  private close(): void {
+    this.screen.hide();
+    if (this.from === 'flight') {
+      this.deps.resume();
+    } else if (this.from === 'pause') {
+      this.deps.showPause();
+    }
+  }
+}

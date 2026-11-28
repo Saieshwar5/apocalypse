@@ -1,3 +1,4 @@
+import { drawNavigation, type NavigationFrame } from './navigationOverlay';
 import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import { THREAT_COLORS, threatTone } from '../asteroids/threatTone';
@@ -74,6 +75,8 @@ export class TargetOverlay {
 
   /** Fewer words in the world: names only on what is near, threatened or needed. Set by the HUD density. */
   quietLabels = false;
+  /** True while the target compass shows the way: the old off-screen arrows step aside. */
+  compassActive = false;
   private quiet = false;
 
   draw(deltaSeconds: number, frame: OverlayFrame): void {
@@ -123,9 +126,16 @@ export class TargetOverlay {
     if (frame.tactical) {
       this.drawShipMarker(frame.shipPosition);
     } else {
-      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet }, this.elapsed);
+      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet, compass: this.compassActive }, this.elapsed);
       drawReticle(context, this.projector, frame.aimPoint, frame.targeting, frame.feedback, frame.overheated, this.elapsed);
     }
+  }
+
+  /** Navigation aids on top of this frame's overlay; call after draw(), which sets up the projector. */
+  drawNavigationAids(frame: Omit<NavigationFrame, 'aim'>, aimPoint: THREE.Vector3): void {
+    const aim = this.projector.project(aimPoint);
+    const centre = { x: this.projector.width / 2, y: this.projector.height / 2 };
+    drawNavigation(this.context, this.projector, { ...frame, aim: aim.visible ? aim : centre }, this.elapsed);
   }
 
   private drawSiteLabels(sites: readonly SiteLabel[]): void {
