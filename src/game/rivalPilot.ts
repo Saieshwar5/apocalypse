@@ -13,6 +13,7 @@ import { EARTH_RADIUS } from '../scene/earth';
 import type { Satellite } from '../satellites/satelliteFleet';
 import { IDLE_INPUT, ShipController } from '../ship/shipController';
 import { createShipModel, type ShipModel } from '../ship/shipModel';
+import { RcsThrusters } from '../ship/rcsThrusters';
 import { BOLT_SPEED, LaserCannon } from '../weapons/laserCannon';
 import { MissileLauncher } from '../weapons/missileLauncher';
 import type { ContractBook } from './contractBook';
@@ -65,6 +66,7 @@ export class RivalPilot {
   readonly laser: LaserCannon;
   readonly missiles = new MissileLauncher();
   readonly tow: TowLine;
+  readonly rcs: RcsThrusters;
   task: RivalTask = { kind: 'idle' };
   private decisionTimer = 0;
   private refuelTimer = 0;
@@ -83,6 +85,7 @@ export class RivalPilot {
     this.laser = new LaserCannon(new THREE.Color(...definition.tint).multiplyScalar(6));
     this.laser.damageMultiplier = RIVAL_LASER_DAMAGE;
     this.tow = new TowLine(this.ship, fleet);
+    this.rcs = new RcsThrusters(this.model.group, this.ship.velocity, this.model.bounds);
   }
 
   /** Starts the rival somewhere along a low orbit, already moving. */
@@ -91,6 +94,7 @@ export class RivalPilot {
     this.laser.reset();
     this.missiles.reset();
     this.tow.reset();
+    this.rcs.reset();
     this.task = { kind: 'idle' };
     this.decisionTimer = Math.random() * this.definition.decisionSeconds;
     this.refuelTimer = 0;
@@ -127,6 +131,7 @@ export class RivalPilot {
     }
     this.ship.update(deltaSeconds, input);
     this.model.group.updateMatrixWorld();
+    this.rcs.update(deltaSeconds);
     this.model.setThrottle(this.ship.throttle, this.ship.boosting);
     this.model.update(performance.now() / 1000);
   }

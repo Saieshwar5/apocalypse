@@ -19,6 +19,7 @@ import { rankThreats } from '../logic/threats';
 import { damping, orientationFromForward } from '../math/orientation';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import { ShieldBubble } from '../ship/shieldBubble';
+import { RcsThrusters } from '../ship/rcsThrusters';
 import { IDLE_INPUT, type ShipController } from '../ship/shipController';
 import { handleShipToggles, readFlightInput } from '../input/flightKeys';
 import type { ShipModel } from '../ship/shipModel';
@@ -92,6 +93,7 @@ export class PlaySession {
   private readonly scorches = new ScorchMarks();
   private readonly feedback = new CombatFeedback();
   private readonly shield = new ShieldBubble();
+  private readonly rcs: RcsThrusters;
   readonly sites: SiteDefence;
   private readonly siteMarkers: SiteMarkers;
   private readonly plumes: ImpactPlumes;
@@ -114,6 +116,8 @@ export class PlaySession {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
     this.contracts = new ContractBook({ walletOf: (pilot) => deps.session.walletOf(pilot), hud: deps.hud, feedback: this.feedback });
     deps.shipModel.group.add(this.shield.mesh);
+    this.rcs = new RcsThrusters(deps.shipModel.group, deps.ship.velocity, deps.shipModel.bounds);
+    deps.scene.add(this.rcs.group);
     this.sites = new SiteDefence(deps.earth, STAR_SYSTEMS[0].sites);
     this.siteMarkers = new SiteMarkers(deps.earth, this.sites);
     this.plumes = new ImpactPlumes(deps.earth);
@@ -217,6 +221,7 @@ export class PlaySession {
     this.sites.setDefinitions(system.sites);
     this.siteMarkers.rebuild();
     this.field.clear();
+    this.rcs.reset();
     this.contracts.reset();
     this.visuals.clear();
     this.scorches.clear();
@@ -257,6 +262,8 @@ export class PlaySession {
     ship.assistOverride = this.hazards.autopilot;
     ship.update(deltaSeconds, input);
     shipModel.group.updateMatrixWorld();
+    this.rcs.update(deltaSeconds, active && !this.stationOps.holdingShip);
+    sound.thrusters(this.rcs.activity);
 
     if (flying && !this.hazards.autopilot) {
       this.updateWeapons(deltaSeconds);

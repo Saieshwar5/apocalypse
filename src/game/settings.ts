@@ -1,12 +1,15 @@
-export type GraphicsQuality = 'low' | 'high';
+import type { QualityPreference } from '../logic/qualityTier';
+
+export type { QualityPreference };
 
 export interface Settings {
   /** Mouse steering multiplier, 0.4 to 2. */
   sensitivity: number;
-  quality: GraphicsQuality;
+  /** 'auto' measures the frame rate and lowers quality if the computer struggles. */
+  quality: QualityPreference;
 }
 
-export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, quality: 'high' };
+export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, quality: 'auto' };
 const STORAGE_KEY = 'singularity.settings.v1';
 
 /** Clamps and repairs stored settings, which may be missing or edited by hand. */
@@ -15,7 +18,7 @@ export function sanitizeSettings(value: unknown): Settings {
   const sensitivity = typeof candidate.sensitivity === 'number' && Number.isFinite(candidate.sensitivity) ? candidate.sensitivity : 1;
   return {
     sensitivity: Math.min(2, Math.max(0.4, sensitivity)),
-    quality: candidate.quality === 'low' ? 'low' : 'high',
+    quality: candidate.quality === 'low' || candidate.quality === 'high' ? candidate.quality : 'auto',
   };
 }
 

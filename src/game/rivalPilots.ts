@@ -71,7 +71,7 @@ export class RivalPilots {
   constructor(private readonly deps: RivalPilotsDependencies) {
     this.rivals = RIVALS.map((definition) => new RivalPilot(definition, deps.shipSource, deps.fleet));
     for (const rival of this.rivals) {
-      deps.scene.add(rival.model.group, rival.laser.group, rival.missiles.group, rival.tow.mesh);
+      deps.scene.add(rival.model.group, rival.laser.group, rival.missiles.group, rival.tow.mesh, rival.rcs.group);
       deps.work.register(rival.definition.id, rival.tow);
     }
   }

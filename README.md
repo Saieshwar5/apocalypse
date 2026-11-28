@@ -48,6 +48,26 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Quality pass 1: feel and finish
+
+- Live reflections: metal now reflects the real planet, sun and sky as seen
+  from where you are. A small stand-in scene (the sun, and the planet at the
+  right size, direction and rotation, lit by the sun) is turned into a
+  reflection map and rebuilt as the ship moves, so hulls catch blue
+  Earthlight over the day side and go dark over the night side.
+- Reaction-control thrusters: small gas jets fire from the nose when
+  braking, from the flanks when sliding, and at nose and tail when turning,
+  on your ship and on the rivals'. They watch how each ship actually
+  accelerates, so flight assist's drift corrections show too. A short hiss
+  plays with them.
+- Engine plumes have a white-hot inner flame, and bright shock diamonds
+  appear in the main engines' exhaust at full boost.
+- The tow line groans as the pull nears what a satellite can take.
+- Automatic graphics quality (the new default in the pause menu): the game
+  measures frame times while flying and, if the computer cannot keep about
+  33 frames a second, drops to low quality once and says so. Add `?fps` to
+  the address to show a frame-rate readout for testing.
+
 ## Stage 4: rival pilots
 
 - Two rival pilots work the same orbit: KESTREL (red), a hunter who goes

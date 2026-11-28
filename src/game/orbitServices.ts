@@ -11,6 +11,7 @@ import type { ShipController } from '../ship/shipController';
 import { Outposts, type OutpostId } from '../station/outposts';
 import { SatelliteWork, type JobRow, type Waypoint } from './satelliteWork';
 import { TowLine } from './towLine';
+import { FRAGILE } from '../logic/towing';
 import { RivalPilots } from './rivalPilots';
 import type { CombatResolver } from './combatResolver';
 import type { ContractBook } from './contractBook';
@@ -105,6 +106,8 @@ export class OrbitServices {
       this.work.toggleTow();
     }
     this.work.update(deltaSeconds);
+    // The line groans as the pull nears the strain a satellite can take.
+    this.deps.sound.towCreak(Math.min(1, this.tow.tension / (FRAGILE.safeTension * 1.4)));
     this.rivals.update(deltaSeconds, active);
   }
 

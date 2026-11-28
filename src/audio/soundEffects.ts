@@ -11,6 +11,8 @@ export class SoundEffects {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
+  private lastThrusterHiss = 0;
+  private lastCreak = 0;
   private engineGain: GainNode | null = null;
   private engineFilter: BiquadFilterNode | null = null;
   private atmosphereGain: GainNode | null = null;
@@ -80,6 +82,32 @@ export class SoundEffects {
       return;
     }
     this.atmosphereGain.gain.setTargetAtTime(level > 0 ? 0.12 + level * 0.3 : 0, this.context.currentTime, 0.15);
+  }
+
+  /** Reaction-control thruster hiss; `activity` 0..1. Short bursts, never a constant noise. */
+  thrusters(activity: number): void {
+    if (!this.context || activity < 0.15) {
+      return;
+    }
+    const now = this.context.currentTime;
+    if (now - this.lastThrusterHiss < 0.11) {
+      return;
+    }
+    this.lastThrusterHiss = now;
+    this.noiseBurst({ duration: 0.12, volume: 0.035 + activity * 0.05, filterFrom: 5200, filterTo: 2600, highpass: 900 });
+  }
+
+  /** The tow line groaning under strain; `strain` 0..1. */
+  towCreak(strain: number): void {
+    if (!this.context || strain < 0.35) {
+      return;
+    }
+    const now = this.context.currentTime;
+    if (now - this.lastCreak < 0.9) {
+      return;
+    }
+    this.lastCreak = now;
+    this.tone({ type: 'sawtooth', from: 90 + strain * 60, to: 60, duration: 0.5, volume: 0.04 + strain * 0.04 });
   }
 
   laser(): void {
@@ -180,7 +208,7 @@ export class SoundEffects {
     oscillator.stop(start + options.duration + 0.05);
   }
 
-  private noiseBurst(options: { duration: number; volume: number; filterFrom: number; filterTo: number }): void {
+  private noiseBurst(options: { duration: number; volume: number; filterFrom: number; filterTo: number; highpass?: number }): void {
     if (!this.context || !this.master || !this.noise) {
       return;
     }
@@ -195,7 +223,14 @@ export class SoundEffects {
     const gain = this.context.createGain();
     gain.gain.setValueAtTime(options.volume, start);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + options.duration);
-    source.connect(filter).connect(gain).connect(this.master);
+    if (options.highpass) {
+      const high = this.context.createBiquadFilter();
+      high.type = 'highpass';
+      high.frequency.value = options.highpass;
+      source.connect(high).connect(filter).connect(gain).connect(this.master);
+    } else {
+      source.connect(filter).connect(gain).connect(this.master);
+    }
     source.start(start);
     source.stop(start + options.duration + 0.05);
   }

@@ -15,7 +15,7 @@ import { LaunchCinematic } from '../launch/launchCinematic';
 import { pilotName } from '../logic/rivals';
 import { LAUNCH_SITE, OrbitInsertion, orbitPose } from '../launch/orbitInsertion';
 import { RocketEffects } from '../launch/rocketEffects';
-import { Earth, loadEarthTextures, type EarthTextures } from '../scene/earth';
+import { EARTH_RADIUS, Earth, loadEarthTextures, type EarthTextures } from '../scene/earth';
 import { generatePlanetTextures } from '../scene/proceduralPlanet';
 import { loadModels } from '../scene/modelLibrary';
 import { RenderPipeline } from '../scene/renderPipeline';
@@ -27,7 +27,10 @@ import { GameSession } from './gameSession';
 import { GameScreens } from './gameScreens';
 import { PlaySession } from './playSession';
 import { saveRun } from './runHistory';
-import { bindSettingsControls, loadSettings, type Settings } from './settings';
+import { bindSettingsControls, loadSettings, type QualityPreference, type Settings } from './settings';
+import { createSampler, effectiveQuality, sampleFrame, type GraphicsQuality } from '../logic/qualityTier';
+import { EnvironmentLighting } from '../scene/environmentLighting';
+import { FrameStats } from '../scene/frameStats';
 
 export type GamePhase = 'menu' | 'launch' | 'playing' | 'paused' | 'gameover';
 
@@ -57,6 +60,11 @@ export class Game {
   private readonly radar: Radar;
   private readonly screens: GameScreens;
   private readonly explosions = new Explosions();
+  private environment!: EnvironmentLighting;
+  private readonly frameStats = new FrameStats(new URLSearchParams(window.location.search).has('fps'));
+  private readonly qualitySampler = createSampler();
+  private qualityPreference: QualityPreference = 'auto';
+  private autoQuality: GraphicsQuality = 'high';
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -113,14 +121,15 @@ export class Game {
 
     const sun = createSun(SUN_DIRECTION);
     this.sunLight = sun.light;
-    this.scene.environment = this.pipeline.createSpaceEnvironment(SUN_DIRECTION);
-    this.scene.environmentIntensity = 0.9;
+    this.environment = new EnvironmentLighting(this.pipeline.renderer, this.scene, SUN_DIRECTION, this.earth.dayMap);
+    this.scene.environmentIntensity = 1.35;
     this.scene.add(
       createStarfield(),
       sun.group,
       new THREE.AmbientLight(0x6a86b0, 0.15),
       // Earth-shine: soft blue light from below, reflected off the planet.
-      new THREE.HemisphereLight(0x1a2233, 0x2f5f9e, 0.9),
+      // Kept weak: the reflection map now carries the real, direction-dependent earthshine.
+      new THREE.HemisphereLight(0x1a2233, 0x2f5f9e, 0.6),
       this.earth.group,
       createMoon(new THREE.Vector3(-0.55, 0.2, 0.8)),
       this.shipModel.group,
@@ -153,7 +162,8 @@ export class Game {
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
     const applySettings = (settings: Settings): void => {
       this.ship.lookSensitivity = settings.sensitivity;
-      this.pipeline.setQuality(settings.quality);
+      this.qualityPreference = settings.quality;
+      this.pipeline.setQuality(effectiveQuality(settings.quality, this.autoQuality));
       this.overlay.resize();
     };
     const settings = loadSettings();
@@ -208,6 +218,7 @@ export class Game {
       this.colonyTextures.set(system.id, textures);
     }
     this.earth.setTextures(textures);
+    this.environment.setDayMap(textures.day);
     this.sunLight.color.setRGB(...system.starColor);
     const label = document.querySelector('#planet-label');
     if (label) {
@@ -266,7 +277,9 @@ export class Game {
 
   private readonly frame = (timestamp: number): void => {
     this.timer.update(timestamp);
-    const deltaSeconds = Math.min(this.timer.getDelta(), MAX_FRAME_SECONDS);
+    const realSeconds = this.timer.getDelta();
+    const deltaSeconds = Math.min(realSeconds, MAX_FRAME_SECONDS);
+    this.measureFrame(realSeconds);
     switch (this.phase) {
       case 'menu':
         this.updateMenu(deltaSeconds);
@@ -283,8 +296,24 @@ export class Game {
         this.updateMenu(deltaSeconds);
         break;
     }
+    this.environment.update(deltaSeconds, this.camera.position, EARTH_RADIUS, this.earth.worldOrientation());
     this.pipeline.render();
   };
+
+  /** Automatic quality and the optional frame-rate readout (?fps). */
+  private measureFrame(realSeconds: number): void {
+    this.frameStats.record(realSeconds);
+    if (this.phase !== 'playing' || this.qualityPreference !== 'auto') {
+      return;
+    }
+    const verdict = sampleFrame(this.qualitySampler, realSeconds);
+    if (verdict === 'low' && this.autoQuality !== 'low') {
+      this.autoQuality = 'low';
+      this.pipeline.setQuality('low');
+      this.overlay.resize();
+      this.hud.showMessage('Graphics lowered for smoother play. Change it in the pause menu (Esc)', 'info', 4);
+    }
+  }
 
   private updateMenu(deltaSeconds: number): void {
     this.menuAngle += deltaSeconds * 0.04;
