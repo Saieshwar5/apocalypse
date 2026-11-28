@@ -1,5 +1,10 @@
+import { readPad } from '../logic/gamepadMap';
+
+/** Left stick at its edge turns the ship as fast as this many mouse pixels a second. */
+const PAD_LOOK_RATE = 900;
+
 /**
- * Keyboard and mouse state for one canvas. Mouse movement is accumulated
+ * Keyboard, mouse and game controller state for one canvas. Mouse movement is accumulated
  * between frames and read once per frame with `consumeLook`. Single-press
  * actions (switch camera, fire missile) are read with `consumePress` so a
  * held key does not repeat them.
@@ -10,6 +15,10 @@ export class InputState {
   private lookX = 0;
   private lookY = 0;
   private primaryHeld = false;
+  /** Keys held down by the game controller's buttons and sticks. */
+  private padHeld = new Set<string>();
+  /** True once a controller has been used this session. */
+  padUsed = false;
   /** When the pilot last touched a key or the mouse (performance.now() milliseconds). */
   lastActivity = performance.now();
 
@@ -44,7 +53,34 @@ export class InputState {
   }
 
   isDown(code: string): boolean {
-    return this.held.has(code);
+    return this.held.has(code) || this.padHeld.has(code);
+  }
+
+  /**
+   * Reads the first connected game controller, once a frame. Its buttons
+   * count as the keys they stand for; the left stick steers like the mouse.
+   */
+  pollGamepad(deltaSeconds: number): void {
+    const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    const pad = [...pads].find((candidate) => candidate?.connected && candidate.mapping === 'standard') ?? [...pads].find((candidate) => candidate?.connected);
+    if (!pad) {
+      this.padHeld.clear();
+      return;
+    }
+    const reading = readPad({ buttons: pad.buttons.map((button) => button.value), axes: pad.axes });
+    const now = new Set(reading.held);
+    for (const code of now) {
+      if (!this.padHeld.has(code)) {
+        this.pressed.add(code);
+      }
+    }
+    this.padHeld = now;
+    this.lookX += reading.steer.x * PAD_LOOK_RATE * deltaSeconds;
+    this.lookY += reading.steer.y * PAD_LOOK_RATE * deltaSeconds;
+    if (reading.active) {
+      this.padUsed = true;
+      this.lastActivity = performance.now();
+    }
   }
 
   /** True once per key press (or right click for 'MouseRight'). */
@@ -56,11 +92,11 @@ export class InputState {
 
   /** True while any key or the mouse button is held: the pilot is busy, not idle. */
   get busy(): boolean {
-    return this.held.size > 0 || this.primaryHeld;
+    return this.held.size > 0 || this.primaryHeld || this.padHeld.size > 0;
   }
 
   get firingPrimary(): boolean {
-    return this.primaryHeld || this.held.has('Space');
+    return this.primaryHeld || this.isDown('Space');
   }
 
   consumeLook(): { x: number; y: number } {
@@ -73,6 +109,7 @@ export class InputState {
   /** Forget everything, for example when the game pauses. */
   clear(): void {
     this.held.clear();
+    this.padHeld.clear();
     this.pressed.clear();
     this.primaryHeld = false;
     this.lookX = 0;

@@ -102,6 +102,7 @@ export class FlightSystems {
   /** Before the play session updates. False when play should stay frozen (help or photo mode). */
   beforePlay(deltaSeconds: number, stillPlaying: () => boolean): boolean {
     const { play } = this.deps;
+    this.deps.input.pollGamepad(deltaSeconds);
     this.help.update();
     if (!stillPlaying()) {
       return false;

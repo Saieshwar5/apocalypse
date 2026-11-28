@@ -32,6 +32,7 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Input | Action |
 | --- | --- |
 | Mouse or arrow keys | Steer (pitch and yaw). Click the game to capture the mouse |
+| Game controller | Works in flight; the layout is in Help under Controls |
 | W | Thrust. The ship keeps its speed when you let go |
 | S | Brake to a stop |
 | A / D | Slide left / right |
@@ -58,6 +59,20 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## Difficulty levels and a game controller
+
+- **Difficulty** is chosen on the pilot licence and read when a run starts.
+  **Relaxed**: impacts take 40% less from Earth and hits take 35% less from
+  the ship, for 10% lower pay. **Standard**: the season as designed.
+  **Veteran**: every field is two waves later (denser, tougher rocks) and
+  hits are 25% harder, for 20% more pay. The end screen names the level.
+- **Game controller** in flight (standard layout): left stick steers
+  smoothly like the mouse, right stick slides, RT/LT thrust and brake,
+  LB/RB roll, A laser, B missile, X tow line, Y map, stick clicks for
+  boost and camera, and the D-pad for autopilot, turn-to-objective, compass
+  and flight assist. Menus, pause, help and the station shops still need
+  the keyboard.
 
 ## Combat feel: a clear fight screen, and explosions and impacts that land
 
@@ -750,8 +765,8 @@ quality, reputation, probation, insurance and the emergency loan, station prices
 shuttle routes and haul masses, call signs and radio rationing, career ranks and
 the season's story beats, storm shelter and the swell,
 the scanner projection, fuel, docking and station stock, delivery steps
-and drop zones, routes round the planet, the mission page's readings, and
-when a fight counts as close. In development builds the running game is available as
+and drop zones, routes round the planet, the mission page's readings,
+when a fight counts as close, difficulty levels and the controller mapping. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
 
