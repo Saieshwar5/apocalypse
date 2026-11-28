@@ -37,12 +37,13 @@ import type { GameSession } from './gameSession';
 import { computeGuidance, type Guidance } from './guidance';
 import { computeTargeting, type TargetingInfo } from './targeting';
 import { Campaign } from './campaign';
+import { WarningBeeps } from './warningBeeps';
+import { Licence } from './licence';
+import { ShipLoss } from './shipLoss';
 import { RIVALS, pilotName } from '../logic/rivals';
 import { OrbitServices } from './orbitServices';
 import type { OutpostId } from '../station/outposts';
 
-/** After the ship is destroyed, play continues this long so the player sees it. */
-const SHIP_LOST_SECONDS = 2.5;
 /** Missiles delivered by supply rocket after each wave, until the space base exists. */
 const AIM_DISTANCE = 24;
 /** Time runs this much slower while the tactical map is open. */
@@ -101,20 +102,36 @@ export class PlaySession {
   readonly stationOps: StationOperations;
   readonly satellites: SatelliteTraffic;
   readonly services: OrbitServices;
-  /** Why the mission failed because of the ship, once the loss has played out. */
-  shipFailure: string | null = null;
-  private lostCause: string | null = null;
-  private lostTimer = 0;
+  readonly licence: Licence;
+  private readonly loss: ShipLoss;
   private targeting: TargetingInfo | null = null;
   private guidance: Guidance = { priority: null, satelliteAhead: null };
   /** Map orbit angles, set from the ship's position when the map opens. */
   private readonly tacticalOrbit = new THREE.Spherical(TACTICAL_DISTANCE, Math.PI / 3, 0);
-  private warningTimer = 0;
+  private readonly beeps: WarningBeeps;
   private elapsed = 0;
 
   constructor(private readonly deps: PlaySessionDependencies) {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
-    this.contracts = new ContractBook({ walletOf: (pilot) => deps.session.walletOf(pilot), hud: deps.hud, feedback: this.feedback });
+    this.beeps = new WarningBeeps(deps.sound);
+    this.licence = new Licence({ session: deps.session, hud: deps.hud, sound: deps.sound });
+    this.loss = new ShipLoss({
+      ship: deps.ship,
+      missiles: this.missiles,
+      licence: this.licence,
+      explosions: deps.explosions,
+      sound: deps.sound,
+      cameraRig: deps.cameraRig,
+      hud: deps.hud,
+      station: () => this.stationNow(),
+      onReplaced: () => this.rcs.reset(),
+    });
+    this.contracts = new ContractBook({
+      walletOf: (pilot) => deps.session.walletOf(pilot),
+      events: deps.session.events,
+      hud: deps.hud,
+      feedback: this.feedback,
+    });
     deps.shipModel.group.add(this.shield.mesh);
     this.rcs = new RcsThrusters(deps.shipModel.group, deps.ship.velocity, deps.shipModel.bounds);
     deps.scene.add(this.rcs.group);
@@ -193,7 +210,8 @@ export class PlaySession {
       combat: this.combat,
       session: deps.session,
       playerProjectiles: [this.laser.group, this.missiles.group],
-      station: () => (this.stationOps.present ? { position: this.stationOps.station.position, velocity: this.stationOps.station.velocity } : null),
+      station: () => this.stationNow(),
+      playerGoodStanding: () => this.licence.inGoodStanding,
     });
     this.campaign = new Campaign({
       field: this.field,
@@ -213,8 +231,13 @@ export class PlaySession {
     });
   }
 
+  /** Why the career ended because of the ship (bankruptcy), once known. */
+  get shipFailure(): string | null {
+    return this.loss.failure;
+  }
+
   get shipActive(): boolean {
-    return this.lostCause === null;
+    return this.loss.shipActive;
   }
 
   /** `keepUpgrades` carries the workshop upgrades into the next star system. */
@@ -235,9 +258,8 @@ export class PlaySession {
     this.stationOps.reset();
     this.satellites.reset();
     this.services.reset();
-    this.shipFailure = null;
-    this.lostCause = null;
-    this.lostTimer = 0;
+    this.licence.reset();
+    this.loss.reset();
     this.tactical = false;
     this.targeting = null;
   }
@@ -268,12 +290,8 @@ export class PlaySession {
 
     if (flying && !this.hazards.autopilot) {
       this.updateWeapons(deltaSeconds);
-    } else if (!active) {
-      this.lostTimer -= deltaSeconds;
-      if (this.lostTimer <= 0) {
-        this.shipFailure = this.lostCause;
-      }
     }
+    this.loss.update(deltaSeconds);
     // The docking guides will not take a ship with a load on its tow line.
     const pilotBusy =
       input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || this.deps.input.firingPrimary || this.services.tow.load !== null;
@@ -292,9 +310,10 @@ export class PlaySession {
     this.services.update(deltaSeconds, flying && !this.hazards.autopilot, active);
     const lostCause = this.combat.consumeShipLost();
     if (lostCause && active) {
-      this.destroyShip(lostCause);
+      this.loss.destroy(lostCause);
     }
     this.campaign.update(deltaSeconds);
+    this.licence.update(deltaSeconds);
 
     updateIdentification(deltaSeconds, ship.position, ship.forward(), this.field.all, this.sites.isStanding('radar'), flying, this.feedback);
     this.sites.updateThreats(this.field.all);
@@ -320,7 +339,7 @@ export class PlaySession {
 
     this.targeting = this.shipActive ? computeTargeting(ship, this.missiles.lockedTarget, this.field.all) : null;
     this.guidance = computeGuidance(ship, ranked, this.satellites.all);
-    this.updateWarnings(realDeltaSeconds);
+    this.beeps.update(realDeltaSeconds, Boolean(this.targeting?.collision || this.guidance.satelliteAhead), this.field.all);
     this.updateCamera(realDeltaSeconds);
     // In the cockpit the hull would block the view.
     shipModel.group.visible = this.shipActive && (cameraRig.view === 'chase' || this.tactical || this.stationOps.holdingShip);
@@ -344,6 +363,9 @@ export class PlaySession {
       }
       cameraRig.snap();
       hud.showMessage(this.tactical ? 'Tactical map: time slowed. Mouse rotates, Q/E move the station, Tab returns' : 'Back in the cockpit', 'info', 2.5);
+    }
+    if (input.consumePress('KeyI') && this.stationOps.docking.state === 'docked') {
+      this.licence.buyInsurance();
     }
     if (input.consumePress('KeyC') && !this.tactical) {
       const view = cameraRig.toggleView();
@@ -370,25 +392,6 @@ export class PlaySession {
   }
 
   /** Beeps for collision danger and for heavy rocks about to hit Earth. */
-  private updateWarnings(deltaSeconds: number): void {
-    this.warningTimer -= deltaSeconds;
-    if (this.warningTimer > 0) {
-      return;
-    }
-    if (this.targeting?.collision || this.guidance.satelliteAhead) {
-      this.deps.sound.warningBeep(true);
-      this.warningTimer = 0.22;
-      return;
-    }
-    const imminent = this.field.all.some(
-      (asteroid) => asteroid.size !== 'small' && asteroid.timeToImpact !== null && asteroid.timeToImpact < 10,
-    );
-    if (imminent) {
-      this.deps.sound.warningBeep(false);
-      this.warningTimer = 1.1;
-    }
-  }
-
   private updateCamera(deltaSeconds: number): void {
     const { cameraRig, camera, shipModel, ship } = this.deps;
     if (!this.tactical && this.stationOps.holdingShip) {
@@ -408,15 +411,8 @@ export class PlaySession {
     cameraRig.place(position, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), deltaSeconds);
   }
 
-  private destroyShip(cause: string): void {
-    const { explosions, sound, cameraRig, hud, ship } = this.deps;
-    explosions.spawnExplosion(ship.position, 1.6, 'fire');
-    explosions.spawnRockChips(ship.position, 3);
-    sound.explosion(0.7);
-    cameraRig.addShake(1.2);
-    this.lostCause = cause;
-    this.lostTimer = SHIP_LOST_SECONDS;
-    hud.showMessage('Interceptor destroyed', 'danger', SHIP_LOST_SECONDS);
+  private stationNow(): { position: THREE.Vector3; velocity: THREE.Vector3 } | null {
+    return this.stationOps.present ? { position: this.stationOps.station.position, velocity: this.stationOps.station.velocity } : null;
   }
 
   private updateHud(deltaSeconds: number, ranked: readonly Asteroid[], showTargets = true): void {
@@ -424,6 +420,7 @@ export class PlaySession {
     hud.update(deltaSeconds, {
       integrity: session.integrity,
       orbitHealth: this.services.debris.health,
+      licence: { summary: this.licence.summary, stage: this.licence.stage },
       wave: Math.max(1, this.campaign.director.wave),
       missileCapacity: this.missiles.capacity,
       fuelCapacity: ship.fuelCapacity,

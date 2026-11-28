@@ -6,10 +6,12 @@ import { ASTEROID_CLASSES } from '../logic/asteroidClasses';
 import { contractPayout, contractValue, formatCredits, type ContractOutcome } from '../logic/contracts';
 import { burnsUp } from '../logic/planetDamage';
 import type { Wallet } from '../logic/economy';
+import type { GameEvents } from './gameEvents';
 import { pilotName, splitPay, type PilotId, type RivalId } from '../logic/rivals';
 
 export interface ContractBookDependencies {
   walletOf: (pilot: PilotId) => Wallet;
+  events: GameEvents;
   hud: Hud;
   feedback: CombatFeedback;
 }
@@ -134,6 +136,7 @@ export class ContractBook {
       this.completedBy[best] = (this.completedBy[best] ?? 0) + 1;
     }
     if (mine > 0) {
+      this.deps.events.emit({ type: 'contract-completed', clean: payout.clean });
       this.fieldEarned += mine;
       this.contractsCompleted += 1;
       const shared = others.length > 0 ? ` (shared with ${others.map(pilotName).join(', ')})` : '';
@@ -153,6 +156,7 @@ export class ContractBook {
     this.damage.delete(asteroid.id);
     this.chasers.delete(asteroid.id);
     if (value > 0) {
+      this.deps.events.emit({ type: 'contract-lost', site: asteroid.threatensSite });
       this.fieldLost += value;
       this.contractsLost += 1;
     }

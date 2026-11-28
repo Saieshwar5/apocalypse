@@ -2,6 +2,8 @@ import type { RunRecord } from '../logic/bestRuns';
 import { formatCredits } from '../logic/contracts';
 import { orbitRating } from '../logic/orbitPlan';
 
+const LICENCE_LABEL: Record<string, string> = { good: 'Good standing', warning: 'Warning', probation: 'Probation', recalled: 'Recalled' };
+
 export interface ScreenActions {
   onStart(): void;
   onResume(): void;
@@ -17,6 +19,9 @@ export interface RunSummary {
   contractsCompleted: number;
   contractsLost: number;
   orbitHealth: number;
+  reputation: number;
+  licence: string;
+  shipsLost: number;
   /** Tonnes of debris swept from orbit. */
   debrisSwept: number;
   /** Every pilot's earnings, best first. */
@@ -83,6 +88,8 @@ export class GameScreens {
 
   showGameOver(summary: RunSummary): void {
     const rows: [string, string][] = [
+      ['Licence', `${LICENCE_LABEL[summary.licence] ?? summary.licence} · ${Math.round(summary.reputation)}`],
+      ['Ships lost', String(summary.shipsLost)],
       ['Earned', formatCredits(summary.earned)],
       ['Spent at the station', formatCredits(summary.spent)],
       ['Balance', formatCredits(summary.balance)],

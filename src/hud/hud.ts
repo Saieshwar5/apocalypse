@@ -14,6 +14,7 @@ export interface HudSnapshot {
   integrity: number;
   /** Orbit Health: 100 is clean orbit, 0 means the cascade has closed it. */
   orbitHealth: number;
+  licence: { summary: string; stage: string };
   wave: number;
   balance: number;
   earned: number;
@@ -102,6 +103,7 @@ export class Hud {
   private readonly integrityBar = element<HTMLDivElement>('#integrity-bar');
   private readonly integrityValue = element<HTMLSpanElement>('#integrity-value');
   private readonly orbitBar = element<HTMLDivElement>('#orbit-health-bar');
+  private readonly licenceValue = element<HTMLElement>('#licence-value');
   private readonly orbitValue = element<HTMLSpanElement>('#orbit-health-value');
   private readonly waveValue = element<HTMLElement>('#wave-value');
   private readonly balanceValue = element<HTMLElement>('#balance-value');
@@ -153,6 +155,10 @@ export class Hud {
     this.orbitBar.style.width = `${orbit}%`;
     this.orbitBar.dataset.level = orbit > 60 ? 'stable' : orbit > CASCADE.tippingHealth ? 'damaged' : 'critical';
     setText(this.orbitValue, `${orbit.toFixed(0)}%`);
+    setText(this.licenceValue, snapshot.licence.summary);
+    if (this.licenceValue.dataset.stage !== snapshot.licence.stage) {
+      this.licenceValue.dataset.stage = snapshot.licence.stage;
+    }
     this.waveValue.textContent = String(snapshot.wave);
     setText(this.balanceValue, formatCredits(snapshot.balance));
     setText(this.earnedValue, formatCredits(snapshot.earned));

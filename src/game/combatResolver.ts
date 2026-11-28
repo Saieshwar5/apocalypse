@@ -271,6 +271,9 @@ export class CombatResolver {
     const splits = fragmentsOnDestroy(asteroid.size, weapon) !== null;
     // Fragments a laser splits off carry on as asteroids; the rest becomes orbital debris.
     const debris = this.shatterHook?.(asteroid, weapon, position) ?? 0;
+    if (debris > 0 && pilot === 'player') {
+      session.events.emit({ type: 'debris-left', tonnes: debris });
+    }
     const label = `${splits ? 'SPLIT' : 'DESTROYED'}${debris > 0 ? ` · DEBRIS +${debris.toFixed(debris < 10 ? 1 : 0)} t` : ''}`;
     this.deps.contracts.complete(asteroid, splits ? 'split' : 'destroyed', position, label, debris > 0);
     // The pilot's own record (and the field bonus) counts only the pilot's kills.

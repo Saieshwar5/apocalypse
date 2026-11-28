@@ -392,13 +392,30 @@ body {
   color: #ffd75e;
 }
 
+.licence {
+  font-size: 11px !important;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.licence[data-stage='warning'] {
+  color: #ffb347;
+}
+
+.licence[data-stage='probation'],
+.licence[data-stage='recalled'] {
+  color: var(--danger);
+}
+
 .league {
   margin-top: 6px;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
 }
 
 .league span {
-  margin-right: 8px;
+  white-space: nowrap;
 }
 
 #threat-list .threat-detail {

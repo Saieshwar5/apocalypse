@@ -1,5 +1,6 @@
 import { MAX_PLANET_INTEGRITY } from '../logic/planetDamage';
 import { Wallet } from '../logic/economy';
+import { GameEvents } from './gameEvents';
 import { RIVALS, type PilotId, type RivalId } from '../logic/rivals';
 
 /** Money and progress for one play-through. */
@@ -7,6 +8,8 @@ export class GameSession {
   integrity = MAX_PLANET_INTEGRITY;
   /** The pilot's money: contracts pay in, the station and fines take out. */
   readonly wallet = new Wallet();
+  /** Things that happened this run that the licence keeps account of. */
+  readonly events = new GameEvents();
   /** The rival pilots' earnings, for the league table. */
   readonly rivalWallets = Object.fromEntries(RIVALS.map((rival) => [rival.id, new Wallet()])) as Record<RivalId, Wallet>;
   asteroidsDestroyed = 0;

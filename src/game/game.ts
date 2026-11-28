@@ -360,6 +360,8 @@ export class Game {
       this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} is through the debris field`, true);
     } else if (this.session.integrity <= 0) {
       this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} has fallen`);
+    } else if (this.play.licence.recalled) {
+      this.endRun('Licence revoked: you have been recalled to Earth');
     } else if (this.play.services.debris.health <= 0) {
       this.endRun('The Singularity: debris has multiplied out of control and closed Earth\'s orbit');
     } else if (this.play.shipFailure) {
@@ -397,6 +399,9 @@ export class Game {
       contractsCompleted: this.play.contracts.contractsCompleted,
       contractsLost: this.play.contracts.contractsLost,
       orbitHealth: this.play.services.debris.health,
+      reputation: this.play.licence.reputation,
+      licence: this.play.licence.stage,
+      shipsLost: this.play.licence.shipsLost,
       debrisSwept: this.play.services.debris.swept,
       league: this.session.league().map(({ pilot, earned }) => ({ name: pilotName(pilot), earned, you: pilot === 'player' })),
       wavesCleared: this.session.wavesCleared,

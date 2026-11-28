@@ -30,6 +30,7 @@ export interface RivalPilotsDependencies {
   /** The player's bolts and missiles, to notice hits on rival ships. */
   playerProjectiles: THREE.Group[];
   station: () => { position: THREE.Vector3; velocity: THREE.Vector3 } | null;
+  playerGoodStanding: () => boolean;
 }
 
 /** Hit sphere of a rival ship, in world units. */
@@ -107,6 +108,7 @@ export class RivalPilots {
           wallet: session.rivalWallets[id],
           station: this.deps.station(),
           playerPosition: ship.position,
+          yieldToPlayer: this.deps.playerGoodStanding(),
         },
         (line) => this.say(id, line),
       );
@@ -178,6 +180,7 @@ export class RivalPilots {
           const recentlyHit = this.elapsed - (this.lastHit.get(id) ?? -Infinity) < 1.5;
           if (!recentlyHit && segmentSphereHit(previous.toArray(), world.toArray(), rival.ship.position.toArray(), RIVAL_RADIUS) !== null) {
             this.lastHit.set(id, this.elapsed);
+            this.deps.session.events.emit({ type: 'rival-hit' });
             const fined = this.deps.session.wallet.fine(RIVAL_HIT_FINE);
             this.deps.hud.showMessage(`You hit ${rival.definition.name}'s ship. Fine: ${formatCredits(fined)}`, 'warning', 3);
             this.say(rival.definition.id, 'hit', true);
