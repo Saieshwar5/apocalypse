@@ -1,3 +1,5 @@
+import { SWEEP, sweptTonnes } from '../logic/cascade';
+import type { DebrisCloud } from '../satellites/debrisCloud';
 import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import { autopilotCommand } from '../logic/autopilot';
@@ -27,6 +29,7 @@ export type RivalTask =
   | { kind: 'hunt'; asteroid: Asteroid }
   | { kind: 'satellite'; jobId: number; satellite: Satellite }
   | { kind: 'refuel' }
+  | { kind: 'sweep'; cloud: DebrisCloud }
   | { kind: 'idle' };
 
 export interface RivalWorld {
@@ -57,6 +60,8 @@ const MISSILE_STAND_OFF = MISSILE_BLAST.radius + 10;
  */
 const SAFE_ALTITUDE = 6;
 const REFUEL_SECONDS = 6;
+/** Clouds lighter than this are not worth a rival's trip. */
+const SWEEP_MIN_TONNES = 0.5;
 
 /**
  * One rival pilot: a ship with the same flight model, fuel and weapons as
@@ -147,6 +152,8 @@ export class RivalPilot {
         return this.tow.load ? '→ towing' : '→ satellite job';
       case 'refuel':
         return '→ Aegis, refuelling';
+      case 'sweep':
+        return '→ sweeping debris';
       default:
         return 'patrolling';
     }
@@ -159,6 +166,9 @@ export class RivalPilot {
     }
     if (task.kind === 'satellite') {
       return task.satellite.alive && world.work.openJobs(this.definition.id).some((job) => job.id === task.jobId);
+    }
+    if (task.kind === 'sweep') {
+      return task.cloud.mass > SWEEP_MIN_TONNES && world.fleet.debris.clouds.includes(task.cloud);
     }
     return true;
   }
@@ -220,7 +230,14 @@ export class RivalPilot {
         bestScore = score;
       }
     }
-    const changed = best.kind !== this.task.kind || (best.kind === 'hunt' && this.task.kind === 'hunt' && best.asteroid !== this.task.asteroid);
+    if (best.kind === 'idle') {
+      // Nothing better paid: net debris. Moth makes a living of it; Kestrel only when bored.
+      const cloud = this.nearestCloud(world);
+      if (cloud && (definition.style === 'hauler' || this.task.kind === 'sweep' || cloud.position.distanceTo(ship.position) < 80)) {
+        best = { kind: 'sweep', cloud };
+      }
+    }
+    const changed = best.kind !== this.task.kind || (best.kind === 'sweep' && this.task.kind === 'sweep' && best.cloud !== this.task.cloud) || (best.kind === 'hunt' && this.task.kind === 'hunt' && best.asteroid !== this.task.asteroid);
     if (!changed) {
       return;
     }
@@ -268,6 +285,10 @@ export class RivalPilot {
       const destination = world.work.destinationFor(task.jobId);
       return destination ? { point: this.safe(destination), velocity: this.trackVelocity(destination, deltaSeconds), standOff: 0 } : null;
     }
+    if (task.kind === 'sweep') {
+      // Into the cloud, matching its drift, so the net works at a crawl.
+      return { point: this.safe(task.cloud.position.clone()), velocity: task.cloud.velocity.clone(), standOff: 0 };
+    }
     if (task.kind === 'refuel' && world.station) {
       const berth = world.station.position.clone().add(world.station.position.clone().normalize().multiplyScalar(6));
       return { point: berth, velocity: world.station.velocity.clone(), standOff: 0 };
@@ -295,6 +316,15 @@ export class RivalPilot {
       return;
     }
     this.laser.tryFire(deltaSeconds, false, group, this.ship.velocity, this.model.gunPorts);
+    if (task.kind === 'sweep') {
+      const cloud = task.cloud;
+      if (cloud.position.distanceTo(this.ship.position) <= cloud.radius + 0.5) {
+        const tonnes = sweptTonnes(this.ship.velocity.distanceTo(cloud.velocity), cloud.mass, deltaSeconds);
+        cloud.mass -= tonnes;
+        world.wallet.earn(tonnes * SWEEP.payPerTonne);
+      }
+      return;
+    }
     if (task.kind === 'satellite') {
       if (!this.tow.load && arrived && !world.work.waitingInYard(task.jobId)) {
         world.work.connect(this.definition.id, task.satellite);
@@ -315,6 +345,19 @@ export class RivalPilot {
         this.task = { kind: 'idle' };
       }
     }
+  }
+
+  private nearestCloud(world: RivalWorld): DebrisCloud | null {
+    let best: DebrisCloud | null = null;
+    let bestDistance = Infinity;
+    for (const cloud of world.fleet.debris.clouds) {
+      const distance = cloud.position.distanceTo(this.ship.position);
+      if (cloud.mass > SWEEP_MIN_TONNES * 2 && distance < bestDistance) {
+        best = cloud;
+        bestDistance = distance;
+      }
+    }
+    return best;
   }
 
   /** Keeps a goal point out of the atmosphere. */
