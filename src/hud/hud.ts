@@ -1,3 +1,4 @@
+import { ORBIT_TIERS, orbitTierAt } from '../logic/orbits';
 import { FLASH_SECONDS, hudVisibility, type HudDensity, type HudVisibility } from '../logic/hudFocus';
 import { MessageQueue, type MessageTone } from '../logic/messageQueue';
 import type * as THREE from 'three';
@@ -70,7 +71,7 @@ export interface HudSnapshot {
 
 const ZONE_LABEL: Record<AtmosphereZone, string> = {
   space: 'Space',
-  warning: 'Low orbit',
+  warning: 'Close to the air',
   atmosphere: 'IN ATMOSPHERE',
   breakup: 'BREAK-UP',
 };
@@ -407,9 +408,11 @@ export class Hud {
     this.surfaceValue.textContent = formatDistance(altitude.aboveSurface);
     const inside = altitude.aboveAtmosphere < 0;
     this.atmosphereValue.textContent = `${inside ? '-' : ''}${formatDistance(Math.abs(altitude.aboveAtmosphere))}`;
-    if (this.zoneValue.dataset.zone !== zone) {
+    // In open space the panel names which of the three orbits the ship is in.
+    const place = zone === 'space' ? ORBIT_TIERS[orbitTierAt(altitude.fromCentre)].name : ZONE_LABEL[zone];
+    if (this.zoneValue.dataset.zone !== zone || this.zoneValue.textContent !== place) {
       this.zoneValue.dataset.zone = zone;
-      this.zoneValue.textContent = ZONE_LABEL[zone];
+      this.zoneValue.textContent = place;
       this.atmosphereValue.dataset.zone = zone;
     }
   }

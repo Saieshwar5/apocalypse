@@ -91,9 +91,9 @@ function distanceBetween(a: Vec3Tuple, b: Vec3Tuple): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
 
-export type NavGroup = 'job' | 'station' | 'satellite' | 'pilot' | 'debris';
-const GROUP_ORDER: readonly NavGroup[] = ['job', 'station', 'satellite', 'pilot', 'debris'];
-export const NAV_GROUP_TAG: Record<NavGroup, string> = { job: 'JOB', station: 'STA', satellite: 'SAT', pilot: 'PIL', debris: 'DEB' };
+export type NavGroup = 'job' | 'station' | 'orbit' | 'satellite' | 'pilot' | 'debris';
+const GROUP_ORDER: readonly NavGroup[] = ['job', 'station', 'orbit', 'satellite', 'pilot', 'debris'];
+export const NAV_GROUP_TAG: Record<NavGroup, string> = { job: 'JOB', station: 'STA', orbit: 'ORB', satellite: 'SAT', pilot: 'PIL', debris: 'DEB' };
 
 /** The navigation computer's list: jobs first, then stations, satellites, pilots, debris; nearest first within each. */
 export function sortNavEntries<T extends { group: NavGroup; distance: number }>(entries: readonly T[]): T[] {

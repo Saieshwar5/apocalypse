@@ -8,6 +8,7 @@ import type { InputState } from '../input/inputState';
 import { MATERIAL_TRAITS } from '../logic/asteroidClasses';
 import { directorAdvice, meetingPoint, viaAround } from '../logic/flightDirector';
 import { FLIGHT } from '../logic/flightModel';
+import { ORBIT_TIERS, ORBIT_TIER_ORDER, tierRadius } from '../logic/orbits';
 import {
   OBJECTIVE_NAME,
   SCANNER_MODES,
@@ -160,7 +161,7 @@ export class Navigation {
     this.showOrbits();
   }
 
-  /** On the tactical map: the stations' orbits, and the nav target's in its own colour. */
+  /** On the tactical map: the stations' orbits, the nav target's in its own colour, and the three orbits as faint rings. */
   private showOrbits(): void {
     const { play } = this.deps;
     if (!play.tactical) {
@@ -174,6 +175,9 @@ export class Navigation {
     }
     if (this.objective) {
       orbits.unshift({ position: this.objective.world, velocity: this.objective.velocity, color: this.objective.color });
+    }
+    for (const tier of ORBIT_TIER_ORDER) {
+      orbits.push({ position: new THREE.Vector3(tierRadius(tier), 0, 0), velocity: new THREE.Vector3(0, 0, 1), color: '#57508a' });
     }
     this.rings.show(orbits);
   }
@@ -192,6 +196,7 @@ export class Navigation {
       overlay.drawMap({
         shipPosition: ship.position,
         planetRadius: EARTH_RADIUS,
+        tiers: ORBIT_TIER_ORDER.map((tier) => ({ world: new THREE.Vector3(0, 0, tierRadius(tier)), label: ORBIT_TIERS[tier].name.toUpperCase() })),
         tags: listed.map(({ number, entry, selected }) => ({ number, world: entry.world, label: entry.label, group: entry.group, selected })),
         route: objective && end ? { points: routePoints(ship.position, objective.via ?? null, end), end, color: objective.color, label: objective.tag, zoneRadius: objective.zone?.radius ?? null } : null,
       });

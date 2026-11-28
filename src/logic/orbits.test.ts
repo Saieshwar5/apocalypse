@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIELD_START, ORBIT_TIERS, orbitTierAt } from './orbits';
+import { FIELD_START, ORBIT_TIERS, orbitTierAt, orbitTransfers, tierRadius } from './orbits';
 import { ORBIT_BANDS } from './satellites';
 import { OUTPOST_ORBITS } from './stations';
 import { ATMOSPHERE } from './atmosphere';
@@ -33,5 +33,27 @@ describe('the three orbits', () => {
     expect(orbitTierAt(OUTPOST_ORBITS.vulcan.radius)).toBe('low');
     expect(orbitTierAt(OUTPOST_ORBITS.ceres.radius)).toBe('medium');
     expect(orbitTierAt(OUTPOST_ORBITS.halo.radius)).toBe('high');
+  });
+});
+
+describe('orbit transfers', () => {
+  it('lists all three orbits from wherever the ship is, saying which way each lies', () => {
+    const ways = (position: [number, number, number]) => orbitTransfers(position).map((transfer) => transfer.way);
+    expect(ways([tierRadius('low'), 0, 0])).toEqual(['here', 'climb', 'climb']);
+    expect(ways([0, tierRadius('medium'), 0])).toEqual(['descend', 'here', 'climb']);
+    expect(ways([0, 0, -tierRadius('high')])).toEqual(['descend', 'descend', 'here']);
+    // Half way up, nothing has dropped out of the list.
+    expect(ways([150, 0, 0])).toEqual(['descend', 'descend', 'climb']);
+  });
+
+  it('aims straight up or down from the ship, at the middle of the orbit', () => {
+    const [, toMedium] = orbitTransfers([0, tierRadius('low'), 0]);
+    expect(toMedium.point[0]).toBeCloseTo(0);
+    expect(toMedium.point[1]).toBeCloseTo(tierRadius('medium'));
+    expect(toMedium.height).toBeCloseTo(tierRadius('medium') - tierRadius('low'));
+  });
+
+  it('offers nothing from the planet\'s centre', () => {
+    expect(orbitTransfers([0, 0, 0])).toEqual([]);
   });
 });

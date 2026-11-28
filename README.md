@@ -81,6 +81,13 @@ Then open the address Vite prints (usually http://localhost:5173) and click
   and the size of impact effects. Debris still burns away by itself low
   down and lingers high up.
 - The autopilot no longer uses the boost with passengers aboard.
+- **Changing orbit.** The destination list (N, or beside the map) always
+  holds LOW, MEDIUM and HIGH ORBIT: a point straight up or down from the
+  ship at that height, with how far to climb or descend. Pick one and the
+  autopilot (U) flies the transfer. The position panel names the orbit you
+  are in, and the map draws the three orbits as faint rings.
+- Debris from a rock destroyed far out flies off and leaves nothing in
+  orbit, so stopping rocks high is the clean way to do it.
 
 ## Jobs: cargo between stations, a clearer set of work, and ranks that open it
 

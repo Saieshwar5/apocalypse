@@ -4,6 +4,7 @@ import type { InputState } from '../input/inputState';
 import { SWEEP } from '../logic/cascade';
 import { NAV_GROUP_TAG, bearingArrow, sortNavEntries, type NavGroup } from '../logic/flightDirector';
 import { arrivalSeconds, compassPoint } from '../logic/navigation';
+import { ORBIT_TIERS, orbitTransfers } from '../logic/orbits';
 import { DOCKING } from '../logic/stationSupply';
 import { TOW } from '../logic/towing';
 import { formatCountdown, formatDistance } from '../logic/units';
@@ -178,6 +179,18 @@ export class NavComputer {
         velocity: outpost.velocity,
         arriveSpeed: BERTH_SPEED - 0.5,
         arriveRange: 4,
+      });
+    }
+    // The three orbits, straight up or down from here: a change of height and nothing else.
+    for (const transfer of orbitTransfers(ship.position.toArray())) {
+      entries.push({
+        id: `orbit:${transfer.tier}`,
+        group: 'orbit',
+        label: `${ORBIT_TIERS[transfer.tier].name.toUpperCase()} · ${transfer.way === 'here' ? 'you are here' : `${transfer.way} ${formatDistance(transfer.height)}`}`,
+        world: new THREE.Vector3(...transfer.point),
+        velocity: null,
+        arriveSpeed: 4,
+        arriveRange: 6,
       });
     }
     for (const satellite of play.satellites.all) {

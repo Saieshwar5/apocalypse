@@ -1795,6 +1795,10 @@ button.confirming {
   color: #ffb3a8;
 }
 
+#nav-list li[data-group='orbit'] span:nth-child(3) {
+  color: #c9b6ff;
+}
+
 #nav-list li[data-group='debris'] span:nth-child(3) {
   color: #ffb35c;
 }
