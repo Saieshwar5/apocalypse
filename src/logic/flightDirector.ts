@@ -38,6 +38,12 @@ export interface DirectorAdvice {
 }
 
 const TURN_LIMIT = (20 * Math.PI) / 180;
+/**
+ * Once there, drifting this far past the arrival range still counts as
+ * there: without it the advice flickered back to BURN at the edge, the
+ * pilot touched the throttle, and the berth's hold timer started again.
+ */
+const ARRIVE_MARGIN = 1.5;
 /** Brake a little early: a margin for reaction time. */
 const BRAKE_MARGIN = 1.15;
 
@@ -49,7 +55,7 @@ export function directorAdvice(input: DirectorInput): DirectorAdvice {
   const reachable = Math.sqrt(2 * input.brake * usable + input.arriveSpeed * input.arriveSpeed);
   const engine = usable > 150 ? input.boostSpeed : input.cruiseSpeed;
   const targetSpeed = Math.max(input.arriveSpeed, Math.min(engine, reachable * 0.8));
-  if (input.distance <= input.arriveRange) {
+  if (input.distance <= input.arriveRange || (input.distance <= input.arriveRange + ARRIVE_MARGIN && input.relativeSpeed <= input.arriveSpeed)) {
     return { phase: input.relativeSpeed <= input.arriveSpeed ? 'arrived' : 'arrive', targetSpeed: input.arriveSpeed, brakeIn: null };
   }
   if (closing > input.arriveSpeed && stopping >= usable) {

@@ -36,6 +36,9 @@ describe('flight director', () => {
     expect(directorAdvice({ ...trip, distance: 20 }).targetSpeed).toBeLessThan(18);
     expect(directorAdvice({ ...trip, distance: 8, relativeSpeed: 9 }).phase).toBe('arrive');
     expect(directorAdvice({ ...trip, distance: 8, relativeSpeed: 2 }).phase).toBe('arrived');
+    // A little drift past the edge, slowly, still counts as arrived (no flicker back to BURN).
+    expect(directorAdvice({ ...trip, distance: 11, relativeSpeed: 1 }).phase).toBe('arrived');
+    expect(directorAdvice({ ...trip, distance: 11, relativeSpeed: 9 }).phase).not.toBe('arrived');
   });
 
   it('meets a moving target ahead of where it is now', () => {
