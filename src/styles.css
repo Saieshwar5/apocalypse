@@ -889,6 +889,22 @@ body {
   text-align: center;
 }
 
+/* The end of a run: wider, so every line of the summary fits on one row. */
+#game-over .screen-card.compact {
+  width: min(470px, 100%);
+}
+
+#game-over .eyebrow {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.summary dt {
+  white-space: nowrap;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--info);

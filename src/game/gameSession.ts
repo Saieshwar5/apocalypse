@@ -1,3 +1,4 @@
+import type { StoryStage } from '../logic/story';
 import type { RankName } from '../logic/career';
 import { DIFFICULTY, type Difficulty, type DifficultyRules } from '../logic/difficulty';
 import { moduleEffects, type ModuleEffects } from '../logic/shipModules';
@@ -27,6 +28,8 @@ export class GameSession {
   clock = 0;
   /** What the fitted modules do; set by the yard. */
   fit: ModuleEffects = moduleEffects([]);
+  /** Where the pilot stands in the season's story. */
+  story: StoryStage = 'unaware';
   /** Mass a loaded hold adds to the ship; set by the cargo work. */
   cargoMass = 0;
   /** The pilot's rank now, counting what this run has earned; set by the career. */

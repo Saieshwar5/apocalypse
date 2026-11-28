@@ -134,7 +134,9 @@ export class GameScreens {
         return [term, detail];
       }),
     );
-    element<HTMLParagraphElement>('#failure-reason').textContent = summary.reason;
+    const reason = element<HTMLParagraphElement>('#failure-reason');
+    reason.style.whiteSpace = 'pre-line';
+    reason.textContent = summary.reason;
     const stars = orbitRating(summary.integrity, summary.citiesStanding, summary.cityCount);
     element<HTMLHeadingElement>('#outcome-heading').textContent = summary.victory
       ? `Season complete ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`

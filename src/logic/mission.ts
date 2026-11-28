@@ -154,6 +154,9 @@ export const PEOPLE: readonly Person[] = [
   { name: 'Chief Okafor, Vulcan Yard', role: 'Repairs satellites and sells ship modules.' },
   { name: 'Foreman Patel, Ceres Works', role: 'Runs the depot that makes the orbit\'s fuel and parts.' },
   { name: 'Commander Sato, Halo', role: 'Looks after the people of the orbit: passengers and rescues.' },
+  { name: 'Mayor Adeyemi, Meridian', role: 'Speaks for the city of forty thousand in medium orbit.' },
+  { name: 'Harbourmaster Lind, Anchor', role: 'Runs the port in low orbit, where supplies come up from Earth.' },
+  { name: 'Watch Officer Imani, Farwatch', role: 'Keeps the lookout far out, and the yard that builds ships.' },
   { name: 'Kestrel and Moth', role: 'Rival pilots after the same contracts. They are not enemies.' },
 ];
 

@@ -243,7 +243,7 @@ export class PlaySession {
       contracts: this.contracts,
       work: this.services.work,
       extraHint: () => this.services.hint,
-      calmZoneWork: () => this.services.calmZoneWork(),
+      calmZoneWork: (sector) => this.services.calmZoneWork(sector),
       workingSatellites: () => this.satellites.fleet.aliveCount,
       radio: deps.radio,
       onTrainingComplete: deps.onTrainingComplete,

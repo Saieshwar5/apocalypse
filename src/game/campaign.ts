@@ -56,7 +56,7 @@ export interface CampaignDependencies {
   /** A hint from berthing at an outpost, shown like the docking hint. */
   extraHint: () => string | null;
   /** Hauls, crew calls and the odd solar storm, posted in calm zones. */
-  calmZoneWork: () => void;
+  calmZoneWork: (sector: number) => void;
   /** Working satellites, which pay the pilot a fee when a field is cleared. */
   workingSatellites: () => number;
   radio: RadioNet;
@@ -267,7 +267,7 @@ export class Campaign {
     if (jobUnlocked('guard', session.rank) && rng() < 0.5) {
       this.dodgeIn = 6 + rng() * 6;
     }
-    this.deps.calmZoneWork();
+    this.deps.calmZoneWork(this.director.index);
   }
 
   private updateSatelliteJobs(deltaSeconds: number): void {

@@ -60,6 +60,36 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Three great stations, their needs, and a story with a choice
+
+- **Three great stations, one in each orbit.** **Anchor**, the port, low:
+  a long harbour spine of docks and fuel tanks under solar wings, where
+  supplies come up from Earth. **Meridian**, the city, at medium height: a
+  turning habitat ring on six spokes, with farms under glass and hundreds
+  of lit windows. **Farwatch**, the lookout and shipyard, far out: three
+  great dishes on a truss and an open yard frame. Each is many times the
+  size of the outposts, built from repeated parts so it costs little to
+  draw, and each can be berthed at like any outpost.
+- **They live on fuel and parts** and use them up every second. Left alone
+  they run short about two thirds of the way through a season. Windows
+  burn as bright as the stores are full; each station calls on the radio
+  when its supplies turn; the map and the mission page show each one's
+  state (thriving, steady, running short, failing).
+- **Their state matters.** Anchor lifts fuel from Earth while it has parts
+  and stops when it has none. Farwatch's lookout sets how far your scanner
+  sees: 15% further when thriving, 30% less when failing.
+- **Cargo flows to them.** Routine and urgent runs go to whichever station
+  is shortest, loading at the Ceres depot or, for fuel, at Anchor.
+- **New voices**: Mayor Adeyemi (Meridian), Harbourmaster Lind (Anchor) and
+  Watch Officer Imani (Farwatch).
+- **Season 1 now has three acts.** The fields are heavier than forecast,
+  and Farwatch saw them late because someone cut its parts. Midway a rock
+  with a thruster bolted to it turns up: tow it to Farwatch's yard (900
+  cr) and they find proof of who has been steering rocks. Carry the proof
+  to Meridian and choose: **give it to the Mayor and the Authority** (your
+  standing rises) or **sell it to the company** (3,000 cr, and your
+  standing falls). The end screen says how the story stood.
+
 ## A bigger Earth and three orbits
 
 - **Earth is half as large again** (radius 60 units, was 40). From low
@@ -826,7 +856,8 @@ shuttle routes and haul masses, call signs and radio rationing, career ranks and
 the season's story beats, storm shelter and the swell,
 the scanner projection, fuel, docking and station stock, delivery steps
 and drop zones, routes round the planet, the mission page's readings,
-when a fight counts as close, difficulty levels, the controller mapping, cargo pay and planning, and jobs by rank. In development builds the running game is available as
+when a fight counts as close, difficulty levels, the controller mapping, cargo pay and planning, jobs by rank,
+the three orbits and transfers, the great stations' supplies, and the story. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
 

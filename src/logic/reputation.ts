@@ -31,7 +31,9 @@ export type ReputationEvent =
   | { type: 'rival-hit' }
   | { type: 'debris-left'; tonnes: number }
   | { type: 'ship-lost' }
-  | { type: 'crew-lost' };
+  | { type: 'crew-lost' }
+  /** The season's story: the proof handed to the Authority, or sold. */
+  | { type: 'story-choice'; honest: boolean };
 
 /** How much each event moves reputation. */
 export function reputationChange(event: ReputationEvent): number {
@@ -55,6 +57,8 @@ export function reputationChange(event: ReputationEvent): number {
       return -15;
     case 'crew-lost':
       return -25;
+    case 'story-choice':
+      return event.honest ? 12 : -20;
   }
 }
 
