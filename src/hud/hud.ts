@@ -194,6 +194,7 @@ export class Hud {
     const delta = Math.round(this.moneyDelta);
     const flashing = this.moneySeconds < FLASH_SECONDS.money && delta !== 0;
     setText(this.balanceValue, flashing ? `${delta > 0 ? '+' : '−'}${formatCredits(Math.abs(delta))} → ${formatCredits(snapshot.balance)}` : formatCredits(snapshot.balance));
+    this.balanceValue.classList.toggle('changing', flashing);
     setText(this.earnedValue, formatCredits(snapshot.earned));
     setText(this.contractSummary, snapshot.contractSummary);
     this.renderLeague(snapshot.league);

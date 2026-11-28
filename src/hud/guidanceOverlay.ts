@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import type { Guidance } from '../game/guidance';
 import type { Waypoint } from '../game/satelliteWork';
 import type { InterceptVerdict } from '../logic/guidance';
+import { MATERIAL_TRAITS } from '../logic/asteroidClasses';
 import { formatCredits } from '../logic/contracts';
 import { formatCountdown, formatDistance } from '../logic/units';
 import type { Satellite } from '../satellites/satelliteFleet';
@@ -33,6 +34,8 @@ export interface GuidanceFrame {
   compass?: boolean;
   /** A load is being delivered: its drop zone marks the destination, so the job diamond is not drawn. */
   delivering?: boolean;
+  /** The rock being fought at close range: it carries the lock ring, so the priority ring and words stand down. */
+  engaged?: { id: number | string } | null;
   shipPosition: THREE.Vector3;
   shipVelocity: THREE.Vector3;
   /** Flight assist off: show where the ship is really moving. */
@@ -66,7 +69,7 @@ export function drawGuidance(context: CanvasRenderingContext2D, projector: Scree
 
 function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: GuidanceFrame, elapsed: number): void {
   const priority = frame.guidance.priority;
-  if (!priority) {
+  if (!priority || (frame.engaged && frame.engaged.id === priority.item.id)) {
     return;
   }
   const point = projector.project(priority.item.mesh.position);
@@ -91,7 +94,7 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
     context.stroke();
     context.textAlign = 'center';
     context.fillStyle = PRIORITY_COLOR;
-    context.fillText(`PRIORITY${pay}`, point.x, point.y - size - 24);
+    context.fillText(`PRIORITY · ${priority.item.size.toUpperCase()} ${priority.item.identified ? MATERIAL_TRAITS[priority.item.material].label.toUpperCase() : 'UNIDENTIFIED'}${pay}`, point.x, point.y - size - 24);
     context.fillStyle = 'rgba(232, 241, 255, 0.9)';
     context.fillText(times, point.x, point.y - size - 11);
     context.fillStyle = VERDICT_COLOR[priority.verdict];

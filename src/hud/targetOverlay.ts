@@ -6,6 +6,7 @@ import type { TargetingInfo } from '../game/targeting';
 import type { SiteLabel } from '../sites/siteMarkers';
 import { RATING_COLOR, RATING_LABEL, ratingOf } from '../asteroids/identification';
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
+import { isEngaged } from '../logic/engagement';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
 import type { CombatFeedback } from './combatFeedback';
 import type { StationMarker } from '../game/orbitServices';
@@ -80,6 +81,8 @@ export class TargetOverlay {
   compassActive = false;
   /** True while a towed load's drop zone is shown. */
   delivering = false;
+  /** The rock being fought at close range this frame: it carries a lock ring and one line, nothing else. */
+  engaged: Asteroid | null = null;
   private quiet = false;
 
   draw(deltaSeconds: number, frame: OverlayFrame): void {
@@ -97,32 +100,46 @@ export class TargetOverlay {
       this.drawStation(marker, frame.shipPosition, frame.tactical);
     }
 
+    this.engaged = this.findEngaged(frame);
+    const engaged = this.engaged;
+    const priority = frame.tactical ? null : (frame.guidance.guidance.priority?.item ?? null);
     frame.ranked.forEach((asteroid, rank) => {
       const tone = threatTone(asteroid, rank);
       const color = THREAT_COLORS[tone];
       const point = this.projector.project(asteroid.mesh.position);
       if (point.visible) {
         const size = Math.max(frame.tactical ? 5 : 9, this.projector.projectedRadius(asteroid.radius, point.depth) * 1.15);
-        this.drawBracket(point.x, point.y, size, color);
-        if (asteroid.id === lockedId || asteroid.health < asteroid.maxHealth) {
-          this.drawHealthBar(point.x, point.y + size + 6, Math.max(28, size * 1.6), asteroid, asteroid.id === lockedId);
-        }
-        // On the map only rocks that will hit are named; the rest are marks.
-        if (frame.tactical ? rank < MAX_TACTICAL_LABELS && asteroid.timeToImpact !== null : rank < MAX_LABELLED) {
-          this.drawLabel(asteroid, point.x + size + 6, point.y, color, frame.shipPosition);
+        if (asteroid === engaged) {
+          // In a close fight the rock wears the lock ring, one line and its health.
+          this.drawEngaged(asteroid, point.x, point.y, Math.max(14, size * 1.3), color);
+        } else {
+          // The priority rock wears its own ring and words (drawn with the guidance), so no bracket here.
+          if (asteroid !== priority) {
+            this.drawBracket(point.x, point.y, size, color);
+          }
+          if (asteroid.id === lockedId || asteroid.health < asteroid.maxHealth) {
+            this.drawHealthBar(point.x, point.y + size + 6, Math.max(28, size * 1.6), asteroid, asteroid.id === lockedId);
+          }
+          // On the map only rocks that will hit are named; in a close fight only the one being fought.
+          const named = frame.tactical ? rank < MAX_TACTICAL_LABELS && asteroid.timeToImpact !== null : rank < MAX_LABELLED && !engaged && asteroid !== priority;
+          if (named) {
+            this.drawLabel(asteroid, point.x + size + 6, point.y, color, frame.shipPosition);
+          }
         }
       } else if (rank < MAX_ARROWS && asteroid.timeToImpact !== null) {
         this.drawEdgeArrow(point, color, asteroid);
       }
-      if (rank < MAX_IMPACT_TAGS) {
+      // In a close fight the line on the rock gives its time; the globe stays clear.
+      if (!engaged && rank < MAX_IMPACT_TAGS) {
         this.drawImpactTag(asteroid, color);
       }
     });
 
-    if (frame.targeting.target?.alive && !frame.tactical) {
-      const point = this.projector.project(frame.targeting.target.mesh.position);
+    const locked = frame.targeting.target;
+    if (locked?.alive && !frame.tactical && locked !== engaged) {
+      const point = this.projector.project(locked.mesh.position);
       if (point.visible) {
-        const size = this.projector.projectedRadius(frame.targeting.target.radius, point.depth);
+        const size = this.projector.projectedRadius(locked.radius, point.depth);
         this.drawLock(point.x, point.y, Math.max(14, size * 1.5));
       }
     }
@@ -131,7 +148,7 @@ export class TargetOverlay {
     if (frame.tactical) {
       this.drawShipMarker(frame.shipPosition);
     } else {
-      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet, compass: this.compassActive, delivering: this.delivering }, this.elapsed);
+      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet, compass: this.compassActive, delivering: this.delivering, engaged }, this.elapsed);
       drawReticle(context, this.projector, frame.aimPoint, frame.targeting, frame.feedback, frame.overheated, this.elapsed);
     }
   }
@@ -162,6 +179,10 @@ export class TargetOverlay {
 
   /** Navigation aids on top of this frame's overlay; call after draw(), which sets up the projector. */
   drawNavigationAids(frame: Omit<NavigationFrame, 'aim'>, aimPoint: THREE.Vector3): void {
+    // The rock is right there in the crosshair: nothing left to find.
+    if (this.engaged && frame.objective.world.distanceTo(this.engaged.mesh.position) < this.engaged.radius + 0.5) {
+      return;
+    }
     const aim = this.projector.project(aimPoint);
     const centre = { x: this.projector.width / 2, y: this.projector.height / 2 };
     drawNavigation(this.context, this.projector, { ...frame, aim: aim.visible ? aim : centre }, this.elapsed);
@@ -381,6 +402,54 @@ export class TargetOverlay {
     context.textAlign = 'right';
     context.fillText('LOCK', x - size - 6, y + 4);
     context.textAlign = 'left';
+  }
+
+  /** The locked rock, when it is on screen and close enough that the fight is about aiming. */
+  private findEngaged(frame: OverlayFrame): Asteroid | null {
+    const target = frame.targeting.target;
+    if (frame.tactical || !target?.alive) {
+      return null;
+    }
+    const point = this.projector.project(target.mesh.position);
+    const engaged = isEngaged({
+      hasTarget: true,
+      onScreen: point.visible,
+      rangeBand: frame.targeting.rangeBand,
+      projectedRadius: this.projector.projectedRadius(target.radius, point.depth),
+    });
+    return engaged ? target : null;
+  }
+
+  /** A close fight: the turning lock ring, one line above it, the health bar below. */
+  private drawEngaged(asteroid: Asteroid, x: number, y: number, size: number, color: string): void {
+    const context = this.context;
+    context.save();
+    context.translate(x, y);
+    context.rotate(this.elapsed * 1.5);
+    context.strokeStyle = '#7dffb0';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(0, -size);
+    context.lineTo(size, 0);
+    context.lineTo(0, size);
+    context.lineTo(-size, 0);
+    context.closePath();
+    context.stroke();
+    context.restore();
+    const kind = asteroid.identified ? MATERIAL_TRAITS[asteroid.material].label.toUpperCase() : 'UNIDENTIFIED';
+    const where = asteroid.targetSite ? `→ ${asteroid.targetSite.toUpperCase()}` : 'IMPACT';
+    const fate = asteroid.timeToImpact === null ? 'MISSES EARTH' : `${where} ${formatCountdown(asteroid.timeToImpact)}`;
+    const text = `${SIZE_LABEL[asteroid.size]} ${kind} · ${fate}`;
+    context.save();
+    context.font = `700 12px ${MONO}`;
+    context.textAlign = 'center';
+    const width = context.measureText(text).width + 12;
+    context.fillStyle = 'rgba(4, 10, 18, 0.7)';
+    context.fillRect(x - width / 2, y - size - 26, width, 18);
+    context.fillStyle = color;
+    context.fillText(text, x, y - size - 13);
+    context.restore();
+    this.drawHealthBar(x, y + size + 8, Math.max(40, size * 1.4), asteroid, true);
   }
 
   private drawShipMarker(position: THREE.Vector3): void {
