@@ -8,7 +8,7 @@ export interface PhotoModeDependencies {
   subject: () => THREE.Object3D;
   /** Hides or shows the HUD, the target overlay and the cockpit. */
   setInterface: (visible: boolean) => void;
-  /** Fires the shutter; returns the line to show (a photo job paid, or not). */
+  /** Fires the shutter; returns the line to show. */
   shutter: (camera: THREE.PerspectiveCamera) => string;
 }
 
@@ -19,8 +19,7 @@ const FILTER_LABEL: Record<Filter, string> = { none: 'Natural', cinematic: 'Cine
 /**
  * Photo mode (P): the action freezes, the interface disappears and the
  * camera floats free around the ship. The mouse orbits, W and S move in and
- * out, 1-4 choose a look, Space takes the picture. Photo jobs from Halo are
- * judged on the picture taken.
+ * out, 1-4 choose a look, Space takes the picture.
  */
 export class PhotoMode {
   active = false;
