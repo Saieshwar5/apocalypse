@@ -45,9 +45,39 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | F or right click | Missile at the locked target |
 | Tab | Tactical map (time slows; mouse rotates the view) |
 | C | Switch between chase and cockpit camera |
+| P | Photo mode: the action freezes; mouse orbits, W/S zoom, 1-4 looks, Space takes the picture |
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## Stage 8: a living orbit, and things to play with
+
+- **The orbit is busy without you.** Rockets launch from Earth's
+  spaceports (Florida, Baikonur, Kourou, Jiuquan, Sriharikota,
+  Tanegashima) every minute or two, pitching over into orbit and leaving
+  exhaust trails that turn with the planet. Spacewalkers work outside
+  Halo's crew port, helmet lamps on.
+- **Meteor showers** sometimes start in a calm zone: streaks burning up
+  over the night side for most of a minute. Harmless, and worth a look.
+- **Rivals sweep debris** when there is no better-paid work: they fly into
+  a cloud at a crawl and net it, paid by the tonne. Moth, the veteran,
+  makes a living of it; Kestrel only bothers when a cloud is close.
+- **Photo mode (P)**: the action freezes, the interface hides and the
+  camera floats free around the ship. The mouse orbits, W and S move in
+  and out, 1-4 pick a look (natural, cinematic letterbox, golden hour,
+  monochrome) and Space takes the picture.
+- **Photo jobs**: Halo's press office pays 200-300 cr for a good picture
+  of a station, a rival ship in flight, the aurora during a storm or a
+  meteor shower. The subject must be close enough and near the centre of
+  the frame.
+- **Your ship**: name it and choose its paint (factory grey, ember orange,
+  glacier white, graphite, aurora green, gold leaf) on the menu. The name
+  shows on the cockpit's flight screen.
+- **Pilot's logbook** on the menu: promotions, first gold medal in each
+  kind of job, seasons, runs, photos sold and discoveries, newest first.
+- **A secret**: somewhere high over one of the poles drifts SEEKER ONE, a
+  survey probe lost in 1982. Moth has heard the stories. Finding it pays
+  once per career and goes in the logbook.
 
 ## Quality pass 2: looks, and fixes from playtest simulations
 

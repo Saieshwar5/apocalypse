@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
 export interface CockpitReadings {
+  /** The ship's name, if the pilot gave it one. */
+  name: string;
   speedKmS: number;
   fuel: number;
   hull: number;
@@ -157,7 +159,7 @@ function bar(context: CanvasRenderingContext2D, y: number, name: string, value: 
 }
 
 function drawFlight(context: CanvasRenderingContext2D, readings: CockpitReadings): void {
-  label(context, 'FLIGHT', 14, 22, 14, '#5fd8ff');
+  label(context, readings.name ? readings.name : 'FLIGHT', 14, 22, 14, '#5fd8ff');
   label(context, readings.speedKmS.toFixed(1), 14, 82, 52, '#e8f6ff');
   label(context, 'km/s', 150, 82, 18, '#7f93aa');
   label(context, readings.status, 14, 114, 16, readings.alert ? '#ff8a7a' : '#7dffb0');

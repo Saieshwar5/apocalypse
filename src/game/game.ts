@@ -1,5 +1,7 @@
+import { WorldLayer } from './worldLayer';
+import { liveryById } from '../logic/livery';
 import { CockpitInterior } from '../ship/cockpitInterior';
-import { speedToKmPerSecond } from '../logic/units';
+import { cockpitReadings } from './cockpitFeed';
 import { DamageEffects } from '../ship/damageEffects';
 import * as THREE from 'three';
 import { SoundEffects } from '../audio/soundEffects';
@@ -77,8 +79,10 @@ export class Game {
   private autoQuality: GraphicsQuality = 'high';
   private callSign = DEFAULT_CALL_SIGN;
   private hardcore = false;
+  private shipName = '';
   private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => this.career.rank });
   private career!: PilotCareer;
+  private worldLayer!: WorldLayer;
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -180,6 +184,11 @@ export class Game {
     });
     this.career = new PilotCareer({ session: this.session, hud: this.hud, sound: this.sound, input: this.input, radio: this.radio, showModules: (fitted) => this.shipModel.setModules(fitted) });
     this.career.attach(this.play);
+    this.worldLayer = new WorldLayer({
+      scene: this.scene, camera: this.camera, earth: this.earth, play: this.play, career: this.career, input: this.input,
+      hud: this.hud, sound: this.sound, radio: this.radio, rng: this.rng, wallet: this.session.wallet, ship: () => this.shipModel.group,
+      setInterface: (visible) => (this.hud.setVisible(visible), this.overlay.clear(), this.cockpit.setVisible(visible && this.cameraRig.view === 'cockpit')),
+    });
     this.shipModel.group.visible = false;
 
     window.addEventListener('resize', this.onResize);
@@ -189,6 +198,9 @@ export class Game {
       this.qualityPreference = settings.quality;
       this.callSign = settings.callSign;
       this.hardcore = settings.hardcore;
+      this.shipName = settings.shipName;
+      const paint = liveryById(settings.livery).tint;
+      this.shipModel.setPaint(paint ? new THREE.Color(...paint) : null);
       this.pipeline.setQuality(effectiveQuality(settings.quality, this.autoQuality));
       this.overlay.resize();
     };
@@ -219,6 +231,7 @@ export class Game {
     }
     this.play.reset(system, continuing, training);
     this.career.startRun(this.hardcore && !training);
+    this.worldLayer.reset();
     this.applySystemLook();
     this.radio.reset();
     this.explosions.clear();
@@ -385,13 +398,14 @@ export class Game {
   }
 
   private updatePlaying(deltaSeconds: number): void {
+    if (this.worldLayer.update(deltaSeconds, this.play.shipActive)) {
+      return;
+    }
     this.play.update(deltaSeconds);
     this.career.update(deltaSeconds);
     this.damage.update(deltaSeconds, this.ship.hull, this.shipModel.group, this.ship.velocity, this.play.shipActive);
-    this.updateCockpit(deltaSeconds);
-    // Solar storms light up the auroras; a warning makes them start to stir.
-    const weather = this.play.services.weather.phase;
-    this.earth.setAuroraStrength(weather === 'storm' ? 2.2 : weather === 'warning' ? 1.4 : 1);
+    this.cockpit.update(deltaSeconds, cockpitReadings(this.ship, this.play, this.shipName));
+    this.earth.setAuroraStrength({ storm: 2.2, warning: 1.4, clear: 1 }[this.play.services.weather.phase]);
     this.radio.update(deltaSeconds);
     if (this.play.campaign.orbitComplete) {
       this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} is through the debris field`, true);
@@ -406,24 +420,9 @@ export class Game {
     }
   }
 
-  private updateCockpit(deltaSeconds: number): void {
-    const { ship, play } = this;
-    const job = play.services.jobRows()[0];
-    const alert = ship.hull < 30 || ship.fuel < ship.fuelCapacity * 0.15 || play.services.weather.phase === 'storm';
-    this.cockpit.update(deltaSeconds, {
-      speedKmS: speedToKmPerSecond(ship.velocity.length()),
-      fuel: (ship.fuel / ship.fuelCapacity) * 100,
-      hull: ship.hull,
-      shield: (ship.shield / ship.shieldCapacity) * 100,
-      missiles: `${play.missiles.ammunition}/${play.missiles.capacity}`,
-      status: play.services.berths.holding || play.stationOps.holdingShip ? 'BERTHED' : ship.boosting ? 'BOOST' : ship.throttle > 0.5 ? 'THRUST' : 'COASTING',
-      job: job ? `${job.title} ${job.detail}` : 'No work posted',
-      alert,
-    });
-  }
-
   private showRank(): void {
     this.screens.setRank(this.career.rankLine());
+    this.career.showLogbook();
   }
 
   private endRun(reason: string, victory = false): void {
@@ -459,7 +458,7 @@ export class Game {
       reputation: this.play.licence.reputation,
       licence: this.play.licence.stage,
       shipsLost: this.play.licence.shipsLost,
-      rank: this.career.recordRun(this.session.wallet.earned, victory && this.play.licence.stage === 'good'),
+      rank: this.career.recordRun(this.session.wallet.earned, victory && this.play.licence.stage === 'good', reason),
       medals: this.career.runMedals(),
       hardcore: this.session.hardcore,
       debrisSwept: this.play.services.debris.swept,

@@ -2,7 +2,8 @@ import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
 import type { InputState } from '../input/inputState';
 import { nextRank, rankFor, recordCareerRun, recordMedal, type RankName } from '../logic/career';
-import { totalMedals } from '../logic/medals';
+import { JOB_LABEL, totalMedals } from '../logic/medals';
+import { addLogEntry } from '../logic/logbook';
 import { HARDCORE } from '../logic/reputation';
 import { HARDPOINTS, type ModuleId } from '../logic/shipModules';
 import { loadCareer, saveCareer } from './careerStore';
@@ -44,7 +45,13 @@ export class PilotCareer {
       session,
       sound,
       radio,
-      onMedal: (kind, medal) => this.save(recordMedal(this.record, kind, medal)),
+      onMedal: (kind, medal) => {
+        const first = medal === 'gold' && this.record.medals[kind].gold === 0;
+        this.save(recordMedal(this.record, kind, medal));
+        if (first) {
+          this.note(`First gold medal: ${JOB_LABEL[kind].toLowerCase().replace(/s$/, '')}`);
+        }
+      },
     });
     this.yard = new ModuleYard({
       session,
@@ -84,11 +91,50 @@ export class PilotCareer {
   }
 
   /** Adds the run to the career; returns the rank line for the end screen. */
-  recordRun(earned: number, seasonCompleted: boolean): string {
+  recordRun(earned: number, seasonCompleted: boolean, ending: string): string {
     const before = this.rank;
     this.save(recordCareerRun(this.record, earned, seasonCompleted, this.deps.session.hardcore));
     const after = this.rank;
+    this.note(`${seasonCompleted ? 'Season completed' : 'Run ended'}: ${ending}. Earned ${Math.round(earned).toLocaleString('en-US')} cr`);
+    if (after !== before) {
+      this.note(`Promoted to ${after}`);
+    }
     return after === before ? after : `${after} (promoted from ${before})`;
+  }
+
+  /** Writes a line in the pilot's logbook. */
+  note(text: string): void {
+    this.save({ ...this.record, log: addLogEntry(this.record.log, text, new Date().toISOString().slice(0, 10)) });
+  }
+
+  /** Marks a secret found; false if it was found before (it pays only once). */
+  discover(id: string): boolean {
+    if (this.record.secrets.includes(id)) {
+      return false;
+    }
+    this.save({ ...this.record, secrets: [...this.record.secrets, id] });
+    return true;
+  }
+
+  /** Fills the menu's logbook list. */
+  showLogbook(): void {
+    const panel = document.querySelector<HTMLDetailsElement>('#logbook');
+    const list = document.querySelector<HTMLOListElement>('#logbook-list');
+    if (!panel || !list) {
+      return;
+    }
+    panel.hidden = this.record.log.length === 0;
+    list.replaceChildren(
+      ...this.record.log.map((entry) => {
+        const item = document.createElement('li');
+        const time = document.createElement('time');
+        time.textContent = entry.date;
+        const text = document.createElement('span');
+        text.textContent = entry.text;
+        item.append(time, text);
+        return item;
+      }),
+    );
   }
 
   /** This run's medals, for the end screen. */

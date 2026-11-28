@@ -192,6 +192,11 @@ export class Earth {
     this.spin.add(object);
   }
 
+  /** World-space unit vector to the middle of the night side. */
+  surfaceNight(): THREE.Vector3 {
+    return (this.surfaceUniforms.sunDirection.value as THREE.Vector3).clone().negate().normalize();
+  }
+
   /** World-space direction of the spin axis (geographic north). */
   northAxis(): THREE.Vector3 {
     return new THREE.Vector3(0, 1, 0).applyQuaternion(this.group.quaternion);

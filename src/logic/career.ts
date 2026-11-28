@@ -1,3 +1,4 @@
+import { sanitizeLog, type LogEntry } from './logbook';
 import { addMedal, emptyTally, sanitizeTally, type JobKind, type Medal, type MedalTally } from './medals';
 import { emptyHangar, sanitizeHangar, type Hangar } from './shipModules';
 
@@ -19,6 +20,10 @@ export interface CareerRecord {
   medals: MedalTally;
   /** Seasons completed on a hardcore licence. */
   hardcoreSeasons: number;
+  /** Moments worth remembering, newest first. */
+  log: LogEntry[];
+  /** Secrets found, by id, so each pays only once. */
+  secrets: string[];
 }
 
 export const EMPTY_CAREER: CareerRecord = {
@@ -29,6 +34,8 @@ export const EMPTY_CAREER: CareerRecord = {
   hangar: emptyHangar(),
   medals: emptyTally(),
   hardcoreSeasons: 0,
+  log: [],
+  secrets: [],
 };
 
 export const RANKS = [
@@ -88,8 +95,10 @@ export function parseCareer(raw: string | null): CareerRecord {
       hangar: sanitizeHangar(value.hangar),
       medals: sanitizeTally(value.medals),
       hardcoreSeasons: Math.floor(number(value.hardcoreSeasons)),
+      log: sanitizeLog(value.log),
+      secrets: Array.isArray(value.secrets) ? value.secrets.filter((id): id is string => typeof id === 'string').slice(0, 20) : [],
     };
   } catch {
-    return { ...EMPTY_CAREER, hangar: emptyHangar(), medals: emptyTally() };
+    return { ...EMPTY_CAREER, hangar: emptyHangar(), medals: emptyTally(), log: [], secrets: [] };
   }
 }

@@ -27,6 +27,8 @@ export interface ShipModel {
   update(elapsedSeconds: number): void;
   /** Shows the fitted modules as hardware on the hull. */
   setModules(fitted: readonly ModuleId[]): void;
+  /** Repaints the hull towards `tint`, or back to the factory finish with null. */
+  setPaint(tint: THREE.Color | null): void;
 }
 
 interface Engine {
@@ -159,6 +161,7 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint
   let throttle = 0;
   let boost = false;
   const hardware = new ModuleHardware(bounds);
+  const originals = new Map<THREE.Mesh, THREE.Material>();
   group.add(hardware.group);
   return {
     group,
@@ -176,6 +179,21 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint
     },
     setModules(fitted) {
       hardware.show(fitted);
+    },
+    setPaint(paint) {
+      if (originals.size === 0) {
+        model.traverse((node) => {
+          if (node instanceof THREE.Mesh) {
+            originals.set(node, node.material as THREE.Material);
+          }
+        });
+      }
+      for (const [node, material] of originals) {
+        node.material = material;
+      }
+      if (paint) {
+        paintCopy(model, paint);
+      }
     },
     update(elapsedSeconds) {
       hardware.update(elapsedSeconds);
