@@ -126,7 +126,8 @@ export class CombatResolver {
         continue;
       }
       const lost = this.deps.contracts.lose(asteroid);
-      session.integrity = applyPlanetDamage(session.integrity, asteroid.planetDamage);
+      const planetDamage = asteroid.planetDamage * session.rules.planetDamage;
+      session.integrity = applyPlanetDamage(session.integrity, planetDamage);
       session.impactsThisWave += 1;
       session.totalImpacts += 1;
       earth.addImpact(point, craterAngularRadius(asteroid.size));
@@ -138,14 +139,15 @@ export class CombatResolver {
       const weight = SIZE_WEIGHT[asteroid.size];
       sound.planetImpact(weight);
       const distance = listenerPosition.distanceTo(point);
-      cameraRig.addShake(weight * 1.2 * Math.max(0.25, 1 - distance / 60));
+      cameraRig.addShake(weight * 1.4 * Math.max(0.25, 1 - distance / 80));
+      hud.flashBlast((0.25 + weight * 0.5) * Math.max(0, 1 - distance / 120));
       if (siteHits.length > 0) {
         this.reportSiteHits(siteHits);
         continue;
       }
       const { latitude, longitude } = localDirectionToLatLon(earth.worldToLocalDirection(point));
       hud.showMessage(
-        `${SIZE_NAME[asteroid.size]} impact at ${formatCoordinate(latitude, 'N', 'S')} ${formatCoordinate(longitude, 'E', 'W')}: integrity -${asteroid.planetDamage.toFixed(0)}%${lost > 0 ? `. Contract lost: ${formatCredits(lost)}` : ''}`,
+        `${SIZE_NAME[asteroid.size]} impact at ${formatCoordinate(latitude, 'N', 'S')} ${formatCoordinate(longitude, 'E', 'W')}: integrity -${planetDamage.toFixed(0)}%${lost > 0 ? `. Contract lost: ${formatCredits(lost)}` : ''}`,
         weight >= 0.6 ? 'danger' : 'warning',
         3.5,
       );
@@ -297,7 +299,8 @@ export class CombatResolver {
       session.asteroidsDestroyed += 1;
       session.destroyedThisWave += 1;
     }
-    explosions.spawnExplosion(position, asteroid.radius, asteroid.material === 'ice' ? 'ice' : 'fire', asteroid.velocity);
+    // A warhead kill is a bigger event than a laser kill, and it should look it.
+    explosions.spawnExplosion(position, asteroid.radius, asteroid.material === 'ice' ? 'ice' : weapon === 'missile' ? 'blast' : 'fire', asteroid.velocity);
     explosions.spawnRockChips(position, 1 + SIZE_WEIGHT[asteroid.size] * 3);
     // Rivals' kills are heard less the further away they are.
     const hearing = pilot === 'player' ? 1 : Math.max(0.15, 1 - position.distanceTo(ship.position) / 150);
@@ -305,7 +308,10 @@ export class CombatResolver {
     if (pilot === 'player') {
       sound.killConfirm();
     }
-    this.deps.cameraRig.addShake(SIZE_WEIGHT[asteroid.size] * Math.max(0, 1 - position.distanceTo(ship.position) / 40));
+    this.deps.cameraRig.addShake(SIZE_WEIGHT[asteroid.size] * (weapon === 'missile' ? 1.6 : 1) * Math.max(0, 1 - position.distanceTo(ship.position) / (weapon === 'missile' ? 70 : 40)));
+    if (weapon === 'missile') {
+      this.deps.hud.flashBlast((0.3 + SIZE_WEIGHT[asteroid.size] * 0.4) * Math.max(0, 1 - position.distanceTo(ship.position) / 60));
+    }
     this.spawnFragments(asteroid, weapon);
 
     // Shrapnel: blowing up a big rock at point-blank range hurts.
@@ -320,7 +326,8 @@ export class CombatResolver {
   /** Warhead blast: hurts nearby asteroids and the ship if it is too close. */
   private detonateMissile(hit: WeaponHit, pilot: PilotId): void {
     const { field, explosions, sound, ship } = this.deps;
-    explosions.spawnExplosion(hit.point, 1.4, 'fire');
+    explosions.spawnExplosion(hit.point, 1, 'fire');
+    this.deps.cameraRig.addShake(0.5 * Math.max(0, 1 - hit.point.distanceTo(ship.position) / 70));
     sound.explosion(0.35 * Math.max(0.15, 1 - hit.point.distanceTo(ship.position) / 150));
     for (const other of [...field.all]) {
       if (other === hit.asteroid) {
@@ -350,7 +357,7 @@ export class CombatResolver {
     if (!this.deps.shipActive() || ship.hull <= 0) {
       return;
     }
-    const result = ship.applyDamage(amount);
+    const result = ship.applyDamage(amount * this.deps.session.rules.shipDamage);
     const local = ship.object.worldToLocal(source.clone());
     hud.flashDamage(local, result.hullDamage > 0 ? 1 : 0.45);
     if (result.absorbedByShield > 0) {

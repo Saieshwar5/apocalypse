@@ -1,3 +1,4 @@
+import { jobList, jobsOpenedAt } from '../logic/jobAccess';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
 import type { InputState } from '../input/inputState';
@@ -87,7 +88,8 @@ export class PilotCareer {
   startRun(hardcore: boolean): void {
     const { session } = this.deps;
     session.hardcore = hardcore;
-    session.wallet.payRate = hardcore ? HARDCORE.payRate : 1;
+    session.rank = this.rank;
+    session.wallet.payRate = (hardcore ? HARDCORE.payRate : 1) * session.rules.pay;
     session.wallet.loanAllowed = !hardcore;
     this.medals?.reset();
     this.yard?.reset();
@@ -96,6 +98,21 @@ export class PilotCareer {
   update(deltaSeconds: number): void {
     this.yard?.update();
     this.medals?.update(deltaSeconds);
+    this.checkPromotion();
+  }
+
+  /** The rank counting what this run has earned so far: a pilot is promoted in flight, not only afterwards. */
+  private checkPromotion(): void {
+    const { session, hud, radio, sound } = this.deps;
+    const now = rankFor({ ...this.record, earned: this.record.earned + session.wallet.earned });
+    if (now === session.rank) {
+      return;
+    }
+    session.rank = now;
+    const opened = jobList(jobsOpenedAt(now));
+    hud.showMessage(`Promoted to ${now}.${opened ? ` Now on your licence: ${opened}` : ''}`, 'success', 6);
+    radio.say('control', `{callsign}, the Authority has made you ${now}.${opened ? ` Your licence now covers ${opened}.` : ''} Well earned.`);
+    sound.chime();
   }
 
   markTrainingDone(): void {
@@ -175,7 +192,7 @@ export class PilotCareer {
     return {
       rank: this.rank,
       progress,
-      next: next ? `${needs} to ${next.name}` : 'Highest rank. The orbit is yours to keep',
+      next: next ? `${needs} to ${next.name}${jobsOpenedAt(next.name).length > 0 ? `, which opens ${jobList(jobsOpenedAt(next.name))}` : ''}` : 'Highest rank. The orbit is yours to keep',
       gold: totalMedals(this.record.medals, 'gold'),
       seasons: this.record.seasons,
       earned: this.record.earned,

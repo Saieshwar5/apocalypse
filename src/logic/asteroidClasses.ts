@@ -6,7 +6,7 @@ export const ASTEROID_SIZES: readonly AsteroidSize[] = ['small', 'medium', 'larg
 
 export interface AsteroidClass {
   size: AsteroidSize;
-  /** Radius range in world units (Earth radius is 10). */
+  /** Radius range in world units (Earth's radius is 60). */
   radius: [number, number];
   health: number;
   /** Percentage of planet integrity removed on impact. */
@@ -25,7 +25,7 @@ export const ASTEROID_CLASSES: Record<AsteroidSize, AsteroidClass> = {
     radius: [0.35, 0.6],
     health: 10,
     planetDamage: 1,
-    speed: [4.2, 5.4],
+    speed: [5.2, 6.7],
     score: 10,
     fragments: null,
   },
@@ -34,7 +34,7 @@ export const ASTEROID_CLASSES: Record<AsteroidSize, AsteroidClass> = {
     radius: [0.9, 1.3],
     health: 45,
     planetDamage: 6,
-    speed: [3.2, 4.0],
+    speed: [4.0, 5.0],
     score: 40,
     fragments: null,
   },
@@ -43,7 +43,7 @@ export const ASTEROID_CLASSES: Record<AsteroidSize, AsteroidClass> = {
     radius: [1.9, 2.5],
     health: 150,
     planetDamage: 16,
-    speed: [2.3, 2.9],
+    speed: [2.9, 3.6],
     score: 120,
     fragments: { size: 'medium', count: 2 },
   },
@@ -52,7 +52,7 @@ export const ASTEROID_CLASSES: Record<AsteroidSize, AsteroidClass> = {
     radius: [4.2, 5.0],
     health: 520,
     planetDamage: 40,
-    speed: [1.4, 1.7],
+    speed: [1.75, 2.1],
     score: 500,
     fragments: { size: 'large', count: 2 },
   },

@@ -49,7 +49,7 @@ export interface NavigationDependencies {
 export type Objective = NavigationObjective & { kind: ObjectiveKind };
 
 /** Routes keep this far above the surface, and pass the planet with this much to spare. */
-const ROUTE = { clearAltitude: 11, margin: 7 } as const;
+const ROUTE = { clearAltitude: 16, margin: 10 } as const;
 /** A quick tap of B cycles the scanner range; holding it enlarges the scanner. */
 const HOLD_SECONDS = 0.3;
 const BERTH_SPEED = 3;
@@ -220,7 +220,7 @@ export class Navigation {
     return {
       threat: play.guidance.priority !== null,
       job: play.services.waypoint() !== null,
-      committed: play.services.delivery() !== null || play.services.crew.aboard,
+      committed: play.services.delivery() !== null || play.services.cargo.passengersAboard,
       station: true,
       home: play.stationOps.present,
       target: this.computer.selected !== null && this.computer.current() !== null,
@@ -270,8 +270,8 @@ export class Navigation {
         world = waypoint.world;
         label = waypoint.label;
         tag = 'JOB';
-        arriveSpeed = TOW.attachSpeed;
-        arriveRange = 8;
+        arriveSpeed = waypoint.arrive?.speed ?? TOW.attachSpeed;
+        arriveRange = waypoint.arrive?.range ?? 8;
         key = `job-${waypoint.label}`;
       }
     } else if (kind === 'home') {
@@ -327,7 +327,9 @@ export class Navigation {
     const tow = this.deps.play.services.tow;
     const fragile = tow.load !== null;
     const brake = (FLIGHT.brake * ship.thrustMultiplier * handlingShare(ship.massFactor) * ship.massFactor * (tow.loadMass > 0 ? TOW_BRAKE_SHARE : 1)) / (ship.massFactor + tow.loadMass);
-    this.speedCap = fragile ? TOW_SPEED.fragile : tow.loadMass > 0 ? TOW_SPEED.heavy : Infinity;
+    // Passengers are flown without the boost: it throws them about.
+    const gentle = this.deps.play.services.cargo.passengersAboard ? FLIGHT.cruiseSpeed : Infinity;
+    this.speedCap = fragile ? TOW_SPEED.fragile : tow.loadMass > 0 ? TOW_SPEED.heavy : gentle;
     const first = directorAdvice(this.directorInput(world, velocity, arriveSpeed, arriveRange, brake));
     // Aim where the target will be when the ship gets there, unless it is already close.
     const distance = world.distanceTo(ship.position);

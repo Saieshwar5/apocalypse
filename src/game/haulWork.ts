@@ -36,7 +36,7 @@ export interface HaulWorkDependencies {
 }
 
 /** A loose haul rock is held inside this radius by Ceres's beacon tug. */
-const HOLD_RADIUS = 140;
+const HOLD_RADIUS = 210;
 
 /** Ceres accepts a rock released this close to its intake... */
 const INTAKE_RANGE = 10;
@@ -76,7 +76,7 @@ export class HaulWork {
       return false;
     }
     const { field, rng, hud, sound } = this.deps;
-    const position = new THREE.Vector3(...randomUnitVector(rng)).multiplyScalar(randomBetween(rng, 72, 100));
+    const position = new THREE.Vector3(...randomUnitVector(rng)).multiplyScalar(randomBetween(rng, 110, 150));
     // A slow drift: at the old 1.2 a rock left the orbit band (and was removed) before most pilots reached it.
     const drift = new THREE.Vector3(...randomUnitVector(rng)).cross(position).setLength(0.35);
     const rock = field.spawnFragment('medium', 'carbon', position, drift);
@@ -224,6 +224,6 @@ export class HaulWork {
   }
 
   private pay(tonnes: number): number {
-    return Math.round((tonnes * HAUL_PAY_PER_TONNE * this.deps.fit().haulPay) / 5) * 5;
+    return Math.round((tonnes * HAUL_PAY_PER_TONNE * this.deps.fit().cargoPay) / 5) * 5;
   }
 }

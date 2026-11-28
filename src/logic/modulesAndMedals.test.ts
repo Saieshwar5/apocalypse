@@ -39,7 +39,7 @@ describe('ship modules', () => {
   it('modules change only their own work', () => {
     const effects = moduleEffects(['heavyWinch']);
     expect(effects.lineStrength).toBeGreaterThan(1);
-    expect(effects.haulPay).toBe(1);
+    expect(effects.cargoPay).toBe(1);
     expect(moduleEffects(['missilePod']).extraMissiles).toBe(6);
     expect(moduleEffects(['longScanner']).lockRange).toBeCloseTo(1.4);
   });

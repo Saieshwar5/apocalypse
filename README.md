@@ -32,6 +32,7 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Input | Action |
 | --- | --- |
 | Mouse or arrow keys | Steer (pitch and yaw). Click the game to capture the mouse |
+| Game controller | Works in flight; the layout is in Help under Controls |
 | W | Thrust. The ship keeps its speed when you let go |
 | S | Brake to a stop |
 | A / D | Slide left / right |
@@ -58,6 +59,101 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## A bigger Earth and three orbits
+
+- **Earth is half as large again** (radius 60 units, was 40). From low
+  orbit the horizon is nearly flat and the ground fills the view; a large
+  station now reads as a city above a planet, not a second planet.
+- **Three orbits.** *Low*, just above the air: the three weather
+  satellites, your base Aegis and Vulcan Yard. *Medium*, about one Earth
+  radius up: the three navigation satellites and the Ceres depot. *High*,
+  far out and slow: the two communication relays and Halo. The map names
+  each station's orbit.
+- **Rocks start beyond high orbit** and cross all three on the way down:
+  meet one high and there is time for several tries; low is the last line.
+- **Trips are real.** Low to high is a long climb, so where you are when a
+  job is posted matters. The ship cruises and boosts about a third faster
+  (and brakes harder) so trips keep their pace, and rocks are a quarter
+  faster so a field lasts about as long as before.
+- Scaled to match: the atmosphere and its warnings, the defence zone, the
+  scanner's range, the map camera, the autopilot's route round the planet
+  and the size of impact effects. Debris still burns away by itself low
+  down and lingers high up.
+- The autopilot no longer uses the boost with passengers aboard.
+
+## Jobs: cargo between stations, a clearer set of work, and ranks that open it
+
+- **Cargo runs** are the new everyday job. A station has a load for
+  another: berth where it waits and it comes aboard, berth where it is
+  wanted and you are paid. Routine runs carry real fuel and parts from the
+  depot at Ceres Works to whichever station is shortest, so a delivery
+  lowers prices there, speeds Vulcan's repairs or becomes missiles at
+  Aegis. Pay grows with the distance and with how empty the station is. A
+  full hold makes the ship 30% heavier. **Urgent** loads have a clock from
+  loading (late pays half); **fragile** loads lose 15% per hard knock;
+  **passengers** lose 10% per knock or use of the boost, and losing the
+  ship with them aboard counts against the licence. The cargo pod now
+  raises cargo pay.
+- **Deploy a satellite**: Vulcan Yard builds a replacement for a lost
+  satellite; collect it from the cradle and place it in its old slot. A
+  lost satellite is no longer gone for the season.
+- **Guard a satellite** is the old dodge contract under an honest name: you
+  are paid if the satellite survives, whether you destroy the rock, push
+  it away or tow the satellite clear.
+- **Satellite tow** covers both repairs and reboosts on the board.
+- **Retired**: the crew run (its waiting was dull; passengers replace it)
+  and, for now, the rock haul for Ceres, which is kept for a later story
+  mission. Ceres Works is the orbit's fuel and parts depot.
+- **Jobs open by rank.** Cadet: intercepts, cargo runs, debris sweeps.
+  Pilot (2,000 cr): satellite tows, guarding, escorts, urgent and fragile
+  cargo. Senior Pilot (8,000 cr and one season): rescues, passengers,
+  deploys. Rank counts what the current run has earned, so promotion
+  happens in flight and is announced with the work it opens. Until the
+  licence covers satellite tows, storms do not sink satellites. The
+  licence card and the Jobs page in Help show what each rank opens.
+
+## Difficulty levels and a game controller
+
+- **Difficulty** is chosen on the pilot licence and read when a run starts.
+  **Relaxed**: impacts take 40% less from Earth and hits take 35% less from
+  the ship, for 10% lower pay. **Standard**: the season as designed.
+  **Veteran**: every field is two waves later (denser, tougher rocks) and
+  hits are 25% harder, for 20% more pay. The end screen names the level.
+- **Game controller** in flight (standard layout): left stick steers
+  smoothly like the mouse, right stick slides, RT/LT thrust and brake,
+  LB/RB roll, A laser, B missile, X tow line, Y map, stick clicks for
+  boost and camera, and the D-pad for autopilot, turn-to-objective, compass
+  and flight assist. Menus, pause, help and the station shops still need
+  the keyboard.
+
+## Combat feel: a clear fight screen, and explosions and impacts that land
+
+- **The fight screen is clear when it matters.** Once the locked rock is on
+  screen and within laser reach (or simply large in view), it wears only
+  the turning lock ring, one line (`L STONY · IMPACT 0:18`) and its health
+  bar. The bracket, the three-line label, the priority ring and its words,
+  the target compass, the flight director and the impact tags all stand
+  down until the fight is over; the target card at the bottom keeps the
+  detail. About fifteen overlapping labels became one.
+- **Fewer repeats before the fight too.** The priority rock no longer wears
+  both a bracket label and the priority words (the priority line now says
+  what the rock is), and the compass repeats the impact time only while the
+  rock is out of view.
+- **Explosions throw light.** Every kill sends out a thin blast ring, lights
+  the ship's hull and nearby rocks for a moment, and leaves embers that
+  fade slowly as they fly.
+- **A warhead is plainly bigger than a laser kill**: a harder white flash, a
+  second ring, embers thrown several times further, a stronger shake and a
+  brief warm glare over the view.
+- **A rock hitting Earth is an event.** A blinding flash; a bright shock
+  front racing outwards over the curved surface with a slower pressure wave
+  behind it; a column of fire and dust climbing out of the atmosphere; a
+  skirt of dust along the ground; and a glare and shake that grow with the
+  rock. The fall through the air leaves a longer streak of fire. The
+  fires, smoke and scar that were already there remain afterwards.
+- Small fixes: the Balance row stays on one line while a payment shows, and
+  the end screen's values no longer wrap.
 
 ## Your mission, towing with a destination, and a map you can plan on
 
@@ -209,7 +305,7 @@ what is worth showing:
 - **Messages take turns** on one line: a danger interrupts, job news waits
   until it is done, a repeated message just stays up longer, and news that
   waited more than six seconds is dropped instead of shown late.
-- **Quieter world labels**: stations are named only within about 12,700 km,
+- **Quieter world labels**: stations are named only within about 8,500 km,
   healthy cities are not labelled, and satellites are named only when close
   or in the way. Icons stay.
 - **In a fight the board lists the rocks first** (after anything with a
@@ -294,8 +390,8 @@ idle time, every message shown) are what the fixes above came from.
 
   | Module | Price | Mass | Effect |
   | --- | --- | --- | --- |
-  | Cargo pod | 1,200 cr | +22% | +40% pay for rock hauls |
-  | Crew cabin | 900 cr | +15% | +30% pay for crew runs and rescues; passengers only feel hard hits |
+  | Cargo pod | 1,200 cr | +22% | +40% pay for cargo runs |
+  | Crew cabin | 900 cr | +15% | +30% pay for passengers and rescues; passengers only feel hard hits |
   | Auxiliary tank | 700 cr | +18% | +50% fuel capacity (fill it at a station) |
   | Heavy winch | 1,000 cr | +12% | tow line takes 60% more stretch and steadies loads faster |
   | Sweeper net | 800 cr | +8% | sweeps debris twice as fast, and at up to 10 relative speed |
@@ -565,7 +661,7 @@ idle time, every message shown) are what the fixes above came from.
 
 ## Stage 1: the foundation
 
-- A large planet: Earth's radius is 40 world units and the ship is about 2,
+- A large planet: Earth's radius is 60 world units and the ship is about 2,
   so the planet fills the view from low orbit. Fine surface detail fades in
   near the ground.
 - Natural flight: nothing slows the ship in space, so it coasts until you
@@ -722,16 +818,17 @@ quality, reputation, probation, insurance and the emergency loan, station prices
 shuttle routes and haul masses, call signs and radio rationing, career ranks and
 the season's story beats, storm shelter and the swell,
 the scanner projection, fuel, docking and station stock, delivery steps
-and drop zones, routes round the planet, and the mission page's readings. In development builds the running game is available as
+and drop zones, routes round the planet, the mission page's readings,
+when a fight counts as close, difficulty levels, the controller mapping, cargo pay and planning, and jobs by rank. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.
 
 URL options for testing: `?autostart` skips the menu and mouse capture, and
 `?skipLaunch` skips the launch sequence.
 
-Distances use 1 world unit = 159 km (Earth's radius is 40 units). Time is
-compressed 38 times, so asteroid speeds read as realistic impact speeds
-(about 6 to 35 km/s) while a field still lasts a minute or two.
+Distances use 1 world unit = 106 km (Earth's radius is 60 units). Time is
+compressed 28 times, so asteroid speeds read as realistic impact speeds
+(about 6 to 25 km/s) while a field still lasts a minute or two.
 
 ## 3D models (Blender)
 

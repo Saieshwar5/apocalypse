@@ -396,6 +396,16 @@ body {
   pointer-events: none;
 }
 
+/* The glare of a blast or an impact: warm light from the middle of the view. */
+#blast-flash {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 244, 220, 0.9), rgba(255, 190, 120, 0.35) 55%, transparent 90%);
+  mix-blend-mode: screen;
+}
+
 .hud-hint.tip {
   bottom: 66px;
   padding: 6px 12px;
@@ -534,6 +544,17 @@ body {
 
 .money {
   color: #ffd75e;
+  white-space: nowrap;
+}
+
+/* While a payment shows ("+170 cr → 670 cr") the line is longer: keep it on one row. */
+.hud-row strong.money.changing {
+  font-size: 12px;
+}
+
+.hud-row {
+  gap: 10px;
+  align-items: baseline;
 }
 
 .licence-standing {
@@ -946,6 +967,7 @@ button:disabled {
 }
 
 .summary {
+  grid-template-columns: 1fr auto;
   margin: 18px 0 22px;
   text-align: left;
 }
@@ -954,6 +976,7 @@ button:disabled {
   text-align: right;
   font-family: var(--font-mono);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .screen-note {
@@ -1408,6 +1431,13 @@ body[data-photo-filter='mono'] #scene {
 .help-jobs dt {
   color: var(--accent);
   font-weight: 600;
+}
+
+.help-jobs dt small {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--hud-dim, #9aa8bf);
 }
 
 .help-keys dd,
@@ -2107,6 +2137,36 @@ button.confirming {
   font-weight: 700;
   font-stretch: 110%;
   font-variant-numeric: tabular-nums;
+}
+
+/* Difficulty: a quiet row on the licence card. */
+.difficulty {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #8e9bb0;
+}
+
+.difficulty select {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(111, 183, 255, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #e8f1ff;
+  font: inherit;
+}
+
+.difficulty select:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.difficulty option {
+  background: #0b1420;
+  color: #e8f1ff;
 }
 
 .title-screen .hardcore {

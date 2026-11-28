@@ -93,6 +93,11 @@ export class StationMarket {
     return after - before;
   }
 
+  /** Every station's stock now. */
+  snapshot(): Record<StationId, Stock> {
+    return { aegis: { fuel: this.stock('aegis', 'fuel'), parts: this.aegisParts }, ...this.stocks } as Record<StationId, Stock>;
+  }
+
   price(station: StationId, good: Good): number {
     return unitPrice(MARKETS[station].basePrice[good], this.stock(station, good), MARKETS[station].capacity[good]);
   }
@@ -131,11 +136,7 @@ export class StationMarket {
       return;
     }
     this.shuttleTimer = SHUTTLE.intervalSeconds;
-    const stocks = {
-      aegis: { fuel: this.stock('aegis', 'fuel'), parts: this.aegisParts },
-      ...this.stocks,
-    } as Record<StationId, Stock>;
-    const route = planShuttle(stocks);
+    const route = planShuttle(this.snapshot());
     if (!route || !this.deps.positionOf(route.to)) {
       return;
     }

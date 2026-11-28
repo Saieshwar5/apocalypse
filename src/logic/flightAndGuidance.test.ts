@@ -45,8 +45,8 @@ describe('flight model', () => {
   it('brakes to a stop from any direction and never reverses', () => {
     const stopped = fly([6, -3, -20], false, { ...IDLE, brake: 1 }, 3, [0, 0, 1e9]);
     expect(Math.hypot(...stopped)).toBeLessThan(1e-3);
-    expect(stoppingTime(FLIGHT.cruiseSpeed)).toBeCloseTo(1, 6);
-    expect(stoppingDistance(18)).toBeCloseTo(9, 6);
+    expect(stoppingTime(FLIGHT.cruiseSpeed)).toBeCloseTo(FLIGHT.cruiseSpeed / FLIGHT.brake, 6);
+    expect(stoppingDistance(FLIGHT.brake)).toBeCloseTo(FLIGHT.brake / 2, 6);
   });
 
   it('removes sideways drift with the assist on and keeps it with the assist off', () => {

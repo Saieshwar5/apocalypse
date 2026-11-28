@@ -17,7 +17,7 @@ export const ORBIT_NOSE_DOWN = THREE.MathUtils.degToRad(38);
 
 /** How far east (radians around the planet) the climb drifts while turning. */
 const DOWNRANGE_ANGLE = 0.42;
-const START_ALTITUDE = 3.2;
+const START_ALTITUDE = 4.8;
 const CUTOFF = 3.6;
 const SEPARATION = 4.0;
 const SHIP_IGNITION = 4.4;

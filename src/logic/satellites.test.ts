@@ -1,3 +1,4 @@
+import { orbitTierAt } from './orbits';
 import { describe, expect, it } from 'vitest';
 import { createSeededRandom } from './random';
 import {
@@ -68,17 +69,17 @@ describe('fleet plan', () => {
     const plans = planFleet(createSeededRandom(7));
     const radii = plans.map((plan) => plan.orbit.radius);
     expect(plans).toHaveLength(8);
-    expect(radii.filter((radius) => radius >= 48 && radius <= 53)).toHaveLength(3);
-    expect(radii.filter((radius) => radius >= 60 && radius <= 74)).toHaveLength(3);
-    expect(radii.filter((radius) => radius >= 90 && radius <= 110)).toHaveLength(2);
+    expect(radii.filter((radius) => orbitTierAt(radius) === 'low')).toHaveLength(3);
+    expect(radii.filter((radius) => orbitTierAt(radius) === 'medium')).toHaveLength(3);
+    expect(radii.filter((radius) => orbitTierAt(radius) === 'high')).toHaveLength(2);
     expect(new Set(plans.map((plan) => plan.kind))).toEqual(new Set(['comms', 'nav', 'weather']));
   });
 
   it('keeps every period watchable and slower with height', () => {
     for (let seed = 1; seed <= 20; seed += 1) {
       for (const { orbit } of planFleet(createSeededRandom(seed))) {
-        expect(orbit.period).toBeGreaterThanOrEqual(260);
-        expect(orbit.period).toBeLessThanOrEqual(700);
+        expect(orbit.period).toBeGreaterThanOrEqual(240);
+        expect(orbit.period).toBeLessThanOrEqual(1000);
         expect(orbit.period).toBeCloseTo(orbitalPeriod(orbit.radius), 10);
       }
     }

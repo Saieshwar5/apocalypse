@@ -4,7 +4,7 @@ import type { AsteroidSize } from '../logic/asteroidClasses';
 import { projectToScanner, SCANNER_TILT, type ScannerPoint } from '../logic/scannerProjection';
 import { formatDistance } from '../logic/units';
 
-export const SCANNER_RANGE = 320;
+export const SCANNER_RANGE = 460;
 const BLIP_SIZE: Record<AsteroidSize, number> = { small: 2.2, medium: 3.2, large: 4.6, giant: 6.5 };
 
 interface Contact {

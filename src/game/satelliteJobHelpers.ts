@@ -39,6 +39,8 @@ export interface JobRow {
 export interface Waypoint {
   world: THREE.Vector3;
   label: string;
+  /** How slowly and how close to arrive, when the place takes the ship (a berth or dock). */
+  arrive?: { speed: number; range: number };
 }
 
 /** A point well clear of the rock's path, beside the satellite: where to tow it during a dodge. */
@@ -108,4 +110,33 @@ const JOB_PAR_SECONDS: Record<SatelliteJobKind, number> = { dodge: 25, 'repair-t
 export function jobScore(kind: SatelliteJobKind, seconds: number, offsetFromSlot: number | null): number {
   const time = timeScore(seconds, JOB_PAR_SECONDS[kind]);
   return kind === 'dodge' ? time : Math.min(placementScore(offsetFromSlot), 0.6 + 0.4 * time);
+}
+
+/** One satellite contract on the board. */
+export interface Job {
+  id: number;
+  kind: SatelliteJobKind;
+  satellite: Satellite;
+  pay: number;
+  /** Dodge: the asteroid on a collision course with the satellite. */
+  asteroid: Asteroid | null;
+  /** Repair tow: the yard has finished with it. */
+  repaired: boolean;
+  /** A replacement built by the yard for a lost satellite: collect it and place it in the old slot. */
+  deploy?: boolean;
+  /** Dodge: the asteroid has gone by. */
+  clear: boolean;
+  /** The pilot who has taken the job; others cannot tow this satellite. */
+  claimedBy: PilotId | null;
+  /** Play clock when it was posted. */
+  postedAt: number;
+}
+
+/** The contract's name on the board. */
+export function jobTitle(job: Job): string {
+  const name = job.satellite.name;
+  if (job.deploy) {
+    return `Deploy ${name}`;
+  }
+  return job.kind === 'dodge' ? `Guard ${name}` : `Satellite tow: ${name} (${job.kind === 'reboost' ? 'reboost' : 'repair'})`;
 }

@@ -72,7 +72,7 @@ export class LivingWorld {
     // High above one pole, inside the defence zone: far enough to need a deliberate trip.
     const pole = this.deps.rng() < 0.5 ? 1 : -1;
     const around = this.deps.rng() * Math.PI * 2;
-    this.relic.position.set(Math.cos(around) * 120, pole * 300, Math.sin(around) * 120);
+    this.relic.position.set(Math.cos(around) * 180, pole * 450, Math.sin(around) * 180);
     this.relic.visible = true;
   }
 

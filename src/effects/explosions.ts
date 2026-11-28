@@ -4,6 +4,7 @@ import {
   AFTERGLOW,
   CORE_FLASH,
   DUST,
+  EMBER,
   FIREBALL,
   GRIT,
   ICE_FLASH,
@@ -12,23 +13,18 @@ import {
   IMPACT_FLASH,
   SPARK,
 } from './explosionRamps';
+import { FlashLights } from './flashLights';
 import { PuffParticles, type ColorRamp } from './puffParticles';
+import { Shockwaves } from './shockwaves';
 
-export type ExplosionStyle = 'fire' | 'ice' | 'spark' | 'dust';
-
-interface Shockwave {
-  mesh: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
-  age: number;
-  lifetime: number;
-  maxScale: number;
-}
+/** 'blast' is a warhead: the same fire, with a harder flash, two rings and far-flung embers. */
+export type ExplosionStyle = 'fire' | 'blast' | 'ice' | 'spark' | 'dust';
 
 /** Enough for several giants going up at once; beyond that old particles are reused. */
 const MAX_PUFFS = 2400;
 const MAX_CHUNKS = 360;
 const MAX_SHARDS = 360;
 const STILL = new THREE.Vector3();
-const SURFACE_UP = new THREE.Vector3(0, 0, 1);
 
 function between(low: number, high: number): number {
   return low + Math.random() * (high - low);
@@ -49,14 +45,19 @@ export class Explosions {
   private readonly puffs = new PuffParticles(MAX_PUFFS);
   private readonly chunks = new DebrisChunks('rock', MAX_CHUNKS);
   private readonly shards = new DebrisChunks('ice', MAX_SHARDS);
-  private readonly shockwaves: Shockwave[] = [];
-  private readonly ringGeometry = new THREE.RingGeometry(0.94, 1, 64);
+  private readonly waves = new Shockwaves();
+  private readonly lights = new FlashLights();
   private readonly position = new THREE.Vector3();
   private readonly velocity = new THREE.Vector3();
   private readonly direction = new THREE.Vector3();
 
   constructor() {
-    this.group.add(this.chunks.mesh, this.shards.mesh, this.puffs.mesh);
+    this.group.add(this.chunks.mesh, this.shards.mesh, this.puffs.mesh, this.waves.group, this.lights.group);
+  }
+
+  /** Blast rings in space turn to face this camera. */
+  set camera(camera: THREE.Camera) {
+    this.waves.camera = camera;
   }
 
   /**
@@ -72,9 +73,16 @@ export class Explosions {
     switch (style) {
       case 'fire':
         this.spawnFireball(point, scale, inherited);
+        this.waves.addInSpace(point, { radius: scale * 3.5 + 1.5, seconds: 0.6, color: [2.6, 1.9, 1.1], opacity: 0.7 });
+        this.lights.flash(point, 0xffc890, 40 + scale * 60, 30 + scale * 14, 0.5);
+        break;
+      case 'blast':
+        this.spawnBlast(point, scale, inherited);
         break;
       case 'ice':
         this.spawnIceShatter(point, scale, inherited);
+        this.waves.addInSpace(point, { radius: scale * 3.5 + 1.5, seconds: 0.7, color: [1.2, 2.0, 2.9], opacity: 0.7 });
+        this.lights.flash(point, 0xa8d8ff, 40 + scale * 60, 30 + scale * 14, 0.5);
         break;
       case 'spark':
         this.spawnGlow(point, inherited, scale * 2, scale * 4, 0.2, CORE_FLASH, 0.6);
@@ -135,70 +143,74 @@ export class Explosions {
     }
   }
 
-  /** Flash, fire and an expanding ring lying on the planet's surface. */
+  /**
+   * A rock reaching the ground, staged so it reads from orbit: a blinding
+   * flash, a bright shock front racing over the surface with a slower
+   * pressure wave behind it, a column of fire and dust thrown up into
+   * space, and a skirt of dust spreading along the ground.
+   */
   spawnSurfaceImpact(point: THREE.Vector3, scale: number): void {
     const up = this.direction.copy(point).normalize().clone();
-    const flashPoint = point.clone().multiplyScalar(1.01);
-    this.spawnGlow(flashPoint, STILL, scale * 2, scale * 4.5, 1.2, IMPACT_FLASH, 1);
+    const flashPoint = point.clone().multiplyScalar(1.012);
+    // Even a small rock is an event; a giant covers a continent.
+    const reach = 1.8 + scale * 2.1;
+    this.spawnGlow(flashPoint, STILL, reach * 2.5, reach * 6, 0.45, CORE_FLASH, 1.5);
+    this.spawnGlow(flashPoint, STILL, reach * 3, reach * 8, 2.4, IMPACT_FLASH, 1);
+    this.spawnGlow(flashPoint, STILL, reach * 5, reach * 9, 5, AFTERGLOW, 1.6);
+    this.waves.addOnSurface(point, { radius: reach * 6, seconds: 2.6, color: [4.5, 2.6, 1.2] });
+    this.waves.addOnSurface(point, { radius: reach * 13, seconds: 7, color: [1.1, 1.3, 1.7], opacity: 0.55 });
+    this.lights.flash(point.clone().multiplyScalar(1.06), 0xffb070, 300 + scale * 500, 60 + scale * 30, 1.6);
 
-    const ring = new THREE.Mesh(
-      this.ringGeometry,
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color(4, 2, 1),
-        transparent: true,
-        side: THREE.DoubleSide,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    ring.position.copy(point).multiplyScalar(1.004);
-    ring.quaternion.setFromUnitVectors(SURFACE_UP, up);
-    ring.scale.setScalar(0.001);
-    this.group.add(ring);
-    this.shockwaves.push({ mesh: ring, age: 0, lifetime: 2.2, maxScale: scale * 3.5 });
-
-    // Everything is thrown into the half of space above the ground.
-    for (let index = 0; index < countFor(10, 5, scale, 34); index += 1) {
-      this.aim(flashPoint, STILL, scale * 0.4, scale * between(0.3, 1.5), up);
+    // The column: fire climbing out of the atmosphere, cooling into smoke.
+    for (let index = 0; index < countFor(14, 8, scale, 48); index += 1) {
+      this.aim(flashPoint, STILL, reach * 0.3, reach * between(0.2, 0.7), up);
+      this.velocity.addScaledVector(up, reach * between(0.6, 2.2));
       this.puffs.spawn({
         position: this.position,
         velocity: this.velocity,
-        drag: 1.2,
-        lifetime: between(1.2, 2.2),
-        startSize: scale * 0.6,
-        endSize: scale * between(1.3, 2.0),
+        drag: 0.7,
+        lifetime: between(2.6, 5.5),
+        startSize: reach * between(0.5, 0.8),
+        endSize: reach * between(1.6, 2.6),
         ramp: FIREBALL,
         cloudiness: 1,
       });
     }
-    this.spawnSparks(flashPoint, STILL, countFor(30, 12, scale, 90), scale * 3, scale, up);
-    this.spawnDebris(this.chunks, flashPoint, STILL, countFor(8, 5, scale, 30), scale, 1, up);
+    // The skirt: dust thrown outwards low over the ground.
+    for (let index = 0; index < countFor(12, 6, scale, 40); index += 1) {
+      this.aim(flashPoint, STILL, reach * 0.5, reach * between(0.8, 2.0), up);
+      this.velocity.addScaledVector(up, -0.6 * this.velocity.dot(up));
+      this.puffs.spawn({
+        position: this.position,
+        velocity: this.velocity,
+        drag: 0.8,
+        lifetime: between(4, 8),
+        startSize: reach * between(0.6, 1.0),
+        endSize: reach * between(2.2, 3.4),
+        ramp: DUST,
+        cloudiness: 1,
+        brightness: between(0.9, 1.4),
+      });
+    }
+    this.spawnSparks(flashPoint, STILL, countFor(40, 16, scale, 110), reach * 3.5, reach * 0.7, up);
+    this.spawnEmbers(flashPoint, STILL, countFor(16, 8, scale, 50), reach * 4, reach * 0.6, up);
+    this.spawnDebris(this.chunks, flashPoint, STILL, countFor(10, 6, scale, 36), reach * 0.8, 1, up);
   }
 
   update(deltaSeconds: number): void {
     this.puffs.update(deltaSeconds);
     this.chunks.update(deltaSeconds);
     this.shards.update(deltaSeconds);
-    for (let index = this.shockwaves.length - 1; index >= 0; index -= 1) {
-      const wave = this.shockwaves[index];
-      wave.age += deltaSeconds;
-      const t = wave.age / wave.lifetime;
-      if (t >= 1) {
-        this.removeShockwave(index);
-        continue;
-      }
-      wave.mesh.scale.setScalar(wave.maxScale * Math.sqrt(t));
-      wave.mesh.material.opacity = 1 - t;
-    }
+    this.waves.update(deltaSeconds);
+    this.lights.update(deltaSeconds);
   }
 
   clear(): void {
     this.puffs.clear();
     this.chunks.clear();
     this.shards.clear();
-    for (let index = this.shockwaves.length - 1; index >= 0; index -= 1) {
-      this.removeShockwave(index);
-    }
+    this.waves.clear();
+    this.lights.clear();
   }
 
   /** Frees GPU resources; the instance must not be used afterwards. */
@@ -207,7 +219,7 @@ export class Explosions {
     this.puffs.dispose();
     this.chunks.dispose();
     this.shards.dispose();
-    this.ringGeometry.dispose();
+    this.waves.dispose();
   }
 
   private spawnFireball(point: THREE.Vector3, scale: number, inherited: THREE.Vector3): void {
@@ -228,8 +240,45 @@ export class Explosions {
       });
     }
     this.spawnSparks(point, inherited, countFor(24, 20, scale, 130), scale * 4 + 3, scale);
+    this.spawnEmbers(point, inherited, countFor(10, 8, scale, 44), scale * 5 + 4, scale);
     this.spawnDust(point, inherited, countFor(6, 4, scale, 26), scale);
     this.spawnDebris(this.chunks, point, inherited, countFor(9, 9, scale, 56), scale, 1);
+  }
+
+  /**
+   * A warhead going off: everything a fireball has, under a white flash
+   * that for an instant outshines it, two blast rings and embers thrown
+   * several times further. Unmistakably bigger than a laser kill.
+   */
+  private spawnBlast(point: THREE.Vector3, scale: number, inherited: THREE.Vector3): void {
+    const size = scale * 1.5 + 0.6;
+    this.spawnGlow(point, inherited, size * 3, size * 8, 0.22, CORE_FLASH, 2.2);
+    this.spawnGlow(point, inherited, size * 2, size * 5, 0.5, CORE_FLASH, 1);
+    this.spawnFireball(point, size, inherited);
+    this.spawnSparks(point, inherited, countFor(40, 30, size, 160), size * 7 + 5, size);
+    this.spawnEmbers(point, inherited, countFor(26, 16, size, 80), size * 9 + 8, size);
+    this.waves.addInSpace(point, { radius: size * 5 + 3, seconds: 0.8, color: [3.4, 2.8, 2.0], opacity: 0.9 });
+    this.waves.addInSpace(point, { radius: size * 9 + 5, seconds: 1.6, color: [1.4, 0.9, 0.5], opacity: 0.45 });
+    this.lights.flash(point, 0xffe2b8, 140 + size * 150, 60 + size * 22, 0.7);
+  }
+
+  /** Slow-fading sparks that fly far: the streaks of light that hang in the sky after a blast. */
+  private spawnEmbers(point: THREE.Vector3, inherited: THREE.Vector3, count: number, speed: number, scale: number, up?: THREE.Vector3): void {
+    for (let index = 0; index < count; index += 1) {
+      this.aim(point, inherited, scale * 0.3, speed * between(0.35, 1), up);
+      this.puffs.spawn({
+        position: this.position,
+        velocity: this.velocity,
+        drag: 0.45,
+        lifetime: between(1.6, 3.4),
+        startSize: between(0.09, 0.16) + scale * 0.06,
+        endSize: 0.04,
+        ramp: EMBER,
+        cloudiness: 0,
+        brightness: between(0.6, 1.1),
+        twinkle: between(0, 2),
+      });
+    }
   }
 
   private spawnIceShatter(point: THREE.Vector3, scale: number, inherited: THREE.Vector3): void {
@@ -370,11 +419,5 @@ export class Explosions {
     }
     this.position.copy(point).addScaledVector(this.direction, spread * Math.random());
     this.velocity.copy(inherited).addScaledVector(this.direction, speed);
-  }
-
-  private removeShockwave(index: number): void {
-    const [wave] = this.shockwaves.splice(index, 1);
-    this.group.remove(wave.mesh);
-    wave.mesh.material.dispose();
   }
 }

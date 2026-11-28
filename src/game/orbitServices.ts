@@ -13,7 +13,8 @@ import { Outposts, type OutpostId } from '../station/outposts';
 import { SatelliteWork, type JobRow, type Waypoint } from './satelliteWork';
 import { TowLine } from './towLine';
 import { SpaceWeather } from './spaceWeather';
-import { CrewWork } from './crewWork';
+import { CargoWork } from './cargoWork';
+import { cargoKindsFor, jobUnlocked } from '../logic/jobAccess';
 import { RescueWork } from './rescueWork';
 import { EscortWork } from './escortWork';
 import type { StationOperations } from '../station/stationOperations';
@@ -91,7 +92,7 @@ export class OrbitServices {
   readonly berths: OutpostBerths;
   readonly haul: HaulWork;
   readonly weather: SpaceWeather;
-  readonly crew: CrewWork;
+  readonly cargo: CargoWork;
   readonly rescue: RescueWork;
   readonly escort: EscortWork;
 
@@ -152,13 +153,16 @@ export class OrbitServices {
       radio: deps.radio,
       sunDirection: SUN_DIRECTION,
       atStation: () => deps.stationOps.holdingShip || this.berths.holding,
+      canReboost: () => jobUnlocked('satelliteTow', deps.session.rank),
     });
-    this.crew = new CrewWork({
-      ...job,
-      berths: this.berths,
-      fleet: deps.fleet,
+    this.cargo = new CargoWork({
+      session: deps.session,
       ship: deps.ship,
-      haloPort: () => this.outposts.portPosition('halo'),
+      at: (station) => (station === 'aegis' ? deps.stationOps.docking.state === 'docked' : this.berths.berthedAt === station),
+      portOf: (station) => (station === 'aegis' ? (deps.stationOps.whereabouts()?.position ?? null) : this.outposts.portPosition(station)),
+      stocks: () => this.market.snapshot(),
+      addStock: (station, good, amount) => this.market.add(station, good, amount),
+      kinds: () => cargoKindsFor(deps.session.rank),
       wallet: deps.walletOf('player'),
       events: deps.session.events,
       hud: deps.hud,
@@ -184,6 +188,7 @@ export class OrbitServices {
       ...job,
       field: deps.field,
       rocket: () => (deps.stationOps.present ? deps.stationOps.rocket : null),
+      allowed: () => jobUnlocked('escort', deps.session.rank),
       explosions: deps.explosions,
       wallet: deps.walletOf('player'),
       events: deps.session.events,
@@ -232,7 +237,7 @@ export class OrbitServices {
     this.berths.reset();
     this.haul.reset();
     this.weather.reset();
-    this.crew.reset();
+    this.cargo.reset();
     this.rescue.reset();
     this.escort.reset();
   }
@@ -253,7 +258,7 @@ export class OrbitServices {
     this.market.update(deltaSeconds);
     this.berths.update(deltaSeconds, active, pilotBusy);
     this.weather.update(deltaSeconds, active);
-    this.crew.update(deltaSeconds, active);
+    this.cargo.update(deltaSeconds, active);
     this.rescue.update(deltaSeconds);
     this.escort.update();
     // The line groans as the pull nears the strain a satellite can take.
@@ -289,14 +294,15 @@ export class OrbitServices {
   }
 
   jobRows(): JobRow[] {
-    return [...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.crew.rows(), ...this.haul.rows(), ...this.debris.rows()];
+    return [...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.cargo.rows(), ...this.haul.rows(), ...this.debris.rows()];
   }
 
   waypoint(): Waypoint | null {
     if (this.tow.body) {
       return this.rescue.carrying ? this.rescue.waypoint() : this.haul.waypoint();
     }
-    return this.rescue.waypoint() ?? this.crew.waypoint() ?? this.work.waypoint() ?? this.haul.waypoint();
+    // People aboard come first; otherwise satellite work, then the cargo run.
+    return this.rescue.waypoint() ?? (this.cargo.passengersAboard ? this.cargo.waypoint() : null) ?? this.work.waypoint() ?? this.cargo.waypoint() ?? this.haul.waypoint();
   }
 
   /** The hint line: berthing first, then any storm warning. The tow card already says when to release. */
@@ -307,18 +313,17 @@ export class OrbitServices {
     return this.berths.hint ?? this.weather.hint;
   }
 
-  /** Work posted in a calm zone besides satellite jobs: hauls, crew calls, sometimes a storm. */
+  /**
+   * Work posted in a calm zone besides satellite jobs: a transfer between
+   * stations, sometimes a storm or a rescue. Rock hauls for Ceres are not
+   * posted any more; the job is kept for a later story mission.
+   */
   calmZoneWork(): void {
-    const { rng, radio } = this.deps;
-    if (rng() < 0.6 && this.haul.post()) {
-      radio.moment('haul-posted');
-    }
-    if (rng() < 0.4) {
-      this.crew.post();
-    }
+    const { rng, session } = this.deps;
+    this.cargo.post();
     if (rng() < 0.3) {
       this.weather.warn();
-    } else if (rng() < 0.35) {
+    } else if (rng() < 0.35 && jobUnlocked('rescue', session.rank)) {
       this.rescue.post();
     }
   }

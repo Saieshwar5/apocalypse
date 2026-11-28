@@ -24,6 +24,8 @@ const HIT_DISTANCE = 2.5;
 export interface EscortWorkDependencies {
   field: AsteroidField;
   rocket: () => SupplyRocket | null;
+  /** The pilot's licence covers escorts. */
+  allowed: () => boolean;
   explosions: Explosions;
   wallet: Wallet;
   events: GameEvents;
@@ -58,7 +60,7 @@ export class EscortWork {
   update(): void {
     const rocket = this.deps.rocket();
     const flying = rocket?.inFlight ?? false;
-    if (rocket && flying && !this.wasFlying && this.deps.rng() < 0.5) {
+    if (rocket && flying && !this.wasFlying && this.deps.allowed() && this.deps.rng() < 0.5) {
       this.start(rocket);
     }
     this.wasFlying = flying;

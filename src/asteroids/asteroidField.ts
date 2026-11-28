@@ -1,3 +1,4 @@
+import { FIELD_START } from '../logic/orbits';
 import * as THREE from 'three';
 import {
   ASTEROID_CLASSES,
@@ -54,7 +55,7 @@ export interface PlanetImpact {
   point: THREE.Vector3;
 }
 
-const SPAWN_DISTANCE: [number, number] = [230, 270];
+const SPAWN_DISTANCE = FIELD_START;
 /** Asteroids start to glow inside this multiple of the planet radius. */
 const ENTRY_HEAT_START = 1.22;
 const HIT_FLASH_DECAY = 6;

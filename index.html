@@ -116,6 +116,7 @@
       </section>
       <div id="help-chip" class="help-chip"><kbd>H</kbd> help</div>
       <div id="damage-flash" aria-hidden="true"></div>
+      <div id="blast-flash" aria-hidden="true"></div>
     </div>
 
     <div id="cinematic" hidden>
@@ -186,6 +187,7 @@
             </div>
           </div>
           <dl id="licence-stats" class="licence-stats"></dl>
+          <label class="difficulty" for="difficulty-input"><span>Difficulty</span> <select id="difficulty-input"></select></label>
           <label class="hardcore" for="hardcore-input"><input id="hardcore-input" type="checkbox" /> <span><strong>Hardcore licence</strong>: one ship and no loan, but 25% more pay</span></label>
           <div class="licence-foot">
             <details id="logbook" class="logbook" hidden>
@@ -255,6 +257,17 @@
                 <dt><kbd>1</kbd>-<kbd>7</kbd> at Vulcan Yard</dt><dd>Buy, fit or remove modules</dd>
                 <dt><kbd>Enter</kbd></dt><dd>Leave a calm zone early (or skip the launch)</dd>
               </dl>
+              <h3>Game controller</h3>
+              <dl class="help-keys">
+                <dt>Left stick</dt><dd>Steer. Click it to boost</dd>
+                <dt>Right stick</dt><dd>Slide left, right, up, down. Click it to change camera</dd>
+                <dt><kbd>RT</kbd> <kbd>LT</kbd></dt><dd>Thrust, brake</dd>
+                <dt><kbd>LB</kbd> <kbd>RB</kbd></dt><dd>Roll</dd>
+                <dt><kbd>A</kbd> <kbd>B</kbd></dt><dd>Laser, missile</dd>
+                <dt><kbd>X</kbd> <kbd>Y</kbd></dt><dd>Tow line, map</dd>
+                <dt>D-pad</dt><dd>Up: autopilot. Down (hold): turn the nose to the objective. Left: compass. Right: flight assist</dd>
+              </dl>
+              <p class="help-note">Menus, pause, help and the station shops still need the keyboard.</p>
               <h3>Camera and more</h3>
               <dl class="help-keys">
                 <dt><kbd>C</kbd></dt><dd>Chase or cockpit camera</dd>
@@ -270,15 +283,18 @@
         </section>
 
         <section class="help-page" data-page="jobs" hidden>
+          <p class="help-lead">Jobs open with your rank, shown beside each one. You are promoted in flight as your earnings grow.</p>
           <dl class="help-jobs">
-            <dt>Intercept a rock</dt><dd>Every rock heading for Earth carries a contract. Follow the yellow PRIORITY marker and the compass, get close, fire the laser; use missiles on iron and giants. Pushing a rock off course (a near miss) pays too and leaves less debris than shattering it. Early and clean pays a bonus.</dd>
-            <dt>Satellite tows</dt><dd>Fly to the satellite and match its speed, press <kbd>T</kbd> to connect. The tow card at the bottom then names where the load goes (Vulcan Yard for repairs, back to its slot afterwards, clear of a rock's path for a dodge) and the compass points there. Fly into the dashed drop zone, slow down, and press <kbd>T</kbd> when the card turns green. Pull gently: a fragile load is damaged by hard tugs.</dd>
-            <dt>Reboost</dt><dd>A satellite sinking into the swollen atmosphere: tow it back up to its slot before it burns.</dd>
-            <dt>Rock haul (Ceres)</dt><dd>Catch the marked carbon rock with the tow line and bring it to the drop zone at Ceres Works' intake, then release it (<kbd>T</kbd>) to be paid. It is heavy: plan fuel and brake early. A station will not berth you while a load is on the line.</dd>
-            <dt>Crew run (Halo)</dt><dd>Berth at Halo to take a crew aboard, hold beside the satellite while they work, then bring them home. Fly gently: hard hits hurt them.</dd>
-            <dt>Rescue</dt><dd>An escape pod falling towards the atmosphere: catch it with the tow line before it burns up, bring it to the drop zone at Halo's crew port and release it.</dd>
-            <dt>Escort</dt><dd>Rocks will cross the supply rocket's climb: destroy or push them away before they meet it.</dd>
-            <dt>Sweep debris</dt><dd>Fly slowly through a debris cloud (amber rings) to net it, paid by the tonne. It keeps Orbit Health up.</dd>
+            <dt>Intercept a rock <small>Cadet</small></dt><dd>Every rock heading for Earth carries a contract. Follow the yellow PRIORITY marker and the compass, get close, fire the laser; use missiles on iron and giants. Pushing a rock off course (a near miss) pays too and leaves less debris than shattering it. Early and clean pays a bonus.</dd>
+            <dt>Cargo run <small>Cadet</small></dt><dd>A station has a load for another. Berth where it waits (brake beside the port and let go of the controls) and it comes aboard; berth where it is wanted and you are paid. Longer trips and emptier stations pay more. A full hold makes the ship heavier, so brake early. The fuel and parts you carry are real: parts at Vulcan speed up satellite repairs, parts at Aegis become missiles.</dd>
+            <dt>Sweep debris <small>Cadet</small></dt><dd>Fly slowly through a debris cloud (amber rings) to net it, paid by the tonne. It keeps Orbit Health up.</dd>
+            <dt>Satellite tow <small>Pilot</small></dt><dd>A satellite with a fault goes to Vulcan Yard and back; one sinking after a storm goes back up to its slot. Fly to it and match its speed, press <kbd>T</kbd> to connect. The tow card at the bottom names where the load goes and the compass points there. Fly into the dashed drop zone, slow down, and press <kbd>T</kbd> when the card turns green. Pull gently: hard tugs damage it.</dd>
+            <dt>Guard a satellite <small>Pilot</small></dt><dd>An iron rock is on course for a satellite. You are paid if the satellite survives, however you manage it: destroy the rock (missiles), push it off course, or tow the satellite out of the way and put it back afterwards.</dd>
+            <dt>Escort <small>Pilot</small></dt><dd>Rocks will cross the supply rocket's climb: destroy or push them away before they meet it.</dd>
+            <dt>Urgent and fragile cargo <small>Pilot</small></dt><dd>Urgent loads have a clock from the moment they come aboard; late pays half. Fragile loads lose pay with every hard knock. Both pay well above a routine run.</dd>
+            <dt>Rescue <small>Senior Pilot</small></dt><dd>An escape pod falling towards the atmosphere: catch it with the tow line before it burns up, bring it to the drop zone at Halo's crew port and release it.</dd>
+            <dt>Passengers <small>Senior Pilot</small></dt><dd>People travelling between stations. Fly gently: every hard knock, and every use of the boost, costs pay. Losing the ship with passengers aboard is answered for on your licence.</dd>
+            <dt>Deploy a satellite <small>Senior Pilot</small></dt><dd>Vulcan Yard has built a replacement for a lost satellite. Collect it from the cradle with the tow line and place it in its old orbit slot.</dd>
             <dt>Medals</dt><dd>Every job is graded bronze, silver or gold for how well it was done; silver and gold pay extra.</dd>
           </dl>
         </section>

@@ -40,7 +40,7 @@ export interface Duty {
 export const ROLE: readonly string[] = [
   'You are a contract pilot for the Earth Defence Authority, flying an interceptor out of Aegis Station.',
   'For one full orbit, split into 14 sectors, Earth crosses a stream of comet debris. Dangerous sectors bring rocks; calm sectors are for repairs, refuelling and paid work around the stations.',
-  'Nobody gives you orders. The contract board offers jobs, you choose which to take, and every job is paid. But five things are in your care, and the run is judged on all of them.',
+  'Nobody gives you orders. The contract board offers jobs, you choose which to take, and every job is paid. A Cadet starts with three kinds of work; more open as you are promoted. Five things are in your care, and the run is judged on all of them.',
 ];
 
 const STATIC: readonly Omit<Duty, 'reading'>[] = [
@@ -62,21 +62,21 @@ const STATIC: readonly Omit<Duty, 'reading'>[] = [
     id: 'satellites',
     title: 'Look after the satellites',
     why: 'They relay tracking data, so your scanner sees further for each one still working.',
-    how: 'Repair tows to Vulcan Yard and back, reboosts for satellites sinking into the atmosphere, dodge tows out of a rock\'s path, crew runs from Halo.',
-    cost: 'A lost satellite is gone for the season, shortens your scanner range and leaves a debris cloud where it was.',
+    how: 'Satellite tows to Vulcan Yard and back or up out of the atmosphere, guarding a satellite from a rock, and carrying a replacement from the yard to an empty slot.',
+    cost: 'A lost satellite shortens your scanner range and leaves a debris cloud where it was. Only a senior pilot can bring out a replacement.',
   },
   {
     id: 'stations',
     title: 'Keep the stations supplied',
     why: 'Aegis gives you fuel, missiles and repairs. Its stock arrives by supply rocket after each field, while the Launch Complex stands.',
-    how: 'Haul carbon rocks to Ceres Works, where they become fuel and parts for every station. Escort the supply rocket through the debris.',
+    how: 'Cargo runs carry fuel and parts from the depot at Ceres Works to whichever station is short. Escort the supply rocket through the debris.',
     cost: 'Stations run short: fuel costs more, and there may be no missiles left when you dock.',
   },
   {
     id: 'people',
     title: 'Protect people and fly clean',
     why: 'Crews work outside, escape pods drift, and the stations and satellites are full of expensive, fragile things.',
-    how: 'Rescue pods before they burn up, carry crews gently, and never shoot or ram a satellite, a station or another pilot.',
+    how: 'Rescue pods before they burn up, carry passengers gently, and never shoot or ram a satellite, a station or another pilot.',
     cost: 'Your licence standing falls: a warning, then probation, then you are recalled to Earth.',
   },
 ];
@@ -146,8 +146,8 @@ export interface Person {
 export const PEOPLE: readonly Person[] = [
   { name: 'Capcom Reyes', role: 'Your controller. Warns you about fields, storms and trouble.' },
   { name: 'Chief Okafor, Vulcan Yard', role: 'Repairs satellites and sells ship modules.' },
-  { name: 'Foreman Patel, Ceres Works', role: 'Buys the carbon rocks you haul in.' },
-  { name: 'Commander Sato, Halo', role: 'Sends out crews and calls for rescues.' },
+  { name: 'Foreman Patel, Ceres Works', role: 'Runs the depot that makes the orbit\'s fuel and parts.' },
+  { name: 'Commander Sato, Halo', role: 'Looks after the people of the orbit: passengers and rescues.' },
   { name: 'Kestrel and Moth', role: 'Rival pilots after the same contracts. They are not enemies.' },
 ];
 

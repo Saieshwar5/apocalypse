@@ -16,7 +16,7 @@ import type { Vec3Tuple } from './random';
  */
 export const CASCADE = {
   /** Health lost per tonne of debris in orbit. */
-  healthPerTonne: 0.8,
+  healthPerTonne: 0.6,
   /** Below this health, debris starts to multiply by itself. */
   tippingHealth: 35,
   /** Growth rate per second at zero health, as a share of each cloud's mass. */
@@ -28,12 +28,12 @@ export const CASCADE = {
   /** A missile's blast vaporises most of a rock: this share is left. */
   missileShare: 0.4,
   /** Fragments made beyond this distance from the planet's centre fly off and never come back. */
-  bandOuterRadius: 150,
+  bandOuterRadius: 216,
   /** Fragments made this low fall into the atmosphere and burn up. */
   bandInnerAltitude: ATMOSPHERE.top + 2,
   /** Drag: share of a cloud's mass lost per second, at the surface and its fall-off height. */
   dragAtSurface: 0.012,
-  dragScaleHeight: 12,
+  dragScaleHeight: 18,
 } as const;
 
 /** The orbit clean-up job: sweeping debris with the ship's net. */

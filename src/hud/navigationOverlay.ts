@@ -78,7 +78,8 @@ export function drawNavigation(context: CanvasRenderingContext2D, projector: Scr
   drawApproach(context, projector, frame, distance, elapsed);
   drawVelocityMarker(context, projector, frame);
   drawSteering(context, frame, local, elapsed);
-  drawCompass(context, frame, point, distance, local, elapsed);
+  // In view, the rock's own ring already says when it lands; the compass repeats it only when it is out of sight.
+  drawCompass(context, frame, point, distance, local, elapsed, !projector.project(objective.world).visible);
   context.restore();
 }
 
@@ -89,6 +90,7 @@ function drawCompass(
   distance: number,
   local: THREE.Vector3,
   elapsed: number,
+  showNote: boolean,
 ): void {
   const { objective } = frame;
   const cx = frame.aim.x + COMPASS_OFFSET.x;
@@ -192,7 +194,7 @@ function drawCompass(
     context.fillText(instruction, cx, line + 2);
     line += 17;
     context.font = `700 11px ${MONO}`;
-    if (objective.note) {
+    if (objective.note && showNote) {
       context.fillStyle = objective.note.color;
       context.fillText(objective.note.text, cx, line);
       line += 14;
