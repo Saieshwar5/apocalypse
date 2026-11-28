@@ -11,6 +11,9 @@ export interface ScreenActions {
   onRestart(): void;
   onNext(): void;
   onShare(): void;
+  /** From the pause screen: start the run again, or leave it. */
+  onRestartRun(): void;
+  onQuit(): void;
 }
 
 export interface RunSummary {
@@ -76,6 +79,8 @@ export class GameScreens {
     element<HTMLButtonElement>('#restart-button').addEventListener('click', () => actions.onRestart());
     element<HTMLButtonElement>('#next-button').addEventListener('click', () => actions.onNext());
     element<HTMLButtonElement>('#share-button').addEventListener('click', () => actions.onShare());
+    confirmButton(element<HTMLButtonElement>('#restart-run-button'), 'Sure? This run is lost', () => actions.onRestartRun());
+    confirmButton(element<HTMLButtonElement>('#quit-button'), 'Sure? This run is lost', () => actions.onQuit());
   }
 
   /** The pilot's rank and what the next one needs, on the menu. */
@@ -185,4 +190,31 @@ export class GameScreens {
   setCockpitFrame(visible: boolean): void {
     this.cockpit.hidden = !visible;
   }
+}
+
+/**
+ * A button that asks once more before acting: the first click changes its
+ * label to `question`; a second click within four seconds confirms.
+ */
+export function confirmButton(button: HTMLButtonElement, question: string, onConfirm: () => void): void {
+  const label = button.innerHTML;
+  let armed: number | null = null;
+  const disarm = () => {
+    if (armed !== null) {
+      window.clearTimeout(armed);
+    }
+    armed = null;
+    button.innerHTML = label;
+    button.classList.remove('confirming');
+  };
+  button.addEventListener('click', () => {
+    if (armed === null) {
+      button.textContent = question;
+      button.classList.add('confirming');
+      armed = window.setTimeout(disarm, 4000);
+      return;
+    }
+    disarm();
+    onConfirm();
+  });
 }

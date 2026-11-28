@@ -392,14 +392,24 @@ export class Hud {
     }
   }
 
-  /** A rival pilot on the radio, under the main message. */
-  showRadio(name: string, color: string, text: string, seconds = 4.5): void {
+  /** A radio transmission, under the main message: channel, speaker, a live waveform and the words. */
+  showRadio(line: { name: string; channel: string; color: string; text: string; seconds: number; self?: boolean }): void {
+    const channel = document.createElement('span');
+    channel.className = 'radio-channel';
+    channel.textContent = line.channel;
+    const wave = document.createElement('span');
+    wave.className = 'radio-wave';
+    wave.replaceChildren(...Array.from({ length: 5 }, () => document.createElement('i')));
     const label = document.createElement('strong');
-    label.textContent = name;
-    label.style.color = color;
-    this.radio.replaceChildren(label, document.createTextNode(text));
+    label.textContent = line.name;
+    label.style.color = line.color;
+    const words = document.createElement('span');
+    words.className = 'radio-words';
+    words.textContent = line.text;
+    this.radio.replaceChildren(channel, wave, label, words);
+    this.radio.classList.toggle('self', line.self === true);
     this.radio.classList.add('visible');
-    this.radioTimer = seconds;
+    this.radioTimer = line.seconds;
   }
 
   /** Called for urgent messages so mission control can read them aloud. */

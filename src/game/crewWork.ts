@@ -12,7 +12,7 @@ import type { ShipController } from '../ship/shipController';
 import type { GameEvents } from './gameEvents';
 import type { OutpostBerths } from './outpostBerths';
 import type { RadioNet } from './radioNet';
-import { KIND_LABEL, type JobRow, type Waypoint } from './satelliteJobHelpers';
+import { type JobRow, type Waypoint } from './satelliteJobHelpers';
 
 export interface CrewWorkDependencies {
   berths: OutpostBerths;
@@ -76,8 +76,8 @@ export class CrewWork {
     this.satellite = candidates[Math.floor(this.deps.rng() * candidates.length)];
     this.stage = 'pickup';
     this.work = 0;
-    this.deps.radio.say('halo', `Sato on Halo. I have a crew for ${KIND_LABEL[this.satellite.kind]} servicing. Berth with us to take them aboard.`);
-    this.deps.hud.showMessage(`Crew service call: carry a Halo crew to ${KIND_LABEL[this.satellite.kind]} and back (${formatCredits(CREW_CALL.pay)})`, 'info', 5);
+    this.deps.radio.say('halo', `Sato on Halo. I have a crew for ${this.satellite.name} servicing. Berth with us to take them aboard.`);
+    this.deps.hud.showMessage(`Crew service call: carry a Halo crew to ${this.satellite.name} and back (${formatCredits(CREW_CALL.pay)})`, 'info', 5);
     this.deps.sound.chime();
     return true;
   }
@@ -108,7 +108,7 @@ export class CrewWork {
         this.stage = 'travel';
         this.boardedAt = this.deps.clock();
         this.hardHits = 0;
-        hud.showMessage(`Crew aboard. Fly to ${KIND_LABEL[satellite.kind]} and hold close beside it`, 'success', 4);
+        hud.showMessage(`Crew aboard. Fly to ${satellite.name} and hold close beside it`, 'success', 4);
       }
       return;
     }
@@ -132,7 +132,7 @@ export class CrewWork {
     if (!this.satellite) {
       return [];
     }
-    const name = KIND_LABEL[this.satellite.kind];
+    const name = this.satellite.name;
     const detail =
       this.stage === 'pickup'
         ? 'berth at Halo to take the crew aboard'
@@ -147,7 +147,7 @@ export class CrewWork {
       return null;
     }
     if (this.stage === 'travel') {
-      return { world: this.satellite.position.clone(), label: `HOLD BESIDE ${KIND_LABEL[this.satellite.kind]}` };
+      return { world: this.satellite.position.clone(), label: `HOLD BESIDE ${this.satellite.name}` };
     }
     return { world: this.deps.haloPort(), label: this.stage === 'pickup' ? 'HALO: BERTH FOR THE CREW' : 'HALO: BRING THE CREW HOME' };
   }

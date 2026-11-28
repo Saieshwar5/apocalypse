@@ -42,7 +42,7 @@ export function feedHud(play: PlaySession, deltaSeconds: number, ranked: readonl
     controls: {
       mouseCaptured: play.deps.input.pointerLocked,
       assist: ship.assist,
-      autopilot: play.hazards.pullingUp ? 'AUTO PULL-UP' : play.hazards.returning ? 'AUTOPILOT RETURNING' : null,
+      autopilot: play.hazards.pullingUp ? 'AUTO PULL-UP' : play.hazards.returning ? 'AUTOPILOT RETURNING' : play.autopilotLabel,
       thrusting: play.deps.input.isDown('KeyW'),
       braking: play.deps.input.isDown('KeyS'),
       berthed: play.stationOps.holdingShip || play.services.berths.holding,

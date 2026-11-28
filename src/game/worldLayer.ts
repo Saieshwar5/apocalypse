@@ -26,6 +26,7 @@ export interface WorldLayerDependencies {
   ship: () => THREE.Object3D;
   /** Hides or shows the HUD, overlay and cockpit for photo mode. */
   setInterface: (visible: boolean) => void;
+  onLaunch?: (site: string) => void;
 }
 
 /**
@@ -55,6 +56,7 @@ export class WorldLayer {
       discover: (id) => deps.career.discover(id),
       note: (text) => deps.career.note(text),
       stormPhase: () => play.services.weather.phase,
+      onLaunch: deps.onLaunch,
     });
     play.services.extraRows = () => this.world.rows();
     this.photo = new PhotoMode({

@@ -131,6 +131,25 @@ export class TargetOverlay {
     }
   }
 
+  /** Numbers beside the objects listed in the navigation computer, so the list matches the sky. */
+  drawNavTags(tags: readonly { number: number; world: THREE.Vector3; label: string }[]): void {
+    const context = this.context;
+    context.save();
+    context.font = `800 11px ${MONO}`;
+    for (const tag of tags) {
+      const point = this.projector.project(tag.world);
+      if (!point.visible) {
+        continue;
+      }
+      const text = String(tag.number);
+      context.fillStyle = 'rgba(228, 140, 255, 0.9)';
+      context.fillRect(point.x - 22, point.y - 22, 15, 15);
+      context.fillStyle = '#10061a';
+      context.fillText(text, point.x - 18, point.y - 10);
+    }
+    context.restore();
+  }
+
   /** Navigation aids on top of this frame's overlay; call after draw(), which sets up the projector. */
   drawNavigationAids(frame: Omit<NavigationFrame, 'aim'>, aimPoint: THREE.Vector3): void {
     const aim = this.projector.project(aimPoint);

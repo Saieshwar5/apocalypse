@@ -19,7 +19,7 @@ import { damping, orientationFromForward } from '../math/orientation';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import { ShieldBubble } from '../ship/shieldBubble';
 import { RcsThrusters } from '../ship/rcsThrusters';
-import { IDLE_INPUT, type ShipController } from '../ship/shipController';
+import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipController';
 import { handleShipToggles, readFlightInput } from '../input/flightKeys';
 import type { ShipModel } from '../ship/shipModel';
 import { LaserCannon } from '../weapons/laserCannon';
@@ -92,6 +92,10 @@ export class PlaySession {
   readonly combat: CombatResolver;
   readonly contracts: ContractBook;
   tactical = false;
+  /** The approach autopilot (set by the navigation): replaces the pilot's input while engaged. */
+  autopilot: ((input: FlightInput, deltaSeconds: number) => FlightInput) | null = null;
+  /** What the approach autopilot is flying to, for the HUD; null when it is off. */
+  autopilotLabel: string | null = null;
   private readonly visuals = new ThreatVisuals(EARTH_RADIUS);
   private readonly dust = new SpaceDust();
   private readonly scorches = new ScorchMarks();
@@ -296,8 +300,9 @@ export class PlaySession {
     const { ship, shipModel, earth, explosions, sound, cameraRig } = this.deps;
     const active = this.shipActive;
     const flying = active && !this.tactical && !this.stationOps.holdingShip && !this.services.berths.holding;
-    const input = flying ? this.hazards.filterInput(readFlightInput(this.deps.input), deltaSeconds) : IDLE_INPUT;
-    ship.assistOverride = this.hazards.autopilot;
+    const piloted = flying ? this.hazards.filterInput(readFlightInput(this.deps.input), deltaSeconds) : IDLE_INPUT;
+    const input = flying && !this.hazards.autopilot && this.autopilot ? this.autopilot(piloted, deltaSeconds) : piloted;
+    ship.assistOverride = this.hazards.autopilot || this.autopilotLabel !== null;
     ship.update(deltaSeconds, input);
     shipModel.group.updateMatrixWorld();
     this.rcs.update(deltaSeconds, active && !this.stationOps.holdingShip);

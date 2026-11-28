@@ -8,8 +8,12 @@ export class RadioVoice {
   private lastSpoken = '';
   private lastTime = 0;
 
-  /** `interrupt` false queues the line instead of cutting off one being read (radio chatter). */
-  speak(text: string, pitch = 0.9, interrupt = true): void {
+  /**
+   * `interrupt` false drops the line if someone is still speaking (radio
+   * chatter). `voice` picks one of the browser's English voices by position,
+   * so different people sound different where several voices exist.
+   */
+  speak(text: string, pitch = 0.9, interrupt = true, rate = 1.08, voice = 0): void {
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
     if (!this.enabled || !synth || typeof SpeechSynthesisUtterance === 'undefined') {
       return;
@@ -22,8 +26,12 @@ export class RadioVoice {
     this.lastSpoken = text;
     this.lastTime = now;
     const utterance = new SpeechSynthesisUtterance(text.replace(/[→·:]/g, ', '));
-    utterance.rate = 1.08;
+    utterance.rate = rate;
     utterance.pitch = pitch;
+    const voices = synth.getVoices().filter((candidate) => candidate.lang.startsWith('en'));
+    if (voices.length > 0) {
+      utterance.voice = voices[voice % voices.length];
+    }
     utterance.volume = 0.8;
     if (interrupt) {
       synth.cancel();

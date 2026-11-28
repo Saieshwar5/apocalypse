@@ -64,7 +64,8 @@ export function arrivalSeconds(distance: number, closingSpeed: number): number |
   return closingSpeed > 0.5 ? distance / closingSpeed : null;
 }
 
-export type ObjectiveKind = 'threat' | 'job' | 'station' | 'home';
+/** `target` is whatever the pilot picked in the navigation computer (N). */
+export type ObjectiveKind = 'threat' | 'job' | 'station' | 'home' | 'target';
 export type ObjectiveMode = 'auto' | ObjectiveKind;
 
 export const OBJECTIVE_ORDER: readonly ObjectiveMode[] = ['auto', 'threat', 'job', 'station', 'home'];
@@ -75,6 +76,7 @@ export const OBJECTIVE_NAME: Record<ObjectiveMode, string> = {
   job: 'JOB',
   station: 'NEAREST STATION',
   home: 'HOME (AEGIS)',
+  target: 'NAV TARGET',
 };
 
 export interface ObjectiveOptions {
@@ -82,6 +84,8 @@ export interface ObjectiveOptions {
   job: boolean;
   station: boolean;
   home: boolean;
+  /** A target picked in the navigation computer still exists. */
+  target?: boolean;
   /** Low fuel or hull, or out of missiles. */
   needsHome: boolean;
 }
@@ -102,7 +106,7 @@ export function autoObjective(options: ObjectiveOptions): ObjectiveKind | null {
 
 /** The objective in use: the pilot's choice while it exists, otherwise the automatic one. */
 export function resolveObjective(mode: ObjectiveMode, options: ObjectiveOptions): ObjectiveKind | null {
-  if (mode !== 'auto' && options[mode]) {
+  if (mode !== 'auto' && options[mode] === true) {
     return mode;
   }
   return autoObjective(options);
@@ -113,7 +117,7 @@ export function nextObjectiveMode(mode: ObjectiveMode, options: ObjectiveOptions
   const start = OBJECTIVE_ORDER.indexOf(mode);
   for (let step = 1; step <= OBJECTIVE_ORDER.length; step += 1) {
     const candidate = OBJECTIVE_ORDER[(start + step) % OBJECTIVE_ORDER.length];
-    if (candidate === 'auto' || options[candidate]) {
+    if (candidate === 'auto' || options[candidate] === true) {
       return candidate;
     }
   }

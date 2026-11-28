@@ -74,7 +74,7 @@ export function secondsToStrike(asteroid: Asteroid, satellite: Satellite): numbe
  * load was released and still needs placing.
  */
 export function announceTowEvent(event: TowEvent, hud: Hud, sound: SoundEffects, fleet: SatelliteFleet): boolean {
-  const name = KIND_LABEL[event.satellite.kind];
+  const name = event.satellite.name;
   if (event.type === 'out-of-reach') {
     const tooFar = event.surfaceDistance > TOW.attachRange;
     hud.showMessage(

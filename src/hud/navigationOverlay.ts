@@ -1,3 +1,4 @@
+import type { DirectorAdvice } from '../logic/flightDirector';
 import * as THREE from 'three';
 import { arrivalSeconds, compassPoint, steeringCue } from '../logic/navigation';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
@@ -22,6 +23,10 @@ export interface NavigationObjective {
   approachSpeed: number | null;
   /** Approach guide shown inside this distance. */
   approachRange: number;
+  /** Where to meet a moving target: where it will be when the ship arrives. */
+  meet?: THREE.Vector3;
+  /** The flight director's advice for this trip. */
+  director?: DirectorAdvice;
 }
 
 export interface NavigationFrame {
@@ -31,8 +36,10 @@ export interface NavigationFrame {
   shipQuaternion: THREE.Quaternion;
   /** The crosshair on screen. */
   aim: { x: number; y: number };
-  /** The pilot picked the objective (G), rather than the game. */
+  /** The pilot picked the objective (G or N), rather than the game. */
   chosen: boolean;
+  /** The approach autopilot is flying. */
+  autopilot?: boolean;
 }
 
 const scratch = new THREE.Vector3();
@@ -53,11 +60,14 @@ function toLocal(frame: NavigationFrame, world: THREE.Vector3): THREE.Vector3 {
  */
 export function drawNavigation(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: NavigationFrame, elapsed: number): void {
   const { objective } = frame;
-  const local = toLocal(frame, objective.world);
-  const distance = local.length();
+  // Steer for the meeting point; distances and the approach guide use the target itself.
+  const aim = objective.meet ?? objective.world;
+  const local = toLocal(frame, aim);
+  const distance = toLocal(frame, objective.world).length();
   const point = compassPoint(local.toArray());
   context.save();
   context.font = `700 11px ${MONO}`;
+  drawRoute(context, projector, frame, elapsed);
   drawApproach(context, projector, frame, distance, elapsed);
   drawVelocityMarker(context, projector, frame);
   drawSteering(context, frame, local, elapsed);
@@ -157,10 +167,97 @@ function drawCompass(
   context.fillStyle = 'rgba(232, 241, 255, 0.92)';
   context.fillText(`${formatDistance(distance)}${eta !== null ? ` · ${formatCountdown(eta)}` : ''}`, cx, cy + r + 28);
   const height = local.y;
+  let line = cy + r + 41;
   if (Math.abs(height) > 4) {
     context.fillStyle = 'rgba(232, 241, 255, 0.7)';
-    context.fillText(`${height > 0 ? '▲' : '▼'} ${formatDistance(Math.abs(height))}`, cx, cy + r + 41);
+    context.fillText(`${height > 0 ? '▲' : '▼'} ${formatDistance(Math.abs(height))}`, cx, line);
+    line += 15;
   }
+  // The flight director: one instruction at a time.
+  const advice = objective.director;
+  if (advice) {
+    const instruction = DIRECTOR_TEXT[advice.phase](advice);
+    context.font = `800 12px ${MONO}`;
+    const width = context.measureText(instruction).width + 14;
+    context.fillStyle = 'rgba(4, 10, 18, 0.72)';
+    context.fillRect(cx - width / 2, line - 11, width, 17);
+    context.fillStyle = DIRECTOR_COLOR[advice.phase];
+    context.fillText(instruction, cx, line + 2);
+    if (frame.autopilot) {
+      context.font = `700 10px ${MONO}`;
+      context.fillStyle = '#e48cff';
+      context.fillText('AUTOPILOT · any control takes over', cx, line + 17);
+    }
+  }
+}
+
+const DIRECTOR_TEXT: Record<DirectorAdvice['phase'], (advice: DirectorAdvice) => string> = {
+  turn: () => 'TURN TO THE DOT',
+  burn: (advice) => `BURN (W) · reach ${formatSpeed(advice.targetSpeed)}`,
+  coast: (advice) => (advice.brakeIn !== null ? `COAST · brake in ${formatCountdown(advice.brakeIn)}` : 'COAST'),
+  brake: () => 'BRAKE NOW (S)',
+  arrive: (advice) => `MATCH SPEED · under ${formatSpeed(advice.targetSpeed)}`,
+  arrived: () => 'ARRIVED',
+};
+
+const DIRECTOR_COLOR: Record<DirectorAdvice['phase'], string> = {
+  turn: '#ffd23f',
+  burn: '#7dffb0',
+  coast: '#8fd3ff',
+  brake: '#ff6b5c',
+  arrive: '#ffb347',
+  arrived: '#7dffb0',
+};
+
+/**
+ * The route: a dashed line of light from the ship to the meeting point,
+ * and a ghost marker there when it is away from where the target is now.
+ */
+function drawRoute(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: NavigationFrame, elapsed: number): void {
+  const { objective } = frame;
+  const meet = objective.meet;
+  if (!meet || meet.distanceTo(frame.shipPosition) < 8) {
+    return;
+  }
+  context.save();
+  context.strokeStyle = objective.color;
+  context.lineWidth = 1.5;
+  context.setLineDash([6, 8]);
+  context.lineDashOffset = -elapsed * 30;
+  context.globalAlpha = 0.45;
+  context.beginPath();
+  let started = false;
+  const steps = 24;
+  for (let index = 1; index <= steps; index += 1) {
+    const point = projector.project(frame.shipPosition.clone().lerp(meet, index / steps));
+    if (point.depth < 1) {
+      started = false;
+      continue;
+    }
+    if (started) {
+      context.lineTo(point.x, point.y);
+    } else {
+      context.moveTo(point.x, point.y);
+      started = true;
+    }
+  }
+  context.stroke();
+  context.setLineDash([]);
+  context.globalAlpha = 1;
+  if (meet.distanceTo(objective.world) > 6) {
+    const ghost = projector.project(meet);
+    if (ghost.visible) {
+      context.beginPath();
+      context.arc(ghost.x, ghost.y, 9, 0, Math.PI * 2);
+      context.setLineDash([3, 3]);
+      context.stroke();
+      context.setLineDash([]);
+      context.textAlign = 'center';
+      context.fillStyle = objective.color;
+      context.fillText('MEET HERE', ghost.x, ghost.y - 14);
+    }
+  }
+  context.restore();
 }
 
 /** An arrow on a ring around the crosshair, pointing the way to turn; it shrinks as the nose comes round. */

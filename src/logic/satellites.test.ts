@@ -117,3 +117,12 @@ describe('segment against a sphere', () => {
     expect(segmentSphereHit([0.5, 0, 0], [0.5, 0, 0], [0, 0, 0], 1)).toBe(0);
   });
 });
+
+describe('satellite call signs', () => {
+  it('gives every satellite its own name', async () => {
+    const { satelliteNames } = await import('./satellites');
+    const names = satelliteNames(['weather', 'comms', 'weather', 'nav', 'weather', 'nav', 'comms', 'nav']);
+    expect(names).toEqual(['WX-1 NIMBUS', 'COM-1 ECHO', 'WX-2 CIRRUS', 'NAV-1 POLARIS', 'WX-3 STRATUS', 'NAV-2 RIGEL', 'COM-2 RELAY', 'NAV-3 ALTAIR']);
+    expect(new Set(names).size).toBe(names.length);
+  });
+});
