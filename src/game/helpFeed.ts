@@ -1,5 +1,7 @@
 import { MATERIAL_TRAITS } from '../logic/asteroidClasses';
+import type { MissionReadings } from '../logic/mission';
 import { OBJECTIVE_NAME } from '../logic/navigation';
+import { STATION_STOCK } from '../logic/stationSupply';
 import { inPlanetShadow } from '../logic/spaceWeather';
 import { whatNow } from '../logic/whatNow';
 import { EARTH_RADIUS } from '../scene/earth';
@@ -42,4 +44,19 @@ export function adviceFor(play: PlaySession, ship: ShipController, navigation: N
     orbitHealth: play.services.debris.health,
     objective: navigation.objective ? `${OBJECTIVE_NAME[navigation.objective.kind]} (${navigation.objective.label})` : null,
   });
+}
+
+/** How the five duties stand right now, for the mission page. */
+export function missionReadings(play: PlaySession, integrity: number): MissionReadings {
+  const stock = play.stationOps.present ? play.stationOps.station.stock : null;
+  return {
+    earth: integrity,
+    sitesStanding: play.sites.sites.filter((site) => site.health > 0).length,
+    sitesTotal: play.sites.sites.length,
+    orbitHealth: play.services.debris.health,
+    satellitesWorking: play.satellites.fleet.aliveCount,
+    satellitesTotal: play.satellites.fleet.satellites.length,
+    aegis: stock ? { fuel: stock.fuel / STATION_STOCK.capacity.fuel, missiles: stock.missiles / STATION_STOCK.capacity.missiles } : null,
+    licence: { stage: play.licence.stage, score: play.licence.reputation },
+  };
 }

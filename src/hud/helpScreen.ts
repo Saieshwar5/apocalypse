@@ -1,12 +1,20 @@
-export type HelpTab = 'now' | 'controls' | 'jobs' | 'screen';
+import type { Duty } from '../logic/mission';
+import { renderMission } from './missionPage';
+
+export type HelpTab = 'mission' | 'now' | 'controls' | 'jobs' | 'screen';
+
+const TAB_ORDER: readonly HelpTab[] = ['mission', 'now', 'controls', 'jobs', 'screen'];
 
 /**
- * The help screen (H): what to do now, the controls, how each job works and
- * how to read the screen. It pauses play while it is open.
+ * The help screen (H): the pilot's mission, what to do now, the controls,
+ * how each job works and how to read the screen. It pauses play while open.
  */
 export class HelpScreen {
   private readonly root = find('#help');
   private readonly list = find('#help-now');
+  private readonly mission = find('#help-mission');
+  private readonly title = find('#help-title');
+  private readonly closeButton = find('#help-close');
   private readonly tabs = [...this.root.querySelectorAll<HTMLButtonElement>('[data-tab]')];
   private readonly pages = [...this.root.querySelectorAll<HTMLElement>('[data-page]')];
   /** Called when the pilot closes help (button, H or Esc). */
@@ -16,7 +24,7 @@ export class HelpScreen {
     for (const tab of this.tabs) {
       tab.addEventListener('click', () => this.select(tab.dataset.tab as HelpTab));
     }
-    find('#help-close').addEventListener('click', () => this.onClose?.());
+    this.closeButton.addEventListener('click', () => this.onClose?.());
     window.addEventListener('keydown', (event) => {
       if (!this.open || event.repeat) {
         return;
@@ -24,8 +32,8 @@ export class HelpScreen {
       if (event.code === 'KeyH' || event.code === 'Escape') {
         event.preventDefault();
         this.onClose?.();
-      } else if (/^Digit[1-4]$/.test(event.code)) {
-        this.select((['now', 'controls', 'jobs', 'screen'] as const)[Number(event.code.slice(5)) - 1]);
+      } else if (/^Digit[1-5]$/.test(event.code)) {
+        this.select(TAB_ORDER[Number(event.code.slice(5)) - 1]);
       }
     });
   }
@@ -34,8 +42,14 @@ export class HelpScreen {
     return !this.root.hidden;
   }
 
-  /** `advice` fills "What now?"; with none (on the menu) help opens on the controls. */
-  show(advice: readonly string[], tab: HelpTab = advice.length > 0 ? 'now' : 'controls'): void {
+  /**
+   * `advice` fills "What now?" and `duties` the mission page; `closeLabel`
+   * says where closing leads ("Back to flight", "Start flying").
+   */
+  show(advice: readonly string[], duties: readonly Duty[], tab: HelpTab, closeLabel: string, title = 'Help'): void {
+    this.title.textContent = title;
+    renderMission(this.mission, duties);
+    this.closeButton.replaceChildren(`${closeLabel} `, Object.assign(document.createElement('kbd'), { textContent: 'H' }));
     this.list.replaceChildren(
       ...(advice.length > 0 ? advice : ['Start a run, then press H in flight for advice on what to do next.']).map((text) => {
         const item = document.createElement('li');

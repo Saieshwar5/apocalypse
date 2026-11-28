@@ -1410,6 +1410,121 @@ body[data-photo-filter='mono'] #scene {
   margin: 0;
 }
 
+/* Help: the "Your mission" page. */
+.mission-role p {
+  margin: 0 0 6px;
+  max-width: 74ch;
+  color: var(--hud-dim, #9aa8bf);
+}
+
+.mission-role p:first-child {
+  font-size: 16px;
+  line-height: 1.45;
+  color: #ffffff;
+}
+
+.mission h3 {
+  margin-top: 16px;
+}
+
+.mission-duties {
+  display: grid;
+  gap: 8px;
+}
+
+.mission-duty {
+  --state: rgba(160, 200, 255, 0.35);
+  padding: 9px 14px 10px;
+  border-left: 3px solid var(--state);
+  border-radius: 0 8px 8px 0;
+  background: rgba(120, 170, 255, 0.05);
+}
+
+.mission-duty[data-state='good'] {
+  --state: #7dffb0;
+}
+
+.mission-duty[data-state='watch'] {
+  --state: #ffb347;
+}
+
+.mission-duty[data-state='bad'] {
+  --state: var(--danger);
+}
+
+.mission-duty header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 4px;
+}
+
+.mission-duty h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: #ffffff;
+}
+
+.mission-reading {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--state);
+}
+
+.mission-duty dl {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+
+.mission-duty dt,
+.mission-people dt,
+.mission-endings dt {
+  color: var(--hud-dim, #9aa8bf);
+}
+
+.mission-duty dd,
+.mission-people dd,
+.mission-endings dd {
+  margin: 0;
+}
+
+.mission-foot {
+  margin-top: 4px;
+}
+
+.mission-people,
+.mission-endings {
+  display: grid;
+  gap: 1px 0;
+  margin: 0;
+}
+
+.mission-people dt,
+.mission-endings dt {
+  margin-top: 6px;
+  font-weight: 600;
+  color: #e8f1ff;
+}
+
+.mission-endings dt[data-win='true'] {
+  color: #7dffb0;
+}
+
+.mission-endings dt[data-win='false'] {
+  color: #ff9a8f;
+}
+
+@media (max-width: 720px) {
+  .mission-duty dl {
+    grid-template-columns: 1fr;
+  }
+}
+
 kbd {
   display: inline-block;
   min-width: 18px;

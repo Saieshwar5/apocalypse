@@ -201,15 +201,18 @@
     <div id="help" class="screen" hidden>
       <div class="screen-card help-card" role="dialog" aria-label="Help">
         <div class="help-head">
-          <h2>Help</h2>
+          <h2 id="help-title">Help</h2>
           <button id="help-close" type="button" class="help-close">Back to flight <kbd>H</kbd></button>
         </div>
         <div class="help-tabs" role="tablist">
+          <button type="button" role="tab" data-tab="mission">Your mission</button>
           <button type="button" role="tab" data-tab="now" aria-selected="true">What now?</button>
           <button type="button" role="tab" data-tab="controls">Controls</button>
           <button type="button" role="tab" data-tab="jobs">Jobs</button>
           <button type="button" role="tab" data-tab="screen">Reading the screen</button>
         </div>
+
+        <section id="help-mission" class="help-page mission" data-page="mission" hidden></section>
 
         <section class="help-page" data-page="now">
           <p class="help-lead">Based on where you are and what is happening right now:</p>
