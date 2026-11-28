@@ -12,7 +12,7 @@ import type { Outposts } from '../station/outposts';
 import type { GameEvents } from './gameEvents';
 import type { JobRow, Waypoint } from './satelliteJobHelpers';
 import type { StationMarket } from './stationMarket';
-import type { TowLine } from './towLine';
+import { rockBody, type TowBody, type TowLine } from './towLine';
 import type { RadioNet } from './radioNet';
 
 export interface HaulWorkDependencies {
@@ -34,6 +34,8 @@ const INTAKE_RANGE = 10;
 
 interface Haul {
   rock: Asteroid;
+  /** The rock as the tow line sees it. */
+  body: TowBody;
   tonnes: number;
 }
 
@@ -68,7 +70,7 @@ export class HaulWork {
     rock.passerBy = true;
     rock.identified = true;
     const tonnes = haulTonnes(rock.radius);
-    this.haul = { rock, tonnes };
+    this.haul = { rock, body: rockBody(rock), tonnes };
     hud.showMessage(`Ceres Works: haul a ${tonnes.toFixed(1)} t carbon rock to our intake for ${formatCredits(this.pay(tonnes))}`, 'info', 5);
     sound.chime();
     return true;
@@ -89,7 +91,7 @@ export class HaulWork {
     if (!haul) {
       return;
     }
-    if (tow.attachRock(haul.rock, haulLoadMass(haul.tonnes))) {
+    if (tow.attachBody(haul.body, haulLoadMass(haul.tonnes))) {
       hud.showMessage(`Tow line on the ${haul.tonnes.toFixed(1)} t rock. Very heavy: plan your fuel and brake early`, 'success', 3.5);
       sound.dockClamp();
     } else {
@@ -100,11 +102,12 @@ export class HaulWork {
   /** Lets go: delivered if the rock is at Ceres's intake and nearly still, otherwise it drifts. */
   release(): void {
     const { tow, outposts, field, market, wallet, hud, sound, events } = this.deps;
-    const rock = tow.releaseRock();
+    const released = tow.releaseBody();
     const haul = this.haul;
-    if (!rock || !haul) {
+    if (!released || !haul || released !== haul.body) {
       return;
     }
+    const rock = haul.rock;
     sound.dockClamp();
     const ceres = outposts.get('ceres');
     const intake = outposts.portPosition('ceres');
@@ -127,8 +130,8 @@ export class HaulWork {
   /** The job ends if the rock is destroyed or lost. */
   update(): void {
     if (this.haul && !this.haul.rock.alive) {
-      if (this.deps.tow.rock === this.haul.rock) {
-        this.deps.tow.releaseRock();
+      if (this.deps.tow.body === this.haul.body) {
+        this.deps.tow.releaseBody();
       }
       this.haul = null;
       this.deps.hud.showMessage('The haul rock is gone. Contract cancelled', 'warning', 3);
@@ -144,7 +147,7 @@ export class HaulWork {
     if (!haul) {
       return [];
     }
-    const onLine = this.deps.tow.rock === haul.rock;
+    const onLine = this.deps.tow.body === haul.body;
     return [
       {
         title: `Asteroid haul · ${haul.tonnes.toFixed(1)} t to Ceres`,
@@ -160,7 +163,7 @@ export class HaulWork {
     if (!haul) {
       return null;
     }
-    return this.deps.tow.rock === haul.rock
+    return this.deps.tow.body === haul.body
       ? { world: this.deps.outposts.portPosition('ceres'), label: 'CERES INTAKE: RELEASE HERE (T)' }
       : { world: haul.rock.mesh.position.clone(), label: 'CONNECT TO THE HAUL ROCK (T)' };
   }

@@ -3,7 +3,8 @@ import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import { getGlowTexture } from '../scene/glowTexture';
 import type { SpaceStation } from './spaceStation';
 
-const FLIGHT_SECONDS = 22;
+/** Long enough that a pilot can escort it through a field. */
+export const FLIGHT_SECONDS = 32;
 
 /**
  * The supply rocket that climbs from the Launch Complex to the station after
@@ -42,6 +43,8 @@ export class SupplyRocket {
     );
     this.flame.position.y = -0.4;
     this.group.add(body, nose, this.flame);
+    // Big enough to see and to escort.
+    this.group.scale.setScalar(2.5);
     this.group.visible = false;
   }
 
@@ -51,6 +54,24 @@ export class SupplyRocket {
 
   get position(): THREE.Vector3 {
     return this.group.position;
+  }
+
+  /** Seconds of flight left, or 0 when not flying. */
+  get secondsLeft(): number {
+    return this.inFlight ? (1 - this.progress) * FLIGHT_SECONDS : 0;
+  }
+
+  /** Where the rocket will be after `secondsAhead`, with the station carried along its orbit meanwhile. */
+  positionAhead(secondsAhead: number): THREE.Vector3 {
+    const progress = Math.min(1, this.progress + secondsAhead / FLIGHT_SECONDS);
+    return this.pathPoint(progress, this.station.position.clone().addScaledVector(this.station.velocity, secondsAhead));
+  }
+
+  private pathPoint(progress: number, target: THREE.Vector3 = this.station.position): THREE.Vector3 {
+    const eased = progress * progress * (3 - 2 * progress);
+    const direction = this.start.clone().normalize().lerp(target.clone().normalize(), eased).normalize();
+    const radius = THREE.MathUtils.lerp(this.start.length(), target.length(), Math.sqrt(progress));
+    return direction.multiplyScalar(radius);
   }
 
   launch(siteLocalDirection: THREE.Vector3, onArrival: () => void): void {
@@ -75,13 +96,9 @@ export class SupplyRocket {
       return;
     }
     this.progress = Math.min(1, this.progress + deltaSeconds / FLIGHT_SECONDS);
-    const eased = this.progress * this.progress * (3 - 2 * this.progress);
     // Climb straight up first, then arc over to meet the station.
-    const target = this.station.position;
-    const direction = this.start.clone().normalize().lerp(target.clone().normalize(), eased).normalize();
-    const radius = THREE.MathUtils.lerp(this.start.length(), target.length(), Math.sqrt(this.progress));
     const previous = this.group.position.clone();
-    this.group.position.copy(direction).multiplyScalar(radius);
+    this.group.position.copy(this.pathPoint(this.progress));
     const heading = this.group.position.clone().sub(previous);
     if (heading.lengthSq() > 1e-8) {
       this.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), heading.normalize());
