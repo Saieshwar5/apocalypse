@@ -193,16 +193,14 @@ map still shows everything.
 - **Photo mode (P)**: the action freezes, the interface hides and the
   camera floats free around the ship. The mouse orbits, W and S move in
   and out, 1-4 pick a look (natural, cinematic letterbox, golden hour,
-  monochrome) and Space takes the picture.
-- **Photo jobs**: Halo's press office pays 200-300 cr for a good picture
-  of a station, a rival ship in flight, the aurora during a storm or a
-  meteor shower. The subject must be close enough and near the centre of
-  the frame.
+  monochrome) and Space takes the picture (keep it with your computer's
+  screenshot key). Photo mode is for the pilot's own pictures; there are
+  no paid photo jobs (they were removed as not interesting enough).
 - **Your ship**: name it and choose its paint (factory grey, ember orange,
   glacier white, graphite, aurora green, gold leaf) on the menu. The name
   shows on the cockpit's flight screen.
 - **Pilot's logbook** on the menu: promotions, first gold medal in each
-  kind of job, seasons, runs, photos sold and discoveries, newest first.
+  kind of job, seasons, runs and discoveries, newest first.
 - **A secret**: somewhere high over one of the poles drifts SEEKER ONE, a
   survey probe lost in 1982. Moth has heard the stories. Finding it pays
   once per career and goes in the logbook.

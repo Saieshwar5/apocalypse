@@ -30,15 +30,14 @@ export interface WorldLayerDependencies {
 }
 
 /**
- * Joins the living world (launches, showers, spacewalkers, the derelict,
- * photo jobs) and photo mode to a run: it notices calm zones and storms
- * starting, adds the photo job to the board and handles the P key.
+ * Joins the living world (launches, meteor showers, spacewalkers, the
+ * derelict probe) and photo mode to a run: it notices calm zones starting
+ * and handles the P key.
  */
 export class WorldLayer {
   readonly world: LivingWorld;
   readonly photo: PhotoMode;
   private lastPhase = '';
-  private lastStorm = 'clear';
 
   constructor(private readonly deps: WorldLayerDependencies) {
     const { play } = deps;
@@ -47,7 +46,6 @@ export class WorldLayer {
       earth: deps.earth,
       outposts: play.services.outposts,
       ship: { get position() { return deps.ship().position; } },
-      rivals: () => play.services.rivals.radarContacts().map((contact) => contact.position.clone()),
       wallet: deps.wallet,
       hud: deps.hud,
       sound: deps.sound,
@@ -55,16 +53,14 @@ export class WorldLayer {
       rng: deps.rng,
       discover: (id) => deps.career.discover(id),
       note: (text) => deps.career.note(text),
-      stormPhase: () => play.services.weather.phase,
       onLaunch: deps.onLaunch,
     });
-    play.services.extraRows = () => this.world.rows();
     this.photo = new PhotoMode({
       camera: deps.camera,
       input: deps.input,
       subject: deps.ship,
       setInterface: deps.setInterface,
-      shutter: (camera) => this.world.takePhoto(camera),
+      shutter: () => this.world.takePhoto(),
     });
   }
 
@@ -74,7 +70,6 @@ export class WorldLayer {
     }
     this.world.reset();
     this.lastPhase = '';
-    this.lastStorm = 'clear';
   }
 
   /** Returns true while photo mode has the frame, so play stays frozen. */
@@ -92,11 +87,6 @@ export class WorldLayer {
       this.world.calmZone();
     }
     this.lastPhase = phase;
-    const storm = play.services.weather.phase;
-    if (storm === 'storm' && this.lastStorm !== 'storm') {
-      this.world.stormStarted();
-    }
-    this.lastStorm = storm;
     this.world.update(deltaSeconds, play.shipActive);
     return false;
   }

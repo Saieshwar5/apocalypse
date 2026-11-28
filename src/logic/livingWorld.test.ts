@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOGBOOK_SIZE, addLogEntry, sanitizeLog } from './logbook';
 import { LIVERIES, liveryById, sanitizeShipName } from './livery';
-import { framed } from './photoJobs';
 
 describe('logbook', () => {
   it('keeps newest first and caps the size', () => {
@@ -34,11 +33,3 @@ describe('livery and name', () => {
   });
 });
 
-describe('photo jobs', () => {
-  it('needs the subject close and near the centre of the frame', () => {
-    expect(framed(30, 0.1, 0.54, 'halo')).toBe(true);
-    expect(framed(60, 0.1, 0.54, 'halo')).toBe(false);
-    expect(framed(30, 0.5, 0.54, 'halo')).toBe(false);
-    expect(framed(150, 0.2, 0.54, 'meteors')).toBe(true);
-  });
-});
