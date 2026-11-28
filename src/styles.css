@@ -1470,3 +1470,15 @@ kbd {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
+
+.pause-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+button.confirming {
+  border-color: #ff8a7a;
+  color: #ffb0a5;
+  background: rgba(80, 20, 16, 0.6);
+}

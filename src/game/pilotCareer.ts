@@ -1,7 +1,7 @@
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
 import type { InputState } from '../input/inputState';
-import { nextRank, rankFor, recordCareerRun, recordMedal, type RankName } from '../logic/career';
+import { nextRank, parseCareer, rankFor, recordCareerRun, recordMedal, type RankName } from '../logic/career';
 import { JOB_LABEL, totalMedals } from '../logic/medals';
 import { addLogEntry } from '../logic/logbook';
 import { HARDCORE } from '../logic/reputation';
@@ -100,6 +100,11 @@ export class PilotCareer {
       this.note(`Promoted to ${after}`);
     }
     return after === before ? after : `${after} (promoted from ${before})`;
+  }
+
+  /** A clean slate: rank, earnings, hangar, medals, logbook and secrets. Settings and best runs stay. */
+  resetCareer(): void {
+    this.save(parseCareer(null));
   }
 
   /** Writes a line in the pilot's logbook. */

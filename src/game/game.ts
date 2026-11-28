@@ -112,6 +112,8 @@ export class Game {
       onRestart: () => this.startRun(0),
       onNext: () => this.startRun(this.systemIndex + 1),
       onShare: () => this.copyResult(),
+      onRestartRun: () => this.startRun(0),
+      onQuit: () => this.quitToMenu(),
     });
   }
 
@@ -422,6 +424,22 @@ export class Game {
     } else if (this.play.shipFailure) {
       this.endRun(this.play.shipFailure);
     }
+  }
+
+  /** Leaves the run for the menu (the run is not recorded). */
+  private quitToMenu(): void {
+    this.phase = 'menu';
+    this.input.clear();
+    this.input.releasePointerLock();
+    this.hud.setVisible(false);
+    this.cockpit.setVisible(false);
+    this.overlay.clear();
+    this.shipModel.group.visible = false;
+    this.sound.setEngine(0, false);
+    this.sound.setAtmosphere(0);
+    this.screens.setCinematic(false);
+    this.screens.showMenu();
+    this.showRank();
   }
 
   private showRank(): void {
