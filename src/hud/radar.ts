@@ -18,6 +18,10 @@ interface Contact {
   triangle?: boolean;
   /** Drawn as a dashed ring sized by its mass: a debris cloud. */
   cloud?: number;
+  /** Drawn as a diamond: a rock on its way to the planet. */
+  diamond?: boolean;
+  /** Harmless: drawn small and faint so threats stand out. */
+  faded?: boolean;
 }
 
 /**
@@ -34,6 +38,14 @@ export class Radar {
   private readonly rangeLabel = document.querySelector('#radar-range');
   private sweep = 0;
   private shownRange = 0;
+  private shownCaption = '';
+  /** What the navigation points at: highlighted with a pulsing ring and a line from the ship. */
+  objective: { position: THREE.Vector3; color: string } | null = null;
+  /** Chooses the range from the full range the scanner can see (auto-zoom, set by the navigation). */
+  rangeFor: ((fullRange: number) => number) | null = null;
+  /** Shown beside the range: AUTO, CLOSE, MEDIUM or FAR. */
+  modeLabel = '';
+  private pulse = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const context = canvas.getContext('2d');
@@ -41,10 +53,25 @@ export class Radar {
       throw new Error('Scanner needs a 2D canvas context');
     }
     this.context = context;
+    this.fitCanvas();
+  }
+
+  /** Larger while the pilot holds B to read it. */
+  set enlarged(value: boolean) {
+    const holder = this.canvas.parentElement;
+    if (!holder || holder.classList.contains('enlarged') === value) {
+      return;
+    }
+    holder.classList.toggle('enlarged', value);
+    this.fitCanvas();
+  }
+
+  /** Matches the drawing buffer to the canvas's size on screen, so it stays sharp at any size. */
+  private fitCanvas(): void {
     const ratio = Math.min(window.devicePixelRatio, 2);
-    canvas.width = this.width * ratio;
-    canvas.height = this.height * ratio;
-    context.scale(ratio, ratio);
+    this.canvas.width = this.width * ratio;
+    this.canvas.height = this.height * ratio;
+    this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
 
   private get width(): number {
@@ -73,20 +100,27 @@ export class Radar {
     const centreY = this.height / 2 + 8;
     const radius = this.width / 2 - 8;
     this.sweep = (this.sweep + deltaSeconds * 1.6) % (Math.PI * 2);
+    this.pulse += deltaSeconds;
     this.inverse.copy(ship.quaternion).invert();
-    if (range !== this.shownRange && this.rangeLabel) {
-      this.rangeLabel.textContent = formatDistance(range);
+    range = this.rangeFor ? this.rangeFor(range) : range;
+    const caption = `${this.modeLabel ? `${this.modeLabel} ` : ''}${formatDistance(range)}`;
+    if ((range !== this.shownRange || caption !== this.shownCaption) && this.rangeLabel) {
+      this.rangeLabel.textContent = caption;
       this.shownRange = range;
+      this.shownCaption = caption;
     }
 
     const contacts: Contact[] = asteroids.map((asteroid) => {
       this.local.copy(asteroid.mesh.position).sub(ship.position).applyQuaternion(this.inverse);
       const urgent = urgentIds.has(asteroid.id);
+      const threat = asteroid.timeToImpact !== null;
       return {
         point: projectToScanner(this.local.toArray(), range, radius),
-        color: urgent ? '#ff5a4a' : asteroid.size === 'giant' || asteroid.size === 'large' ? '#ffb347' : '#e8f1ff',
-        size: BLIP_SIZE[asteroid.size],
+        color: urgent ? '#ff5a4a' : !threat ? '#8a96a8' : asteroid.size === 'giant' || asteroid.size === 'large' ? '#ffb347' : '#ffd9a0',
+        size: threat ? BLIP_SIZE[asteroid.size] : 1.6,
         locked: asteroid.id === lockedId,
+        diamond: threat,
+        faded: !threat,
       };
     });
     if (station) {
@@ -150,7 +184,38 @@ export class Radar {
         this.drawContact(context, contact);
       }
     }
+    this.drawObjective(context, ship, range, radius);
     this.drawShip(context);
+    context.restore();
+  }
+
+  /** The navigation's objective: a dashed line from the ship and a pulsing ring, with its height. */
+  private drawObjective(context: CanvasRenderingContext2D, ship: THREE.Object3D, range: number, radius: number): void {
+    if (!this.objective) {
+      return;
+    }
+    this.local.copy(this.objective.position).sub(ship.position).applyQuaternion(this.inverse);
+    const point = projectToScanner(this.local.toArray(), range, radius);
+    context.save();
+    context.strokeStyle = this.objective.color;
+    context.fillStyle = this.objective.color;
+    context.lineWidth = 1.5;
+    context.setLineDash([3, 3]);
+    context.beginPath();
+    context.moveTo(0, 0);
+    context.lineTo(point.baseX, point.baseY);
+    context.stroke();
+    context.setLineDash([]);
+    const size = 6 + 2.5 * Math.sin(this.pulse * 5);
+    context.beginPath();
+    context.arc(point.x, point.y, size, 0, Math.PI * 2);
+    context.stroke();
+    context.font = '700 10px ui-monospace, SFMono-Regular, Menlo, monospace';
+    context.textAlign = 'center';
+    const height = this.local.y;
+    if (Math.abs(height) > 4) {
+      context.fillText(`${height > 0 ? '▲' : '▼'}${formatDistance(Math.abs(height))}`, point.x, point.y - size - 4);
+    }
     context.restore();
   }
 
@@ -184,6 +249,18 @@ export class Radar {
     context.lineTo(Math.cos(this.sweep) * radius, Math.sin(this.sweep) * radius * SCANNER_TILT);
     context.stroke();
 
+    // What the cameras can see: a faint wedge ahead (about 47 degrees either side of the nose).
+    const view = 0.82;
+    context.fillStyle = 'rgba(125, 255, 176, 0.07)';
+    context.beginPath();
+    context.moveTo(0, 0);
+    for (let step = 0; step <= 12; step += 1) {
+      const angle = -view + (2 * view * step) / 12;
+      context.lineTo(Math.sin(angle) * radius, -Math.cos(angle) * radius * SCANNER_TILT);
+    }
+    context.closePath();
+    context.fill();
+
     // "Ahead" marker at the far edge.
     context.fillStyle = 'rgba(125, 255, 176, 0.9)';
     context.beginPath();
@@ -196,7 +273,7 @@ export class Radar {
 
   private drawContact(context: CanvasRenderingContext2D, contact: Contact): void {
     const { point, color, size } = contact;
-    context.globalAlpha = point.beyondRange ? 0.5 : 1;
+    context.globalAlpha = (point.beyondRange ? 0.5 : 1) * (contact.faded ? 0.45 : 1);
     context.strokeStyle = color;
     context.lineWidth = 1;
     context.beginPath();
@@ -218,7 +295,13 @@ export class Radar {
       return;
     }
     context.beginPath();
-    if (contact.triangle) {
+    if (contact.diamond) {
+      context.moveTo(point.x, point.y - size - 1);
+      context.lineTo(point.x + size + 1, point.y);
+      context.lineTo(point.x, point.y + size + 1);
+      context.lineTo(point.x - size - 1, point.y);
+      context.closePath();
+    } else if (contact.triangle) {
       context.moveTo(point.x, point.y - size - 1);
       context.lineTo(point.x + size, point.y + size);
       context.lineTo(point.x - size, point.y + size);

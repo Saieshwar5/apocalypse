@@ -423,6 +423,18 @@ body {
   width: 240px;
   height: 200px;
   display: block;
+  transition: width 0.15s ease, height 0.15s ease;
+}
+
+/* Hold B: a bigger scanner to read a crowded sky. */
+.hud-radar.enlarged #radar {
+  width: 440px;
+  height: 366px;
+}
+
+.hud-radar.enlarged {
+  background: rgba(4, 10, 18, 0.55);
+  border-radius: 12px;
 }
 
 .hud-caption {

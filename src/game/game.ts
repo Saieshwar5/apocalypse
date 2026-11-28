@@ -1,3 +1,4 @@
+import { Navigation } from './navigation';
 import { WorldLayer } from './worldLayer';
 import { liveryById } from '../logic/livery';
 import { CockpitInterior } from '../ship/cockpitInterior';
@@ -81,6 +82,7 @@ export class Game {
   private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => this.career.rank });
   private career!: PilotCareer;
   private worldLayer!: WorldLayer;
+  private navigation!: Navigation;
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -182,6 +184,7 @@ export class Game {
     });
     this.career = new PilotCareer({ session: this.session, hud: this.hud, sound: this.sound, input: this.input, radio: this.radio, showModules: (fitted) => this.shipModel.setModules(fitted) });
     this.career.attach(this.play);
+    this.navigation = new Navigation({ play: this.play, ship: this.ship, input: this.input, hud: this.hud, overlay: this.overlay, radar: this.radar, session: this.session });
     this.worldLayer = new WorldLayer({
       scene: this.scene, camera: this.camera, earth: this.earth, play: this.play, career: this.career, input: this.input,
       hud: this.hud, sound: this.sound, radio: this.radio, rng: this.rng, wallet: this.session.wallet, ship: () => this.shipModel.group,
@@ -231,6 +234,7 @@ export class Game {
     this.play.reset(system, continuing, training);
     this.career.startRun(this.hardcore && !training);
     this.worldLayer.reset();
+    this.navigation.reset();
     this.hud.newPilot = training || this.career.record.runs < 2;
     this.applySystemLook();
     this.radio.reset();
@@ -401,7 +405,9 @@ export class Game {
     if (this.worldLayer.update(deltaSeconds, this.play.shipActive)) {
       return;
     }
+    this.navigation.update(deltaSeconds, this.play.shipActive && !this.play.tactical);
     this.play.update(deltaSeconds);
+    this.navigation.draw();
     this.career.update(deltaSeconds);
     this.overlay.quietLabels = !(this.hud.visibility?.allWorldLabels ?? true);
     this.damage.update(deltaSeconds, this.ship.hull, this.shipModel.group, this.ship.velocity, this.play.shipActive);
