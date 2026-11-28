@@ -49,6 +49,39 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Quality pass 2: looks, and fixes from playtest simulations
+
+- **Planet**: auroras ring both poles on the night side and flare and
+  spread towards the equator during solar storms; lightning flickers in
+  thick night-side clouds; clouds cast soft shadows on the ground.
+- **Damage you can see**: below 60% hull the ship throws sparks, below 35%
+  it trails smoke, and when critical it vents gas in bursts.
+- **Cockpit**: the cockpit view (C) is now a 3D cockpit: canopy frame, a
+  dashboard with live flight, systems and job screens, lit switches, a
+  master caution lamp (low hull or fuel, solar storm) and the HUD combiner.
+- **Scanner**: debris clouds show as dashed amber rings, larger for
+  heavier clouds.
+- **Fixes from simulated play** (a bot pilot flew full seasons in many
+  styles; see below):
+  - Fields now end once nothing left in them can hit the planet. Before,
+    deflected rocks and misses had to drift away first, and about two
+    thirds of a season was waiting. A season now takes about 17 minutes.
+  - Rivals decide faster and hit harder, so the league is a real race
+    (Kestrel now often out-earns a good pilot). Their kills leave half the
+    debris a player's would.
+  - The automatic pull-up and "atmosphere below" messages are not repeated
+    within 15 seconds; they used to bury contract news in fights near Earth.
+  - "Iron resists lasers" is shown once per rock, not every frame.
+
+### Playtest simulations
+
+Each simulated run loads the real game in a headless browser and flies it
+with the real controls (turn-rate limited steering, thrust, brake, laser,
+missiles, docking to refuel), as an idle pilot, a good pilot, a novice with
+poor aim and slow turns, a debris sweeper, and hardcore with heavy modules.
+The numbers it records (earnings, impacts, Orbit Health, docks, pull-ups,
+idle time, every message shown) are what the fixes above came from.
+
 ## Stage 7c: ship modules, medals and the hardcore licence
 
 - **Modules at Vulcan Yard.** Berth at Vulcan and press 1-7 to buy a module,

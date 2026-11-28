@@ -44,6 +44,8 @@ export interface Asteroid {
   assessedDamage: number;
   /** Spawned on a path that never threatens the planet. */
   passerBy: boolean;
+  /** Wanted for a job (a haul): never removed for flying away. */
+  kept?: boolean;
 }
 
 export interface PlanetImpact {
@@ -147,9 +149,13 @@ export class AsteroidField {
     return asteroid;
   }
 
-  /** Asteroids that could still threaten the planet; passers-by do not hold up a field. */
+  /**
+   * Asteroids that could still hit the planet. Passers-by and rocks already
+   * deflected onto a miss do not hold up a field: waiting for them to drift
+   * out of the neighbourhood was dead time.
+   */
   get threatCount(): number {
-    return this.asteroids.reduce((count, asteroid) => count + (asteroid.passerBy ? 0 : 1), 0);
+    return this.asteroids.reduce((count, asteroid) => count + (asteroid.passerBy || asteroid.timeToImpact === null ? 0 : 1), 0);
   }
 
   /**
@@ -192,6 +198,7 @@ export class AsteroidField {
     const escaped = this.asteroids.filter(
       (asteroid) =>
         asteroid.timeToImpact === null &&
+        !asteroid.kept &&
         asteroid.mesh.position.dot(asteroid.velocity) > 0 &&
         asteroid.mesh.position.length() > this.planetRadius * 5,
     );

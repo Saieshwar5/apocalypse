@@ -62,9 +62,11 @@ export interface CombatDependencies {
  */
 export class CombatResolver {
   private shipLostCause: string | null = null;
+  /** Iron rocks the pilot has already been told to use missiles on. */
+  private readonly ironWarned = new Set<number>();
 
   /** Turns a destroyed rock into orbital debris; returns the tonnes left. Set by the play session. */
-  shatterHook: ((asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3) => number) | null = null;
+  shatterHook: ((asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3, pilot: PilotId) => number) | null = null;
 
   constructor(private readonly deps: CombatDependencies) {}
 
@@ -257,7 +259,9 @@ export class CombatResolver {
       } else {
         explosions.spawnRockChips(point, Math.min(1.5, damage / 20));
       }
-      if (mine && resisted && weapon === 'laser' && asteroid.health > asteroid.maxHealth * 0.6) {
+      if (mine && resisted && weapon === 'laser' && asteroid.health > asteroid.maxHealth * 0.6 && !this.ironWarned.has(asteroid.id)) {
+        // Once per rock is enough; repeating it while the laser is held was noise.
+        this.ironWarned.add(asteroid.id);
         hud.showMessage('Iron resists lasers. Use missiles (F)', 'warning', 2.5);
       }
       return;
@@ -270,7 +274,7 @@ export class CombatResolver {
     const position = asteroid.mesh.position.clone();
     const splits = fragmentsOnDestroy(asteroid.size, weapon) !== null;
     // Fragments a laser splits off carry on as asteroids; the rest becomes orbital debris.
-    const debris = this.shatterHook?.(asteroid, weapon, position) ?? 0;
+    const debris = this.shatterHook?.(asteroid, weapon, position, pilot) ?? 0;
     if (debris > 0 && pilot === 'player') {
       session.events.emit({ type: 'debris-left', tonnes: debris });
     }

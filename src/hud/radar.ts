@@ -16,6 +16,8 @@ interface Contact {
   square?: boolean;
   /** Drawn as a triangle: a rival ship. */
   triangle?: boolean;
+  /** Drawn as a dashed ring sized by its mass: a debris cloud. */
+  cloud?: number;
 }
 
 /**
@@ -64,7 +66,7 @@ export class Radar {
     station: THREE.Vector3 | null = null,
     blind = false,
     satellites: readonly THREE.Vector3[] = [],
-    outposts: readonly { position: THREE.Vector3; color: string; triangle?: boolean }[] = [],
+    outposts: readonly { position: THREE.Vector3; color: string; triangle?: boolean; cloud?: number }[] = [],
   ): void {
     const context = this.context;
     const centreX = this.width / 2;
@@ -98,8 +100,9 @@ export class Radar {
         color: outpost.color,
         size: 3.5,
         locked: false,
-        square: !outpost.triangle,
+        square: !outpost.triangle && outpost.cloud === undefined,
         triangle: outpost.triangle,
+        cloud: outpost.cloud,
       });
     }
     for (const satellite of satellites) {
@@ -204,6 +207,16 @@ export class Radar {
     context.beginPath();
     context.ellipse(point.baseX, point.baseY, 2.5, 2.5 * SCANNER_TILT, 0, 0, Math.PI * 2);
     context.stroke();
+    if (contact.cloud !== undefined) {
+      // Debris: a dashed ring, larger for heavier clouds, never filled.
+      context.setLineDash([2, 2]);
+      context.beginPath();
+      context.arc(point.x, point.y, 2.5 + Math.min(5, Math.sqrt(contact.cloud)), 0, Math.PI * 2);
+      context.stroke();
+      context.setLineDash([]);
+      context.globalAlpha = 1;
+      return;
+    }
     context.beginPath();
     if (contact.triangle) {
       context.moveTo(point.x, point.y - size - 1);
