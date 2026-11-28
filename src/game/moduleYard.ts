@@ -2,7 +2,7 @@ import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
 import type { InputState } from '../input/inputState';
 import { formatCredits } from '../logic/contracts';
-import { MODULES, afterShipLoss, handlingShare, moduleById, moduleEffects, yardAction, type Hangar } from '../logic/shipModules';
+import { MODULES, afterShipLoss, handlingShare, moduleById, moduleEffects, yardAction, type Hangar, type ModuleId } from '../logic/shipModules';
 import type { Wallet } from '../logic/economy';
 import type { MissileLauncher } from '../weapons/missileLauncher';
 import type { GameSession } from './gameSession';
@@ -26,6 +26,8 @@ export interface ModuleYardDependencies {
   saveHangar: (hangar: Hangar) => void;
   /** Ships lost this run, and whether the last one was insured. */
   shipLoss: () => { count: number; insured: boolean };
+  /** Shows the fitted modules on the ship model. */
+  showModules: (fitted: readonly ModuleId[]) => void;
 }
 
 interface Row {
@@ -136,6 +138,7 @@ export class ModuleYard {
   private apply(hangar: Hangar): void {
     const { session, tow } = this.deps;
     this.deps.saveHangar(hangar);
+    this.deps.showModules(hangar.fitted);
     session.fit = moduleEffects(hangar.fitted);
     tow.lineFit = { shipMass: session.fit.massFactor, lineStrength: session.fit.lineStrength, lineSteadying: session.fit.lineSteadying };
     this.deps.applyLoadout();

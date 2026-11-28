@@ -4,7 +4,7 @@ import type { InputState } from '../input/inputState';
 import { nextRank, rankFor, recordCareerRun, recordMedal, type RankName } from '../logic/career';
 import { totalMedals } from '../logic/medals';
 import { HARDCORE } from '../logic/reputation';
-import { HARDPOINTS } from '../logic/shipModules';
+import { HARDPOINTS, type ModuleId } from '../logic/shipModules';
 import { loadCareer, saveCareer } from './careerStore';
 import type { GameSession } from './gameSession';
 import { MedalBoard } from './medalBoard';
@@ -18,6 +18,7 @@ export interface PilotCareerDependencies {
   sound: SoundEffects;
   input: InputState;
   radio: RadioNet;
+  showModules: (fitted: readonly ModuleId[]) => void;
 }
 
 /**
@@ -58,6 +59,7 @@ export class PilotCareer {
       hardpoints: () => (this.rank === 'Senior Pilot' || this.rank === 'Commander' ? HARDPOINTS.senior : HARDPOINTS.base),
       hangar: () => this.record.hangar,
       saveHangar: (hangar) => this.save({ ...this.record, hangar }),
+      showModules: this.deps.showModules,
       shipLoss: () => ({ count: play.licence.shipsLost, insured: play.licence.lastLossInsured }),
     });
   }

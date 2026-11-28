@@ -168,7 +168,7 @@ export class Game {
       radio: this.radio,
       onTrainingComplete: () => this.career.markTrainingDone(),
     });
-    this.career = new PilotCareer({ session: this.session, hud: this.hud, sound: this.sound, input: this.input, radio: this.radio });
+    this.career = new PilotCareer({ session: this.session, hud: this.hud, sound: this.sound, input: this.input, radio: this.radio, showModules: (fitted) => this.shipModel.setModules(fitted) });
     this.career.attach(this.play);
     this.shipModel.group.visible = false;
 

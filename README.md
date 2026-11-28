@@ -49,6 +49,44 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 7c: ship modules, medals and the hardcore licence
+
+- **Modules at Vulcan Yard.** Berth at Vulcan and press 1-7 to buy a module,
+  bolt an owned one onto a free hardpoint, or take one off. The ship has two
+  hardpoints (three for Senior Pilots and Commanders), and **every module
+  adds mass**: the ship accelerates, brakes and turns more slowly, and the
+  panel shows the handling left. The tow line, the automatic pull-up and the
+  intercept guidance all allow for the extra mass.
+
+  | Module | Price | Mass | Effect |
+  | --- | --- | --- | --- |
+  | Cargo pod | 1,200 cr | +22% | +40% pay for rock hauls |
+  | Crew cabin | 900 cr | +15% | +30% pay for crew runs and rescues; passengers only feel hard hits |
+  | Auxiliary tank | 700 cr | +18% | +50% fuel capacity (fill it at a station) |
+  | Heavy winch | 1,000 cr | +12% | tow line takes 60% more stretch and steadies loads faster |
+  | Sweeper net | 800 cr | +8% | sweeps debris twice as fast, and at up to 10 relative speed |
+  | Missile pod | 1,100 cr | +20% | +6 missiles (arrives loaded) |
+  | Long-range scanner | 950 cr | +4% | +40% missile lock range |
+
+  Fitted modules show on the hull: a pod under the belly, a cabin with lit
+  windows on the spine, flank tanks, a winch drum, the folded net, wing
+  missile pods and a sweeping scanner dish. The hangar is kept with the
+  career between runs. If an **uninsured** ship is lost, the modules bolted
+  to it are lost too; spares in the hangar are safe.
+- **Medals.** Every job is graded bronze, silver or gold: hauls and rescues
+  by time, crew runs by time and how many hard hits the passengers felt,
+  satellite tows and reboosts by how close to the slot they were placed,
+  dodges by time, escorts by how much warning was left when the rocks were
+  dealt with, and intercepts by being early and clean. Silver pays +10% and
+  gold +25% (intercepts already pay early and clean bonuses, so they earn
+  the medal only). Golds also add to reputation and get a word on the
+  radio. The run's medals are on the end screen and the career's golds on
+  the menu.
+- **Hardcore licence** (menu checkbox): one ship and no emergency loan, but
+  every payment is 25% higher. Losing the ship ends the career. Hardcore
+  seasons are counted separately.
+- The status line says BERTHED while the ship is held at a station.
+
 ## Stage 7b: protecting people
 
 - **Rescue** (sometimes, in calm zones): an ore carrier has ejected an
@@ -529,7 +567,7 @@ src/
   game/       Game phases, play session, campaign (orbit, upgrades), targeting, combat, screens
   launch/     Launch cinematic: pad scene, rocket effects, orbit insertion
   scene/      Renderer, Earth and its shaders, stars and sun
-  ship/       Interceptor model wrapper, shield and flight controller
+  ship/       Interceptor model wrapper, module hardware, shield and flight controller
   asteroids/  Asteroid shapes and the asteroid field
   weapons/    Laser, missiles, hit tests
   effects/    Explosions, scorch marks, space dust
