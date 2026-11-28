@@ -63,14 +63,13 @@ export class Radar {
       return;
     }
     holder.classList.toggle('enlarged', value);
-    this.fitCanvas();
   }
 
   /** Matches the drawing buffer to the canvas's size on screen, so it stays sharp at any size. */
   private fitCanvas(): void {
     const ratio = Math.min(window.devicePixelRatio, 2);
-    this.canvas.width = this.width * ratio;
-    this.canvas.height = this.height * ratio;
+    this.canvas.width = Math.round(this.width * ratio);
+    this.canvas.height = Math.round(this.height * ratio);
     this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
 
@@ -95,6 +94,10 @@ export class Radar {
     satellites: readonly THREE.Vector3[] = [],
     outposts: readonly { position: THREE.Vector3; color: string; triangle?: boolean; cloud?: number }[] = [],
   ): void {
+    // The scanner can change size (hold B): keep the drawing buffer matched to it.
+    if (this.canvas.width !== Math.round(this.width * Math.min(window.devicePixelRatio, 2))) {
+      this.fitCanvas();
+    }
     const context = this.context;
     const centreX = this.width / 2;
     const centreY = this.height / 2 + 8;

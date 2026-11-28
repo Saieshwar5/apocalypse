@@ -423,7 +423,6 @@ body {
   width: 240px;
   height: 200px;
   display: block;
-  transition: width 0.15s ease, height 0.15s ease;
 }
 
 /* Hold B: a bigger scanner to read a crowded sky. */
