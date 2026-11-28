@@ -60,6 +60,28 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## A bigger Earth and three orbits
+
+- **Earth is half as large again** (radius 60 units, was 40). From low
+  orbit the horizon is nearly flat and the ground fills the view; a large
+  station now reads as a city above a planet, not a second planet.
+- **Three orbits.** *Low*, just above the air: the three weather
+  satellites, your base Aegis and Vulcan Yard. *Medium*, about one Earth
+  radius up: the three navigation satellites and the Ceres depot. *High*,
+  far out and slow: the two communication relays and Halo. The map names
+  each station's orbit.
+- **Rocks start beyond high orbit** and cross all three on the way down:
+  meet one high and there is time for several tries; low is the last line.
+- **Trips are real.** Low to high is a long climb, so where you are when a
+  job is posted matters. The ship cruises and boosts about a third faster
+  (and brakes harder) so trips keep their pace, and rocks are a quarter
+  faster so a field lasts about as long as before.
+- Scaled to match: the atmosphere and its warnings, the defence zone, the
+  scanner's range, the map camera, the autopilot's route round the planet
+  and the size of impact effects. Debris still burns away by itself low
+  down and lingers high up.
+- The autopilot no longer uses the boost with passengers aboard.
+
 ## Jobs: cargo between stations, a clearer set of work, and ranks that open it
 
 - **Cargo runs** are the new everyday job. A station has a load for
@@ -283,7 +305,7 @@ what is worth showing:
 - **Messages take turns** on one line: a danger interrupts, job news waits
   until it is done, a repeated message just stays up longer, and news that
   waited more than six seconds is dropped instead of shown late.
-- **Quieter world labels**: stations are named only within about 12,700 km,
+- **Quieter world labels**: stations are named only within about 8,500 km,
   healthy cities are not labelled, and satellites are named only when close
   or in the way. Icons stay.
 - **In a fight the board lists the rocks first** (after anything with a
@@ -639,7 +661,7 @@ idle time, every message shown) are what the fixes above came from.
 
 ## Stage 1: the foundation
 
-- A large planet: Earth's radius is 40 world units and the ship is about 2,
+- A large planet: Earth's radius is 60 world units and the ship is about 2,
   so the planet fills the view from low orbit. Fine surface detail fades in
   near the ground.
 - Natural flight: nothing slows the ship in space, so it coasts until you
@@ -804,9 +826,9 @@ not expose it.
 URL options for testing: `?autostart` skips the menu and mouse capture, and
 `?skipLaunch` skips the launch sequence.
 
-Distances use 1 world unit = 159 km (Earth's radius is 40 units). Time is
-compressed 38 times, so asteroid speeds read as realistic impact speeds
-(about 6 to 35 km/s) while a field still lasts a minute or two.
+Distances use 1 world unit = 106 km (Earth's radius is 60 units). Time is
+compressed 28 times, so asteroid speeds read as realistic impact speeds
+(about 6 to 25 km/s) while a field still lasts a minute or two.
 
 ## 3D models (Blender)
 
