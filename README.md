@@ -46,9 +46,53 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Tab | Tactical map (time slows; mouse rotates the view) |
 | C | Switch between chase and cockpit camera |
 | P | Photo mode: the action freezes; mouse orbits, W/S zoom, 1-4 looks, Space takes the picture |
+| G | Choose what the target compass points at: auto, priority rock, job, nearest station, home |
+| Hold X | Turn the nose towards the compass objective (not on a hardcore licence) |
+| B / hold B | Scanner range (auto, close, medium, far) / enlarge the scanner |
+| H | Help: what to do now, controls, jobs, how to read the screen |
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## Navigation, a better scanner, and help
+
+Space has no fixed "up", so "turn left" stops meaning much once the ship
+has rolled. Everything here works in the ship's own frame and shows the
+way as a picture beside the crosshair:
+
+- **One objective**, shown the same way everywhere. The game picks it
+  (the priority rock in a fight, the job's next stop, home to Aegis when
+  fuel or hull is low); **G** cycles auto, priority rock, job, nearest
+  station and home. Colours: yellow rock, cyan job, green station, blue home.
+- **Target compass** beside the crosshair: the dot is the objective. In
+  the centre it is dead ahead; towards an edge, turn that way; a **hollow**
+  dot is **behind** you. Earth's side is marked in blue. Underneath: how
+  many degrees to turn (green **ON TARGET** within 5 degrees), the
+  distance, the arrival time while closing, and ▲/▼ how far above or below.
+- **Steering arrow** around the crosshair, pointing the way to turn; it
+  shrinks as the nose comes round. The old off-screen arrows step aside
+  while it shows.
+- **Velocity marker**: where the ship is really going relative to the
+  objective. Put it on the target to meet it.
+- **Approach guide** near stations and jobs: chevrons leading in, and
+  the speed to arrive at ("SLOW TO 29 km/s · BRAKE (S)").
+- **Hold X** turns the nose towards the objective (turning only; you
+  still thrust). Not available on a hardcore licence.
+- **Scanner**: zooms itself so the objective is readable (B cycles auto,
+  close, medium and far; hold B to enlarge); rocks heading for Earth are
+  diamonds, harmless rocks faint dots; the objective pulses with a line
+  from your ship and its height; a faint wedge shows what the cameras see.
+- **Help (H)** pauses flight. "What now?" is advice written from your
+  situation, most important first (a storm, low hull or fuel, the rock and
+  how to deal with it, the job, what the compass points at). The other
+  tabs explain the controls by purpose, how each job works, and how to
+  read every marker and scanner symbol. Help is also on the pause screen
+  and the menu ("How to play"), a small "H help" chip stays on screen,
+  and fifteen idle seconds in flight suggest it.
+
+A test flies 200 random starting orientations with a pilot that sees only
+the compass dot; every one reaches ON TARGET in under three seconds, so
+the compass never mixes up left and right or up and down.
 
 ## HUD simplification: what matters now, everything on Tab
 

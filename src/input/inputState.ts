@@ -54,6 +54,11 @@ export class InputState {
     return wasPressed;
   }
 
+  /** True while any key or the mouse button is held: the pilot is busy, not idle. */
+  get busy(): boolean {
+    return this.held.size > 0 || this.primaryHeld;
+  }
+
   get firingPrimary(): boolean {
     return this.primaryHeld || this.held.has('Space');
   }

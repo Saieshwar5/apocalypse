@@ -53,6 +53,9 @@ export class HelpDesk {
       this.screen.show(this.deps.advice());
       return;
     }
+    if (input.busy) {
+      input.lastActivity = performance.now();
+    }
     const idle = (performance.now() - input.lastActivity) / 1000 > IDLE_SECONDS;
     if (idle && !this.idlePrompted) {
       hud.showMessage('Not sure what to do? Press H for help', 'info', 4);
