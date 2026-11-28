@@ -34,6 +34,9 @@ export interface HaulWorkDependencies {
   fit: () => ModuleEffects;
 }
 
+/** A loose haul rock is held inside this radius by Ceres's beacon tug. */
+const HOLD_RADIUS = 140;
+
 /** Ceres accepts a rock released this close to its intake... */
 const INTAKE_RANGE = 10;
 
@@ -78,6 +81,7 @@ export class HaulWork {
     const rock = field.spawnFragment('medium', 'carbon', position, drift);
     rock.passerBy = true;
     rock.identified = true;
+    rock.kept = true;
     const tonnes = haulTonnes(rock.radius);
     this.haul = { rock, body: rockBody(rock), tonnes, connectedAt: null, par: 0 };
     hud.showMessage(`Ceres Works: haul a ${tonnes.toFixed(1)} t carbon rock to our intake for ${formatCredits(this.pay(tonnes))}`, 'info', 5);
@@ -144,6 +148,15 @@ export class HaulWork {
 
   /** The job ends if the rock is destroyed or lost. */
   update(): void {
+    const rock = this.haul?.rock;
+    if (rock?.alive && this.deps.tow.body !== this.haul?.body) {
+      // Ceres's beacon tug stops a loose rock drifting out of the orbit band (blasts nearby push it).
+      const distance = rock.mesh.position.length();
+      const outward = rock.velocity.dot(rock.mesh.position) / Math.max(distance, 1e-6);
+      if (distance > HOLD_RADIUS && outward > 0) {
+        rock.velocity.addScaledVector(rock.mesh.position, -outward / distance);
+      }
+    }
     if (this.haul && !this.haul.rock.alive) {
       if (this.deps.tow.body === this.haul.body) {
         this.deps.tow.releaseBody();
