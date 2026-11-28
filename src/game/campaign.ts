@@ -17,6 +17,8 @@ import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import type { ContractBook } from './contractBook';
 import type { SatelliteWork } from './satelliteWork';
 import type { RadioNet } from './radioNet';
+import { TrainingFlight } from './trainingFlight';
+import { beatForSector } from '../logic/story';
 import type { ShipController } from '../ship/shipController';
 import type { SiteDefence } from '../sites/siteDefence';
 import { STATION_NAME, type StationOperations } from '../station/stationOperations';
@@ -56,6 +58,8 @@ export interface CampaignDependencies {
   /** Working satellites, which pay the pilot a fee when a field is cleared. */
   workingSatellites: () => number;
   radio: RadioNet;
+  /** Records that the training flight was completed. */
+  onTrainingComplete: () => void;
 }
 
 /**
@@ -65,6 +69,8 @@ export interface CampaignDependencies {
  */
 export class Campaign {
   readonly director: WaveDirector;
+  /** The guided first flight; fields wait while it runs. */
+  readonly training: TrainingFlight;
   levels: UpgradeLevels = noUpgrades();
   orbitComplete = false;
   private readonly orbitMap: OrbitMap;
@@ -88,6 +94,16 @@ export class Campaign {
       return found;
     };
     this.orbitMap = new OrbitMap(find<HTMLCanvasElement>('#orbit-map'), find('#orbit-label'));
+    this.training = new TrainingFlight({
+      ship: deps.ship,
+      field: deps.field,
+      stationOps: deps.stationOps,
+      input: deps.input,
+      hud: deps.hud,
+      sound: deps.sound,
+      radio: deps.radio,
+      onComplete: deps.onTrainingComplete,
+    });
     this.workshop = new WorkshopPanel(find('#workshop'), find('#workshop-credits'), find<HTMLOListElement>('#workshop-list'));
   }
 
@@ -100,8 +116,12 @@ export class Campaign {
     return this.deps.session.wallet.balance;
   }
 
-  reset(difficulty = 0, keepUpgrades = false): void {
+  reset(difficulty = 0, keepUpgrades = false, training = false): void {
     this.director.reset(difficulty);
+    this.training.stop();
+    if (training) {
+      this.training.start();
+    }
     if (!keepUpgrades) {
       this.levels = noUpgrades();
     }
@@ -116,6 +136,11 @@ export class Campaign {
 
   update(deltaSeconds: number): void {
     const { input, hud, stationOps } = this.deps;
+    if (this.training.active) {
+      this.training.update(deltaSeconds);
+      this.workshop.update(stationOps.docking.state === 'docked', this.levels, this.credits);
+      return;
+    }
     this.seconds += deltaSeconds;
     this.handleEvents(this.director.update(deltaSeconds, this.deps.field.threatCount));
     this.releasePassersBy(deltaSeconds);
@@ -175,6 +200,10 @@ export class Campaign {
         session.impactsThisWave = 0;
         session.destroyedThisWave = 0;
         this.deps.contracts.startField();
+        const beat = beatForSector(event.index);
+        if (beat) {
+          this.deps.radio.say(beat.speaker, beat.line);
+        }
         const plan = event.plan;
         if (!plan) {
           const dock = stationOps.present ? ` Dock at ${STATION_NAME} to refuel and upgrade.` : '';

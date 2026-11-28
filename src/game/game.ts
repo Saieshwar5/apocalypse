@@ -32,6 +32,8 @@ import { createSampler, effectiveQuality, sampleFrame, type GraphicsQuality } fr
 import { EnvironmentLighting } from '../scene/environmentLighting';
 import { RadioNet } from './radioNet';
 import { DEFAULT_CALL_SIGN } from '../logic/cast';
+import { nextRank, rankFor, recordCareerRun } from '../logic/career';
+import { loadCareer, saveCareer } from './careerStore';
 import { FrameStats } from '../scene/frameStats';
 
 export type GamePhase = 'menu' | 'launch' | 'playing' | 'paused' | 'gameover';
@@ -40,6 +42,8 @@ export interface GameOptions {
   /** Skip the menu and pointer lock (used by automated browser checks). */
   autostart: boolean;
   skipLaunch: boolean;
+  /** Start with the guided training flight (?training). */
+  training?: boolean;
 }
 
 const SUN_DIRECTION = new THREE.Vector3(1, 0.25, 0.45).normalize();
@@ -68,7 +72,8 @@ export class Game {
   private qualityPreference: QualityPreference = 'auto';
   private autoQuality: GraphicsQuality = 'high';
   private callSign = DEFAULT_CALL_SIGN;
-  private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign });
+  private career = loadCareer();
+  private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => rankFor(this.career) });
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -97,6 +102,7 @@ export class Game {
     this.radar = new Radar(radarCanvas);
     this.screens = new GameScreens({
       onStart: () => this.startRun(0),
+      onTraining: () => this.startRun(0, true),
       onResume: () => this.resume(),
       onRestart: () => this.startRun(0),
       onNext: () => this.startRun(this.systemIndex + 1),
@@ -160,6 +166,10 @@ export class Game {
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
       radio: this.radio,
+      onTrainingComplete: () => {
+        this.career = { ...this.career, trainingDone: true };
+        saveCareer(this.career);
+      },
     });
     this.shipModel.group.visible = false;
 
@@ -176,9 +186,10 @@ export class Game {
     applySettings(settings);
     bindSettingsControls(settings, applySettings);
     this.screens.showMenu();
+    this.showRank();
 
     if (this.options.autostart) {
-      this.startRun(0);
+      this.startRun(0, this.options.training === true);
     }
     // Connecting to the document stops a huge delta after the tab was hidden.
     this.timer.connect(document);
@@ -186,7 +197,7 @@ export class Game {
   }
 
   /** Starts a run in the given star system; systems after the first continue the campaign. */
-  private startRun(systemIndex: number): void {
+  private startRun(systemIndex: number, training = false): void {
     const system = STAR_SYSTEMS[systemIndex] ?? STAR_SYSTEMS[0];
     const continuing = systemIndex > 0 && system === STAR_SYSTEMS[systemIndex];
     this.systemIndex = continuing ? systemIndex : 0;
@@ -196,7 +207,7 @@ export class Game {
     } else {
       this.session.reset();
     }
-    this.play.reset(system, continuing);
+    this.play.reset(system, continuing, training);
     this.applySystemLook();
     this.radio.reset();
     this.explosions.clear();
@@ -377,6 +388,25 @@ export class Game {
     }
   }
 
+  /** Adds the run to the career and returns the rank line for the end screen. */
+  private recordCareer(victory: boolean): string {
+    const before = rankFor(this.career);
+    const seasonCompleted = victory && this.play.licence.stage === 'good';
+    this.career = recordCareerRun(this.career, this.session.wallet.earned, seasonCompleted);
+    saveCareer(this.career);
+    this.showRank();
+    const after = rankFor(this.career);
+    return after === before ? after : `${after} (promoted from ${before})`;
+  }
+
+  private showRank(): void {
+    const next = nextRank(this.career);
+    const needs = next
+      ? `: ${[next.earnedNeeded > 0 ? `${next.earnedNeeded.toLocaleString('en-US')} cr more` : '', next.seasonsNeeded > 0 ? `${next.seasonsNeeded} more season${next.seasonsNeeded > 1 ? 's' : ''}` : ''].filter(Boolean).join(' and ')} to ${next.name}`
+      : '';
+    this.screens.setRank(`Rank: ${rankFor(this.career)}${needs} · career earnings ${this.career.earned.toLocaleString('en-US')} cr`);
+  }
+
   private endRun(reason: string, victory = false): void {
     this.phase = 'gameover';
     this.input.releasePointerLock();
@@ -410,6 +440,7 @@ export class Game {
       reputation: this.play.licence.reputation,
       licence: this.play.licence.stage,
       shipsLost: this.play.licence.shipsLost,
+      rank: this.recordCareer(victory),
       debrisSwept: this.play.services.debris.swept,
       league: this.session.league().map(({ pilot, earned }) => ({ name: pilotName(pilot), earned, you: pilot === 'player' })),
       wavesCleared: this.session.wavesCleared,

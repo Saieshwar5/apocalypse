@@ -840,6 +840,16 @@ button.secondary {
   font: inherit;
 }
 
+.rank-line {
+  margin: 10px 0 12px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+#training-button {
+  margin-top: 8px;
+}
+
 .callsign {
   display: flex;
   align-items: center;

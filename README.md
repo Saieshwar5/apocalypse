@@ -49,6 +49,25 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 6b: training flight, ranks and Season 1
+
+- **Training flight** (menu button, or `?training` in the address): Capcom
+  walks a new pilot through seven steps, one at a time, with the step on the
+  hint line and a marker where needed: thrust, coast and brake to a stop,
+  steer onto a marker, slide, scan a practice rock, shoot it, and dock at
+  Aegis. Debris fields wait until it is done; Enter skips it. The ship starts
+  the lesson pointing along the orbit, away from Aegis.
+- **Ranks** across runs, kept in this browser: Cadet, Pilot (2,000 cr career
+  earnings), Senior Pilot (8,000 cr and a completed season), Commander
+  (20,000 cr and three seasons). The menu shows the rank and what the next
+  needs; the end screen shows promotions; Capcom greets the pilot by rank.
+  A season counts when the orbit is completed in good standing.
+- **Season 1, "The Stream"**: story beats on the radio as the orbit passes
+  certain sectors: forecasts that keep being wrong, Perihelion Mining's record
+  profits, Kestrel's ship payments, rocks on paths no comet makes, and the
+  call for every pilot to work together on the giant. The victory screen now
+  reads "Season complete".
+
 ## Stage 6a: people and voices
 
 - Choose **your call sign** on the menu (letters, digits, spaces and hyphens,
@@ -396,7 +415,8 @@ contract pay, station prices and the wallet, the tow line, placement and
 satellite job paths, rival choices, shared pay, radio rationing, the autopilot,
 the Cascade (debris, drag, growth, sweeping, orbits through a point), automatic
 quality, reputation, probation, insurance and the emergency loan, station prices,
-shuttle routes and haul masses, call signs and radio rationing,
+shuttle routes and haul masses, call signs and radio rationing, career ranks and
+the season's story beats,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.

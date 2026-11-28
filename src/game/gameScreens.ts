@@ -6,6 +6,7 @@ const LICENCE_LABEL: Record<string, string> = { good: 'Good standing', warning: 
 
 export interface ScreenActions {
   onStart(): void;
+  onTraining(): void;
   onResume(): void;
   onRestart(): void;
   onNext(): void;
@@ -22,6 +23,7 @@ export interface RunSummary {
   reputation: number;
   licence: string;
   shipsLost: number;
+  rank: string;
   /** Tonnes of debris swept from orbit. */
   debrisSwept: number;
   /** Every pilot's earnings, best first. */
@@ -66,10 +68,16 @@ export class GameScreens {
 
   constructor(actions: ScreenActions) {
     this.startButton.addEventListener('click', () => actions.onStart());
+    element<HTMLButtonElement>('#training-button').addEventListener('click', () => actions.onTraining());
     element<HTMLButtonElement>('#resume-button').addEventListener('click', () => actions.onResume());
     element<HTMLButtonElement>('#restart-button').addEventListener('click', () => actions.onRestart());
     element<HTMLButtonElement>('#next-button').addEventListener('click', () => actions.onNext());
     element<HTMLButtonElement>('#share-button').addEventListener('click', () => actions.onShare());
+  }
+
+  /** The pilot's rank and what the next one needs, on the menu. */
+  setRank(text: string): void {
+    element<HTMLParagraphElement>('#rank-line').textContent = text;
   }
 
   showMenu(): void {
@@ -90,6 +98,7 @@ export class GameScreens {
     const rows: [string, string][] = [
       ['Licence', `${LICENCE_LABEL[summary.licence] ?? summary.licence} · ${Math.round(summary.reputation)}`],
       ['Ships lost', String(summary.shipsLost)],
+      ['Career rank', summary.rank],
       ['Earned', formatCredits(summary.earned)],
       ['Spent at the station', formatCredits(summary.spent)],
       ['Balance', formatCredits(summary.balance)],
@@ -116,7 +125,7 @@ export class GameScreens {
     element<HTMLParagraphElement>('#failure-reason').textContent = summary.reason;
     const stars = orbitRating(summary.integrity, summary.citiesStanding, summary.cityCount);
     element<HTMLHeadingElement>('#outcome-heading').textContent = summary.victory
-      ? `Orbit complete ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`
+      ? `Season complete ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`
       : 'Mission failed';
     this.gameOver.dataset.outcome = summary.victory ? 'victory' : 'defeat';
     const nextButton = element<HTMLButtonElement>('#next-button');

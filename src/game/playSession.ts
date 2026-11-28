@@ -76,6 +76,7 @@ export interface PlaySessionDependencies {
   setCockpitFrame: (visible: boolean) => void;
   /** The shared radio channel: mission control, station chiefs, rivals. */
   radio: RadioNet;
+  onTrainingComplete: () => void;
 }
 
 /**
@@ -239,6 +240,7 @@ export class PlaySession {
       postHaul: () => this.services.haul.post(),
       workingSatellites: () => this.satellites.fleet.aliveCount,
       radio: deps.radio,
+      onTrainingComplete: deps.onTrainingComplete,
     });
   }
 
@@ -252,7 +254,7 @@ export class PlaySession {
   }
 
   /** `keepUpgrades` carries the workshop upgrades into the next star system. */
-  reset(system: StarSystem = STAR_SYSTEMS[0], keepUpgrades = false): void {
+  reset(system: StarSystem = STAR_SYSTEMS[0], keepUpgrades = false, training = false): void {
     this.sites.setDefinitions(system.sites);
     this.siteMarkers.rebuild();
     this.field.clear();
@@ -263,7 +265,7 @@ export class PlaySession {
     this.feedback.clear();
     this.laser.reset();
     this.missiles.reset();
-    this.campaign.reset(system.difficulty, keepUpgrades);
+    this.campaign.reset(system.difficulty, keepUpgrades, training);
     this.plumes.clear();
     this.hazards.reset();
     this.stationOps.reset();
@@ -487,7 +489,7 @@ export class PlaySession {
         shipVelocity: ship.velocity,
         showDrift: !ship.assist,
         priorityPay: this.guidance.priority ? this.contracts.offerFor(this.guidance.priority.item) : 0,
-        waypoint: this.services.waypoint(),
+        waypoint: this.campaign.training.waypoint() ?? this.services.waypoint(),
         debris: this.services.debris.labels(ship.position),
         priorityEstimate: this.guidance.priority ? !this.guidance.priority.item.identified : false,
       },
