@@ -1,22 +1,33 @@
 import type * as THREE from 'three';
-import type { Asteroid } from '../asteroids/asteroidField';
 import { MATERIAL_TRAITS, type AsteroidSize } from '../logic/asteroidClasses';
 import type { AltitudeReadout, AtmosphereZone } from '../logic/atmosphere';
 import { integrityLevel, threatRating } from '../logic/planetDamage';
+import { formatCredits } from '../logic/contracts';
+import { CASCADE } from '../logic/cascade';
 import { formatCountdown, formatDistance, formatSpeed } from '../logic/units';
+import type { ContractListing } from '../game/contractBook';
+import type { JobRow } from '../game/satelliteWork';
 import type { SiteState } from '../sites/siteDefence';
 import { SitePanel } from './sitePanel';
 
 export interface HudSnapshot {
   integrity: number;
+  /** Orbit Health: 100 is clean orbit, 0 means the cascade has closed it. */
+  orbitHealth: number;
+  licence: { summary: string; stage: string };
   wave: number;
-  score: number;
-  threats: readonly Asteroid[];
+  balance: number;
+  earned: number;
+  /** Earnings of every pilot, best first. */
+  league: readonly { name: string; earned: number; color: string; you: boolean }[];
+  /** Open defence contracts, most urgent first. */
+  contracts: readonly ContractListing[];
+  /** Line under the board: this field's earnings, or what comes next. */
+  contractSummary: string;
   laserHeat: number;
   overheated: boolean;
   missiles: number;
   missileCapacity: number;
-  credits: number;
   fuelCapacity: number;
   shieldCapacity: number;
   boost: number;
@@ -44,7 +55,13 @@ export interface HudSnapshot {
     autopilot: string | null;
     thrusting: boolean;
     braking: boolean;
+    /** Held at a station berth or docked. */
+    berthed: boolean;
+    /** What is on the tow line, or null. */
+    towing: string | null;
   };
+  /** Satellite contracts, shown above the defence contracts. */
+  jobs: readonly JobRow[];
 }
 
 const ZONE_LABEL: Record<AtmosphereZone, string> = {
@@ -58,6 +75,12 @@ export type MessageTone = 'info' | 'warning' | 'danger' | 'success';
 
 const SIZE_NAME: Record<AsteroidSize, string> = { small: 'Small', medium: 'Medium', large: 'Large', giant: 'Giant' };
 const VISIBLE_THREATS = 5;
+
+function setText(target: HTMLElement, text: string): void {
+  if (target.textContent !== text) {
+    target.textContent = text;
+  }
+}
 
 function setStatus(target: HTMLElement, state: string, text: string): void {
   if (target.dataset.state !== state) {
@@ -81,9 +104,15 @@ export class Hud {
   private readonly root = element<HTMLDivElement>('#hud');
   private readonly integrityBar = element<HTMLDivElement>('#integrity-bar');
   private readonly integrityValue = element<HTMLSpanElement>('#integrity-value');
+  private readonly orbitBar = element<HTMLDivElement>('#orbit-health-bar');
+  private readonly licenceValue = element<HTMLElement>('#licence-value');
+  private readonly orbitValue = element<HTMLSpanElement>('#orbit-health-value');
   private readonly waveValue = element<HTMLElement>('#wave-value');
-  private readonly scoreValue = element<HTMLElement>('#score-value');
-  private readonly creditsValue = element<HTMLElement>('#credits-value');
+  private readonly balanceValue = element<HTMLElement>('#balance-value');
+  private readonly earnedValue = element<HTMLElement>('#earned-value');
+  private readonly leagueValue = element<HTMLElement>('#league-value');
+  private lastLeague = '';
+  private readonly contractSummary = element<HTMLElement>('#contract-summary');
   private readonly threatList = element<HTMLOListElement>('#threat-list');
   private readonly heatBar = element<HTMLDivElement>('#heat-bar');
   private readonly missileValue = element<HTMLElement>('#missile-value');
@@ -101,9 +130,12 @@ export class Hud {
   private readonly atmosphereValue = element<HTMLElement>('#atmosphere-value');
   private readonly zoneValue = element<HTMLElement>('#zone-value');
   private readonly hint = element<HTMLDivElement>('#hud-hint');
+  private readonly radio = element<HTMLDivElement>('#radio-line');
+  private radioTimer = 0;
   private readonly steerStatus = element<HTMLElement>('#steer-status');
   private readonly assistStatus = element<HTMLElement>('#assist-status');
   private readonly motionStatus = element<HTMLElement>('#motion-status');
+  private readonly towStatus = element<HTMLElement>('#tow-status');
   private readonly damageFlash = element<HTMLDivElement>('#damage-flash');
   private readonly defaultHint = this.hint.textContent ?? '';
   private sitePanel: SitePanel | null = null;
@@ -121,9 +153,19 @@ export class Hud {
     this.integrityBar.style.width = `${integrity}%`;
     this.integrityBar.dataset.level = integrityLevel(integrity);
     this.integrityValue.textContent = `${integrity.toFixed(0)}%`;
+    const orbit = Math.max(0, snapshot.orbitHealth);
+    this.orbitBar.style.width = `${orbit}%`;
+    this.orbitBar.dataset.level = orbit > 60 ? 'stable' : orbit > CASCADE.tippingHealth ? 'damaged' : 'critical';
+    setText(this.orbitValue, `${orbit.toFixed(0)}%`);
+    setText(this.licenceValue, snapshot.licence.summary);
+    if (this.licenceValue.dataset.stage !== snapshot.licence.stage) {
+      this.licenceValue.dataset.stage = snapshot.licence.stage;
+    }
     this.waveValue.textContent = String(snapshot.wave);
-    this.scoreValue.textContent = snapshot.score.toLocaleString();
-    this.creditsValue.textContent = snapshot.credits.toLocaleString();
+    setText(this.balanceValue, formatCredits(snapshot.balance));
+    setText(this.earnedValue, formatCredits(snapshot.earned));
+    setText(this.contractSummary, snapshot.contractSummary);
+    this.renderLeague(snapshot.league);
 
     this.heatBar.style.width = `${snapshot.laserHeat}%`;
     this.heatBar.dataset.level = snapshot.overheated ? 'critical' : snapshot.laserHeat > 70 ? 'damaged' : 'stable';
@@ -162,6 +204,13 @@ export class Hud {
       this.damageFlash.style.opacity = String(this.flash);
     }
 
+    if (this.radioTimer > 0) {
+      this.radioTimer -= deltaSeconds;
+      if (this.radioTimer <= 0) {
+        this.radio.classList.remove('visible');
+      }
+    }
+
     if (this.messageTimer > 0) {
       this.messageTimer -= deltaSeconds;
       if (this.messageTimer <= 0) {
@@ -196,17 +245,35 @@ export class Hud {
     }
   }
 
+  private renderLeague(league: HudSnapshot['league']): void {
+    const key = league.map((row) => `${row.name}:${Math.round(row.earned)}`).join('|');
+    if (key === this.lastLeague) {
+      return;
+    }
+    this.lastLeague = key;
+    this.leagueValue.replaceChildren(
+      ...league.map((row, index) => {
+        const entry = document.createElement('span');
+        entry.textContent = `${index + 1}. ${row.you ? 'YOU' : row.name} ${Math.round(row.earned).toLocaleString('en-US')}`;
+        entry.style.color = row.color;
+        return entry;
+      }),
+    );
+  }
+
   /** Says plainly who is steering and what the engines are doing. */
   private renderControls(snapshot: HudSnapshot): void {
     const { controls, speed } = snapshot;
     setStatus(
       this.steerStatus,
       controls.autopilot ? 'alert' : controls.mouseCaptured ? 'on' : 'off',
-      controls.autopilot ?? (controls.mouseCaptured ? 'MOUSE STEERING' : 'CLICK TO STEER WITH THE MOUSE · ARROWS ALSO STEER'),
+      controls.autopilot ?? (controls.mouseCaptured ? 'MOUSE STEERING' : 'CLICK FOR MOUSE STEERING'),
     );
     setStatus(this.assistStatus, controls.assist ? 'on' : 'off', controls.assist ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF: DRIFTING');
-    const motion = controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING: S TO BRAKE';
+    const motion = controls.berthed ? 'BERTHED' : controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING';
     setStatus(this.motionStatus, controls.braking ? 'off' : 'on', motion);
+    this.towStatus.hidden = controls.towing === null;
+    setStatus(this.towStatus, 'off', controls.towing ?? '');
   }
 
   private renderPosition(snapshot: HudSnapshot): void {
@@ -220,6 +287,16 @@ export class Hud {
       this.zoneValue.textContent = ZONE_LABEL[zone];
       this.atmosphereValue.dataset.zone = zone;
     }
+  }
+
+  /** A rival pilot on the radio, under the main message. */
+  showRadio(name: string, color: string, text: string, seconds = 4.5): void {
+    const label = document.createElement('strong');
+    label.textContent = name;
+    label.style.color = color;
+    this.radio.replaceChildren(label, document.createTextNode(text));
+    this.radio.classList.add('visible');
+    this.radioTimer = seconds;
   }
 
   /** Called for urgent messages so mission control can read them aloud. */
@@ -236,20 +313,29 @@ export class Hud {
   }
 
   private renderThreats(snapshot: HudSnapshot): void {
-    const rows = snapshot.threats.slice(0, VISIBLE_THREATS).map((asteroid) => {
-      const eta = asteroid.timeToImpact === null ? 'misses' : formatCountdown(asteroid.timeToImpact);
-      const harmless = asteroid.identified && asteroid.assessedDamage === 0;
-      const urgent = !harmless && asteroid.timeToImpact !== null && (asteroid.timeToImpact < 20 || asteroid.threatensSite);
+    const jobs = snapshot.jobs.map(
+      (job) =>
+        `<li class="job ${job.urgent ? 'urgent' : ''}"><span>${job.title}</span><span class="threat-pay">${formatCredits(job.pay)}</span><span class="threat-detail">${job.detail}</span></li>`,
+    );
+    const rows = snapshot.contracts.slice(0, VISIBLE_THREATS).map(({ asteroid, pay, estimate }) => {
+      const eta = asteroid.timeToImpact === null ? 'off course' : formatCountdown(asteroid.timeToImpact);
+      const urgent = asteroid.timeToImpact !== null && (asteroid.timeToImpact < 20 || asteroid.threatensSite);
       const distance = formatDistance(snapshot.shipPosition.distanceTo(asteroid.mesh.position) - asteroid.radius);
       const rating = threatRating(asteroid.size, asteroid.material, asteroid.timeToImpact === null);
       const what = asteroid.identified
         ? `${SIZE_NAME[asteroid.size]} ${MATERIAL_TRAITS[asteroid.material].label.toLowerCase()} · ${rating}`
         : `${SIZE_NAME[asteroid.size]} unidentified`;
       const name = `${what}${asteroid.targetSite ? ` → ${asteroid.targetSite.toUpperCase()}` : ''}`;
-      const detail = `${distance} away · ${formatSpeed(asteroid.velocity.length())}`;
+      const offer = `<span class="threat-pay${estimate ? ' estimate' : ''}">${estimate ? '~' : ''}${formatCredits(pay)}</span>`;
+      const detail = `${offer} · ${distance} away · ${formatSpeed(asteroid.velocity.length())}`;
       return `<li class="${urgent ? 'urgent' : ''}"><span>${name}</span><span class="threat-eta">${eta}</span><span class="threat-detail">${detail}</span></li>`;
     });
-    const markup = rows.length > 0 ? rows.join('') : '<li class="empty">No contacts</li>';
+    const hidden = snapshot.contracts.length - rows.length;
+    if (hidden > 0) {
+      rows.push(`<li class="empty">+${hidden} more</li>`);
+    }
+    rows.unshift(...jobs);
+    const markup = rows.length > 0 ? rows.join('') : '<li class="empty">No open contracts</li>';
     // Rewriting identical markup every frame would waste layout work.
     if (markup !== this.lastThreatMarkup) {
       this.threatList.innerHTML = markup;

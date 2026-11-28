@@ -1,6 +1,8 @@
 import type * as THREE from 'three';
 import type { Guidance } from '../game/guidance';
+import type { Waypoint } from '../game/satelliteWork';
 import type { InterceptVerdict } from '../logic/guidance';
+import { formatCredits } from '../logic/contracts';
 import { formatCountdown, formatDistance } from '../logic/units';
 import type { Satellite } from '../satellites/satelliteFleet';
 import type { ScreenProjector } from './screenProjector';
@@ -30,6 +32,14 @@ export interface GuidanceFrame {
   shipVelocity: THREE.Vector3;
   /** Flight assist off: show where the ship is really moving. */
   showDrift: boolean;
+  /** Contract offer for the priority target, in credits; 0 when none. */
+  priorityPay: number;
+  /** True when the offer is an estimate because the rock is not scanned yet. */
+  priorityEstimate: boolean;
+  /** Where the current satellite job wants the ship to go. */
+  waypoint: Waypoint | null;
+  /** Nearby debris clouds. */
+  debris: readonly { world: THREE.Vector3; text: string }[];
 }
 
 /**
@@ -42,8 +52,10 @@ export function drawGuidance(context: CanvasRenderingContext2D, projector: Scree
   context.font = `700 11px ${MONO}`;
   context.lineWidth = 1.5;
   drawSatellites(context, projector, frame);
+  drawDebris(context, projector, frame);
   drawDrift(context, projector, frame);
   drawPriority(context, projector, frame, elapsed);
+  drawWaypoint(context, projector, frame, elapsed);
   context.restore();
 }
 
@@ -55,6 +67,7 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
   const point = projector.project(priority.item.mesh.position);
   const times = `REACH ${formatCountdown(priority.reachSeconds)} · IMPACT ${formatCountdown(priority.impactSeconds)}`;
   const verdict = VERDICT_TEXT[priority.verdict];
+  const pay = frame.priorityPay > 0 ? ` · ${frame.priorityEstimate ? '~' : ''}${formatCredits(frame.priorityPay)}` : '';
   const centreX = projector.width / 2;
   const centreY = projector.height / 2;
 
@@ -73,7 +86,7 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
     context.stroke();
     context.textAlign = 'center';
     context.fillStyle = PRIORITY_COLOR;
-    context.fillText('PRIORITY', point.x, point.y - size - 24);
+    context.fillText(`PRIORITY${pay}`, point.x, point.y - size - 24);
     context.fillStyle = 'rgba(232, 241, 255, 0.9)';
     context.fillText(times, point.x, point.y - size - 11);
     context.fillStyle = VERDICT_COLOR[priority.verdict];
@@ -100,15 +113,15 @@ function drawPriority(context: CanvasRenderingContext2D, projector: ScreenProjec
   context.fill();
   context.restore();
 
-  const textX = centreX + Math.cos(angle) * (ring + 30);
-  const textY = centreY + Math.sin(angle) * (ring + 30) + (Math.sin(angle) > 0.5 ? 14 : 0);
-  context.textAlign = Math.cos(angle) > 0.3 ? 'left' : Math.cos(angle) < -0.3 ? 'right' : 'center';
+  // The text sits under the reticle, where it never hides behind a panel.
+  const textY = centreY + ring + 34;
+  context.textAlign = 'center';
   context.fillStyle = PRIORITY_COLOR;
-  context.fillText(`PRIORITY · TURN ${priority.cue} · ${formatDistance(priority.distance)}`, textX, textY);
+  context.fillText(`PRIORITY${pay} · TURN ${priority.cue} · ${formatDistance(priority.distance)}`, centreX, textY);
   context.fillStyle = 'rgba(232, 241, 255, 0.9)';
-  context.fillText(times, textX, textY + 13);
+  context.fillText(times, centreX, textY + 13);
   context.fillStyle = VERDICT_COLOR[priority.verdict];
-  context.fillText(verdict, textX, textY + 26);
+  context.fillText(verdict, centreX, textY + 26);
 }
 
 function drawSatellites(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: GuidanceFrame): void {
@@ -170,4 +183,75 @@ function drawDrift(context: CanvasRenderingContext2D, projector: ScreenProjector
   context.stroke();
   context.textAlign = 'left';
   context.fillText('DRIFT', point.x + 18, point.y + 4);
+}
+
+const WAYPOINT_COLOR = '#8fd3ff';
+
+/** The satellite job's next stop: a cyan diamond, or an arrow above the reticle when out of view. */
+function drawWaypoint(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: GuidanceFrame, elapsed: number): void {
+  const waypoint = frame.waypoint;
+  if (!waypoint) {
+    return;
+  }
+  const point = projector.project(waypoint.world);
+  const distance = formatDistance(waypoint.world.distanceTo(frame.shipPosition));
+  context.save();
+  context.font = `700 11px ${MONO}`;
+  context.strokeStyle = WAYPOINT_COLOR;
+  context.fillStyle = WAYPOINT_COLOR;
+  context.lineWidth = 2;
+  if (point.visible) {
+    const size = 11 + 2 * Math.sin(elapsed * 4);
+    context.beginPath();
+    context.moveTo(point.x, point.y - size);
+    context.lineTo(point.x + size, point.y);
+    context.lineTo(point.x, point.y + size);
+    context.lineTo(point.x - size, point.y);
+    context.closePath();
+    context.stroke();
+    context.textAlign = 'center';
+    context.fillText(waypoint.label, point.x, point.y + size + 16);
+    context.fillText(distance, point.x, point.y + size + 29);
+    context.restore();
+    return;
+  }
+  const centreX = projector.width / 2;
+  const centreY = projector.height / 2;
+  const angle = Math.atan2(point.y - centreY, point.x - centreX);
+  const ring = Math.min(projector.width, projector.height) * 0.2 + 14;
+  context.translate(centreX + Math.cos(angle) * ring, centreY + Math.sin(angle) * ring);
+  context.rotate(angle);
+  context.beginPath();
+  context.moveTo(14, 0);
+  context.lineTo(0, -8);
+  context.lineTo(4, 0);
+  context.lineTo(0, 8);
+  context.closePath();
+  context.fill();
+  context.rotate(-angle);
+  context.translate(-(centreX + Math.cos(angle) * ring), -(centreY + Math.sin(angle) * ring));
+  context.textAlign = 'center';
+  // Below the priority lines, where the message banner cannot cover it.
+  context.fillText(`JOB · ${waypoint.label} · ${distance}`, centreX, centreY + ring + 78);
+  context.restore();
+}
+
+/** Debris clouds: a dashed amber ring with the cloud's mass. */
+function drawDebris(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: GuidanceFrame): void {
+  context.save();
+  context.strokeStyle = 'rgba(255, 179, 71, 0.8)';
+  context.fillStyle = 'rgba(255, 179, 71, 0.9)';
+  context.setLineDash([3, 4]);
+  context.textAlign = 'left';
+  for (const cloud of frame.debris) {
+    const point = projector.project(cloud.world);
+    if (!point.visible) {
+      continue;
+    }
+    context.beginPath();
+    context.arc(point.x, point.y, 12, 0, Math.PI * 2);
+    context.stroke();
+    context.fillText(`${cloud.text} · ${formatDistance(cloud.world.distanceTo(frame.shipPosition))}`, point.x + 16, point.y + 4);
+  }
+  context.restore();
 }

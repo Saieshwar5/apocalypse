@@ -10,6 +10,8 @@ import {
   drawFromStock,
 } from '../logic/stationSupply';
 import { stationService } from '../logic/stationDamage';
+import { PRICES, buyUnits, emergencyFuel, type Wallet } from '../logic/economy';
+import { formatCredits, formatPrice } from '../logic/contracts';
 import { formatSpeed } from '../logic/units';
 import type { ShipController } from '../ship/shipController';
 import type { MissileLauncher } from '../weapons/missileLauncher';
@@ -21,6 +23,7 @@ const RELAUNCH_COOLDOWN = 6;
 const LAUNCH_SPEED = 7;
 /** The station's solid core, in world units, for bumping into it. */
 const STATION_BODY_RADIUS = 1.7;
+const STATION_LABEL = 'Aegis';
 
 export interface DockingDependencies {
   ship: ShipController;
@@ -29,6 +32,10 @@ export interface DockingDependencies {
   sound: SoundEffects;
   hud: Hud;
   cameraRig: CameraRig;
+  /** The pilot pays for fuel, missiles and hull repairs. */
+  wallet: Wallet;
+  /** Aegis's fuel price now: it follows the station's stock. */
+  fuelPrice: () => number;
 }
 
 /**
@@ -46,6 +53,9 @@ export class DockingController {
   private cooldown = 0;
   private beepTimer = 0;
   private missileProgress = 0;
+  /** What this visit has cost so far. */
+  private bill = 0;
+  private emergencyFuelGiven = 0;
   private readonly startPosition = new THREE.Vector3();
   private readonly startOrientation = new THREE.Quaternion();
 
@@ -154,9 +164,15 @@ export class DockingController {
       this.state = 'docked';
       this.timer = 0;
       this.missileProgress = 0;
+      this.bill = 0;
+      this.emergencyFuelGiven = 0;
       sound.dockClamp();
       cameraRig.addShake(0.45);
-      hud.showMessage('Docking clamps engaged. Refuelling and rearming', 'success', 3.5);
+      hud.showMessage(
+        `Docking clamps engaged. Fuel ${formatPrice(this.deps.fuelPrice())} a unit, missiles ${formatCredits(PRICES.missile)}, hull ${formatCredits(PRICES.hullPerPoint)} a point`,
+        'success',
+        4,
+      );
     }
   }
 
@@ -169,22 +185,42 @@ export class DockingController {
     ship.velocity.copy(station.velocity);
 
     const service = stationService(station.defence.health);
-    const fuel = drawFromStock(station.stock.fuel, Math.min(SERVICE_RATE.fuel * service.rate * deltaSeconds, ship.fuelCapacity - ship.fuel));
-    ship.fuel += fuel;
-    station.stock.fuel -= fuel;
+    const { wallet } = this.deps;
+    const fuelWanted = drawFromStock(station.stock.fuel, Math.min(SERVICE_RATE.fuel * service.rate * deltaSeconds, ship.fuelCapacity - ship.fuel));
+    // A pilot who cannot pay still gets enough fuel to fly: the Authority covers it.
+    const freeFuel = wallet.balance < this.deps.fuelPrice() ? emergencyFuel(ship.fuel, fuelWanted) : 0;
+    const boughtFuel = buyUnits(fuelWanted - freeFuel, this.deps.fuelPrice(), wallet.balance);
+    this.charge(boughtFuel.cost);
+    this.emergencyFuelGiven += freeFuel;
+    ship.fuel += freeFuel + boughtFuel.units;
+    station.stock.fuel -= freeFuel + boughtFuel.units;
+
     this.missileProgress += SERVICE_RATE.missilesPerSecond * service.rate * deltaSeconds;
-    if (service.missiles && this.missileProgress >= 1 && missiles.ammunition < missiles.capacity && station.stock.missiles >= 1) {
+    // Fuel and hull come first: missiles are only bought with what is left over.
+    const reserved = (ship.fuelCapacity - ship.fuel) * this.deps.fuelPrice() + (HULL_CAPACITY - ship.hull) * PRICES.hullPerPoint;
+    const canAffordMissile = wallet.balance - Math.max(0, reserved) >= PRICES.missile;
+    if (service.missiles && this.missileProgress >= 1 && missiles.ammunition < missiles.capacity && station.stock.missiles >= 1 && canAffordMissile) {
       this.missileProgress = 0;
-      station.stock.missiles -= missiles.resupply(1);
+      const loaded = missiles.resupply(1);
+      station.stock.missiles -= loaded;
+      this.charge(loaded * PRICES.missile);
       sound.warningBeep(false);
     }
-    ship.repair(SERVICE_RATE.hull * service.rate * deltaSeconds, SERVICE_RATE.shield * deltaSeconds);
+    const hull = buyUnits(Math.min(SERVICE_RATE.hull * service.rate * deltaSeconds, HULL_CAPACITY - ship.hull), PRICES.hullPerPoint, wallet.balance);
+    this.charge(hull.cost);
+    ship.repair(hull.units, SERVICE_RATE.shield * deltaSeconds);
 
-    const fuelDone = ship.fuel >= ship.fuelCapacity - 0.01 || station.stock.fuel <= 0;
-    const missilesDone = missiles.ammunition >= missiles.capacity || station.stock.missiles < 1 || !service.missiles;
-    const done = fuelDone && missilesDone && ship.hull >= HULL_CAPACITY && ship.shield >= ship.shieldCapacity - 0.01;
-    const status = `fuel ${Math.round((ship.fuel / ship.fuelCapacity) * 100)}% · missiles ${missiles.ammunition}/${missiles.capacity} · hull ${Math.round(ship.hull)}%`;
-    this.hint = done ? `Service complete (${status}). Press W to launch` : `Docked: ${status}. Press W to launch early`;
+    const broke = wallet.balance < this.deps.fuelPrice();
+    const fuelDone = ship.fuel >= ship.fuelCapacity - 0.01 || station.stock.fuel <= 0 || (broke && freeFuel <= 0);
+    const missilesDone =
+      missiles.ammunition >= missiles.capacity || station.stock.missiles < 1 || !service.missiles || wallet.balance < PRICES.missile;
+    const hullDone = ship.hull >= HULL_CAPACITY || broke;
+    const done = fuelDone && missilesDone && hullDone && ship.shield >= ship.shieldCapacity - 0.01;
+    const status = `fuel ${Math.round((ship.fuel / ship.fuelCapacity) * 100)}% · missiles ${missiles.ammunition}/${missiles.capacity} · hull ${Math.round(ship.hull)}% · bill ${formatCredits(this.bill)}`;
+    const shortOfMoney = !canAffordMissile && missiles.ammunition < missiles.capacity ? ' · no money for missiles' : '';
+    this.hint = done
+      ? `Serviced: ${status}${shortOfMoney} · W launches`
+      : `Docked: ${status} · W launches early`;
 
     if (wantsLaunch && this.timer > 1) {
       const outward = new THREE.Vector3(0, 0, -1).applyQuaternion(pose.orientation);
@@ -193,7 +229,14 @@ export class DockingController {
       this.cooldown = RELAUNCH_COOLDOWN;
       this.hint = null;
       sound.dockClamp();
-      hud.showMessage('Clamps released. Good hunting', 'info', 2.5);
+      const covered = this.emergencyFuelGiven > 0.5 ? ` Emergency fuel covered by the Authority: ${Math.round(this.emergencyFuelGiven)} units.` : '';
+      hud.showMessage(`Clamps released. ${STATION_LABEL} bill: ${formatCredits(this.bill)}.${covered}`, 'info', 3.5);
+    }
+  }
+
+  private charge(amount: number): void {
+    if (amount > 0 && this.deps.wallet.spend(amount)) {
+      this.bill += amount;
     }
   }
 }

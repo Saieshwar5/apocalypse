@@ -12,9 +12,10 @@ import { STAR_SYSTEMS, nextSystem } from '../logic/starSystems';
 import { shareText, type RunRecord } from '../logic/bestRuns';
 import { GroundScene } from '../launch/groundScene';
 import { LaunchCinematic } from '../launch/launchCinematic';
+import { pilotName } from '../logic/rivals';
 import { LAUNCH_SITE, OrbitInsertion, orbitPose } from '../launch/orbitInsertion';
 import { RocketEffects } from '../launch/rocketEffects';
-import { Earth, loadEarthTextures, type EarthTextures } from '../scene/earth';
+import { EARTH_RADIUS, Earth, loadEarthTextures, type EarthTextures } from '../scene/earth';
 import { generatePlanetTextures } from '../scene/proceduralPlanet';
 import { loadModels } from '../scene/modelLibrary';
 import { RenderPipeline } from '../scene/renderPipeline';
@@ -26,7 +27,14 @@ import { GameSession } from './gameSession';
 import { GameScreens } from './gameScreens';
 import { PlaySession } from './playSession';
 import { saveRun } from './runHistory';
-import { bindSettingsControls, loadSettings, type Settings } from './settings';
+import { bindSettingsControls, loadSettings, type QualityPreference, type Settings } from './settings';
+import { createSampler, effectiveQuality, sampleFrame, type GraphicsQuality } from '../logic/qualityTier';
+import { EnvironmentLighting } from '../scene/environmentLighting';
+import { SUN_DIRECTION } from '../scene/sunDirection';
+import { RadioNet } from './radioNet';
+import { DEFAULT_CALL_SIGN } from '../logic/cast';
+import { PilotCareer } from './pilotCareer';
+import { FrameStats } from '../scene/frameStats';
 
 export type GamePhase = 'menu' | 'launch' | 'playing' | 'paused' | 'gameover';
 
@@ -34,9 +42,10 @@ export interface GameOptions {
   /** Skip the menu and pointer lock (used by automated browser checks). */
   autostart: boolean;
   skipLaunch: boolean;
+  /** Start with the guided training flight (?training). */
+  training?: boolean;
 }
 
-const SUN_DIRECTION = new THREE.Vector3(1, 0.25, 0.45).normalize();
 const MAX_FRAME_SECONDS = 1 / 20;
 
 /** Owns the scene, the game phases and the per-frame update order. */
@@ -56,6 +65,15 @@ export class Game {
   private readonly radar: Radar;
   private readonly screens: GameScreens;
   private readonly explosions = new Explosions();
+  private environment!: EnvironmentLighting;
+  private readonly frameStats = new FrameStats(new URLSearchParams(window.location.search).has('fps'));
+  private readonly qualitySampler = createSampler();
+  private qualityPreference: QualityPreference = 'auto';
+  private autoQuality: GraphicsQuality = 'high';
+  private callSign = DEFAULT_CALL_SIGN;
+  private hardcore = false;
+  private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => this.career.rank });
+  private career!: PilotCareer;
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -84,6 +102,7 @@ export class Game {
     this.radar = new Radar(radarCanvas);
     this.screens = new GameScreens({
       onStart: () => this.startRun(0),
+      onTraining: () => this.startRun(0, true),
       onResume: () => this.resume(),
       onRestart: () => this.startRun(0),
       onNext: () => this.startRun(this.systemIndex + 1),
@@ -112,14 +131,15 @@ export class Game {
 
     const sun = createSun(SUN_DIRECTION);
     this.sunLight = sun.light;
-    this.scene.environment = this.pipeline.createSpaceEnvironment(SUN_DIRECTION);
-    this.scene.environmentIntensity = 0.9;
+    this.environment = new EnvironmentLighting(this.pipeline.renderer, this.scene, SUN_DIRECTION, this.earth.dayMap);
+    this.scene.environmentIntensity = 1.35;
     this.scene.add(
       createStarfield(),
       sun.group,
       new THREE.AmbientLight(0x6a86b0, 0.15),
       // Earth-shine: soft blue light from below, reflected off the planet.
-      new THREE.HemisphereLight(0x1a2233, 0x2f5f9e, 0.9),
+      // Kept weak: the reflection map now carries the real, direction-dependent earthshine.
+      new THREE.HemisphereLight(0x1a2233, 0x2f5f9e, 0.6),
       this.earth.group,
       createMoon(new THREE.Vector3(-0.55, 0.2, 0.8)),
       this.shipModel.group,
@@ -141,25 +161,35 @@ export class Game {
       shipModel: this.shipModel,
       stationModel: models.station,
       satellitesModel: models.satellites,
+      outpostModels: { vulcan: models.vulcan, ceres: models.ceres, halo: models.halo },
+      shipSource: models.interceptor,
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
+      radio: this.radio,
+      onTrainingComplete: () => this.career.markTrainingDone(),
     });
+    this.career = new PilotCareer({ session: this.session, hud: this.hud, sound: this.sound, input: this.input, radio: this.radio, showModules: (fitted) => this.shipModel.setModules(fitted) });
+    this.career.attach(this.play);
     this.shipModel.group.visible = false;
 
     window.addEventListener('resize', this.onResize);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
     const applySettings = (settings: Settings): void => {
       this.ship.lookSensitivity = settings.sensitivity;
-      this.pipeline.setQuality(settings.quality);
+      this.qualityPreference = settings.quality;
+      this.callSign = settings.callSign;
+      this.hardcore = settings.hardcore;
+      this.pipeline.setQuality(effectiveQuality(settings.quality, this.autoQuality));
       this.overlay.resize();
     };
     const settings = loadSettings();
     applySettings(settings);
     bindSettingsControls(settings, applySettings);
     this.screens.showMenu();
+    this.showRank();
 
     if (this.options.autostart) {
-      this.startRun(0);
+      this.startRun(0, this.options.training === true);
     }
     // Connecting to the document stops a huge delta after the tab was hidden.
     this.timer.connect(document);
@@ -167,7 +197,7 @@ export class Game {
   }
 
   /** Starts a run in the given star system; systems after the first continue the campaign. */
-  private startRun(systemIndex: number): void {
+  private startRun(systemIndex: number, training = false): void {
     const system = STAR_SYSTEMS[systemIndex] ?? STAR_SYSTEMS[0];
     const continuing = systemIndex > 0 && system === STAR_SYSTEMS[systemIndex];
     this.systemIndex = continuing ? systemIndex : 0;
@@ -177,8 +207,10 @@ export class Game {
     } else {
       this.session.reset();
     }
-    this.play.reset(system, continuing);
+    this.play.reset(system, continuing, training);
+    this.career.startRun(this.hardcore && !training);
     this.applySystemLook();
+    this.radio.reset();
     this.explosions.clear();
     this.earth.reset(this.sunriseSpinAngle());
     this.shipModel.group.visible = true;
@@ -205,6 +237,7 @@ export class Game {
       this.colonyTextures.set(system.id, textures);
     }
     this.earth.setTextures(textures);
+    this.environment.setDayMap(textures.day);
     this.sunLight.color.setRGB(...system.starColor);
     const label = document.querySelector('#planet-label');
     if (label) {
@@ -263,7 +296,9 @@ export class Game {
 
   private readonly frame = (timestamp: number): void => {
     this.timer.update(timestamp);
-    const deltaSeconds = Math.min(this.timer.getDelta(), MAX_FRAME_SECONDS);
+    const realSeconds = this.timer.getDelta();
+    const deltaSeconds = Math.min(realSeconds, MAX_FRAME_SECONDS);
+    this.measureFrame(realSeconds);
     switch (this.phase) {
       case 'menu':
         this.updateMenu(deltaSeconds);
@@ -280,8 +315,24 @@ export class Game {
         this.updateMenu(deltaSeconds);
         break;
     }
+    this.environment.update(deltaSeconds, this.camera.position, EARTH_RADIUS, this.earth.worldOrientation());
     this.pipeline.render();
   };
+
+  /** Automatic quality and the optional frame-rate readout (?fps). */
+  private measureFrame(realSeconds: number): void {
+    this.frameStats.record(realSeconds);
+    if (this.phase !== 'playing' || this.qualityPreference !== 'auto') {
+      return;
+    }
+    const verdict = sampleFrame(this.qualitySampler, realSeconds);
+    if (verdict === 'low' && this.autoQuality !== 'low') {
+      this.autoQuality = 'low';
+      this.pipeline.setQuality('low');
+      this.overlay.resize();
+      this.hud.showMessage('Graphics lowered for smoother play. Change it in the pause menu (Esc)', 'info', 4);
+    }
+  }
 
   private updateMenu(deltaSeconds: number): void {
     this.menuAngle += deltaSeconds * 0.04;
@@ -324,13 +375,23 @@ export class Game {
 
   private updatePlaying(deltaSeconds: number): void {
     this.play.update(deltaSeconds);
+    this.career.update(deltaSeconds);
+    this.radio.update(deltaSeconds);
     if (this.play.campaign.orbitComplete) {
       this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} is through the debris field`, true);
     } else if (this.session.integrity <= 0) {
       this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} has fallen`);
+    } else if (this.play.licence.recalled) {
+      this.endRun('Licence revoked: you have been recalled to Earth');
+    } else if (this.play.services.debris.health <= 0) {
+      this.endRun('The Singularity: debris has multiplied out of control and closed Earth\'s orbit');
     } else if (this.play.shipFailure) {
       this.endRun(this.play.shipFailure);
     }
+  }
+
+  private showRank(): void {
+    this.screens.setRank(this.career.rankLine());
   }
 
   private endRun(reason: string, victory = false): void {
@@ -343,7 +404,7 @@ export class Game {
     const system = STAR_SYSTEMS[this.systemIndex];
     const { citiesStanding, cityCount } = this.play.sites;
     this.lastRun = {
-      score: this.session.score,
+      earned: this.session.wallet.earned,
       planet: system.planet,
       victory,
       stars: orbitRating(this.session.integrity, citiesStanding, cityCount),
@@ -357,7 +418,20 @@ export class Game {
       nextStar: next?.star ?? null,
       bestRuns: saveRun(this.lastRun),
       current: this.lastRun,
-      score: this.session.score,
+      earned: this.session.wallet.earned,
+      spent: this.session.wallet.spent,
+      balance: this.session.wallet.balance,
+      contractsCompleted: this.play.contracts.contractsCompleted,
+      contractsLost: this.play.contracts.contractsLost,
+      orbitHealth: this.play.services.debris.health,
+      reputation: this.play.licence.reputation,
+      licence: this.play.licence.stage,
+      shipsLost: this.play.licence.shipsLost,
+      rank: this.career.recordRun(this.session.wallet.earned, victory && this.play.licence.stage === 'good'),
+      medals: this.career.runMedals(),
+      hardcore: this.session.hardcore,
+      debrisSwept: this.play.services.debris.swept,
+      league: this.session.league().map(({ pilot, earned }) => ({ name: pilotName(pilot), earned, you: pilot === 'player' })),
       wavesCleared: this.session.wavesCleared,
       asteroidsDestroyed: this.session.asteroidsDestroyed,
       impacts: this.session.totalImpacts,
@@ -368,6 +442,7 @@ export class Game {
       integrity: this.session.integrity,
     });
     this.sound.setAtmosphere(0);
+    this.showRank();
   }
 
   private readonly onResize = (): void => {

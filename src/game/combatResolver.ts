@@ -14,12 +14,11 @@ import {
   type AsteroidSize,
   type WeaponKind,
 } from '../logic/asteroidClasses';
-import { ASTEROID_CLASSES } from '../logic/asteroidClasses';
 import { blastDamage, laserRangeMultiplier } from '../logic/ballistics';
-import { deflectionScore, hitSpeedChange } from '../logic/impulse';
+import { hitSpeedChange } from '../logic/impulse';
+import { formatCredits } from '../logic/contracts';
 import { applyPlanetDamage, burnsUp, craterAngularRadius } from '../logic/planetDamage';
 import { randomUnitVector, type RandomSource } from '../logic/random';
-import { destroyScore } from '../logic/scoring';
 import { COLLISION_DAMAGE, MISSILE_BLAST, SHRAPNEL } from '../logic/shipDefense';
 import type { Earth } from '../scene/earth';
 import { localDirectionToLatLon } from '../scene/earth';
@@ -27,6 +26,8 @@ import type { SiteDefence, SiteHit } from '../sites/siteDefence';
 import type { ShieldBubble } from '../ship/shieldBubble';
 import type { ShipController } from '../ship/shipController';
 import type { WeaponHit } from '../weapons/laserCannon';
+import { pilotName, type PilotId } from '../logic/rivals';
+import type { ContractBook } from './contractBook';
 import type { GameSession } from './gameSession';
 
 const SIZE_WEIGHT: Record<AsteroidSize, number> = { small: 0.1, medium: 0.3, large: 0.6, giant: 1 };
@@ -46,6 +47,7 @@ export interface CombatDependencies {
   feedback: CombatFeedback;
   cameraRig: CameraRig;
   session: GameSession;
+  contracts: ContractBook;
   ship: ShipController;
   shield: ShieldBubble;
   rng: RandomSource;
@@ -60,6 +62,9 @@ export interface CombatDependencies {
  */
 export class CombatResolver {
   private shipLostCause: string | null = null;
+
+  /** Turns a destroyed rock into orbital debris; returns the tonnes left. Set by the play session. */
+  shatterHook: ((asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3) => number) | null = null;
 
   constructor(private readonly deps: CombatDependencies) {}
 
@@ -92,13 +97,14 @@ export class CombatResolver {
     }
   }
 
-  resolveWeaponHits(hits: readonly WeaponHit[], weapon: WeaponKind): void {
+  /** `pilot` is whose weapon it was: hit feedback is the player's alone, pay is shared by damage. */
+  resolveWeaponHits(hits: readonly WeaponHit[], weapon: WeaponKind, pilot: PilotId = 'player'): void {
     for (const hit of hits) {
       if (weapon === 'missile') {
-        this.detonateMissile(hit);
+        this.detonateMissile(hit, pilot);
       }
       if (hit.asteroid.alive) {
-        this.applyHit(hit.asteroid, hit.point, hit.baseDamage, weapon, hit.range, hit.direction);
+        this.applyHit(hit.asteroid, hit.point, hit.baseDamage, weapon, hit.range, hit.direction, pilot);
       }
     }
   }
@@ -117,6 +123,7 @@ export class CombatResolver {
         }
         continue;
       }
+      const lost = this.deps.contracts.lose(asteroid);
       session.integrity = applyPlanetDamage(session.integrity, asteroid.planetDamage);
       session.impactsThisWave += 1;
       session.totalImpacts += 1;
@@ -136,7 +143,7 @@ export class CombatResolver {
       }
       const { latitude, longitude } = localDirectionToLatLon(earth.worldToLocalDirection(point));
       hud.showMessage(
-        `${SIZE_NAME[asteroid.size]} impact at ${formatCoordinate(latitude, 'N', 'S')} ${formatCoordinate(longitude, 'E', 'W')}: integrity -${asteroid.planetDamage.toFixed(0)}%`,
+        `${SIZE_NAME[asteroid.size]} impact at ${formatCoordinate(latitude, 'N', 'S')} ${formatCoordinate(longitude, 'E', 'W')}: integrity -${asteroid.planetDamage.toFixed(0)}%${lost > 0 ? `. Contract lost: ${formatCredits(lost)}` : ''}`,
         weight >= 0.6 ? 'danger' : 'warning',
         3.5,
       );
@@ -195,19 +202,22 @@ export class CombatResolver {
 
   /** Scores asteroids pushed onto a path that misses the planet. */
   resolveEscaped(escaped: readonly Asteroid[]): void {
-    const { session, feedback, hud, sound } = this.deps;
+    const { session, hud, sound } = this.deps;
     for (const asteroid of escaped) {
       // Only rocks the pilot actually hit count as deflections.
       if (asteroid.lastHitBy === null) {
         continue;
       }
-      const score = deflectionScore(ASTEROID_CLASSES[asteroid.size].score);
-      session.score += score;
-      session.asteroidsDestroyed += 1;
-      session.destroyedThisWave += 1;
-      feedback.kill(asteroid.mesh.position, score, 'DEFLECTED');
-      hud.showMessage(`${SIZE_NAME[asteroid.size]} asteroid deflected: it will miss the planet. +${score}`, 'success', 3.5);
-      sound.killConfirm();
+      const paid = this.deps.contracts.complete(asteroid, 'deflected', asteroid.mesh.position, 'DEFLECTED');
+      if (paid > 0) {
+        session.asteroidsDestroyed += 1;
+        session.destroyedThisWave += 1;
+      }
+      // A rival's deflection is reported by the contract book instead.
+      if (paid > 0) {
+        hud.showMessage(`${SIZE_NAME[asteroid.size]} asteroid deflected: it will miss the planet. Contract paid: ${formatCredits(paid)}`, 'success', 3.5);
+        sound.killConfirm();
+      }
     }
   }
 
@@ -218,48 +228,67 @@ export class CombatResolver {
     weapon: WeaponKind,
     range: number,
     direction: THREE.Vector3,
+    pilot: PilotId,
   ): void {
     const { field, explosions, scorches, sound, feedback, hud } = this.deps;
+    const mine = pilot === 'player';
     const rangeMultiplier = weapon === 'laser' ? laserRangeMultiplier(range) : 1;
     const damage = weaponDamage(baseDamage * rangeMultiplier, weapon, asteroid.material);
     const resisted = MATERIAL_TRAITS[asteroid.material].weaponMultiplier[weapon] < 1;
     const quality: HitQuality = resisted ? 'resisted' : rangeMultiplier < 0.75 ? 'weak-range' : 'solid';
+    this.deps.contracts.recordDamage(asteroid, pilot, Math.min(damage, asteroid.health));
     const destroyed = field.damage(asteroid, damage, weapon);
-    feedback.hit(point, damage, quality);
+    if (mine) {
+      feedback.hit(point, damage, quality);
+    }
 
     if (!destroyed) {
       const wasOnCourse = asteroid.timeToImpact !== null;
       field.applyImpulse(asteroid, direction, hitSpeedChange(weapon, asteroid.radius, MATERIAL_TRAITS[asteroid.material].density));
-      if (wasOnCourse && asteroid.timeToImpact === null) {
+      if (mine && wasOnCourse && asteroid.timeToImpact === null) {
         hud.showMessage('Knocked off course: it will now miss the planet', 'success', 3);
       }
-      sound.hit(asteroid.material === 'iron' || asteroid.material === 'ice' ? asteroid.material : 'rocky');
+      if (mine) {
+        sound.hit(asteroid.material === 'iron' || asteroid.material === 'ice' ? asteroid.material : 'rocky');
+      }
       scorches.add(asteroid.mesh, point, resisted ? 0.35 : 0.6);
       if (resisted) {
         explosions.spawnHitSpark(point);
       } else {
         explosions.spawnRockChips(point, Math.min(1.5, damage / 20));
       }
-      if (resisted && weapon === 'laser' && asteroid.health > asteroid.maxHealth * 0.6) {
+      if (mine && resisted && weapon === 'laser' && asteroid.health > asteroid.maxHealth * 0.6) {
         hud.showMessage('Iron resists lasers. Use missiles (F)', 'warning', 2.5);
       }
       return;
     }
-    this.destroyAsteroid(asteroid, weapon);
+    this.destroyAsteroid(asteroid, weapon, pilot);
   }
 
-  private destroyAsteroid(asteroid: Asteroid, weapon: WeaponKind): void {
-    const { explosions, sound, session, feedback, ship } = this.deps;
+  private destroyAsteroid(asteroid: Asteroid, weapon: WeaponKind, pilot: PilotId): void {
+    const { explosions, sound, session, ship } = this.deps;
     const position = asteroid.mesh.position.clone();
-    const score = destroyScore(asteroid.size, weapon, position.length());
-    session.score += score;
-    session.asteroidsDestroyed += 1;
-    session.destroyedThisWave += 1;
+    const splits = fragmentsOnDestroy(asteroid.size, weapon) !== null;
+    // Fragments a laser splits off carry on as asteroids; the rest becomes orbital debris.
+    const debris = this.shatterHook?.(asteroid, weapon, position) ?? 0;
+    if (debris > 0 && pilot === 'player') {
+      session.events.emit({ type: 'debris-left', tonnes: debris });
+    }
+    const label = `${splits ? 'SPLIT' : 'DESTROYED'}${debris > 0 ? ` · DEBRIS +${debris.toFixed(debris < 10 ? 1 : 0)} t` : ''}`;
+    this.deps.contracts.complete(asteroid, splits ? 'split' : 'destroyed', position, label, debris > 0);
+    // The pilot's own record (and the field bonus) counts only the pilot's kills.
+    if (pilot === 'player') {
+      session.asteroidsDestroyed += 1;
+      session.destroyedThisWave += 1;
+    }
     explosions.spawnExplosion(position, asteroid.radius, asteroid.material === 'ice' ? 'ice' : 'fire', asteroid.velocity);
     explosions.spawnRockChips(position, 1 + SIZE_WEIGHT[asteroid.size] * 3);
-    sound.explosion(SIZE_WEIGHT[asteroid.size]);
-    sound.killConfirm();
-    feedback.kill(position, score, 'DESTROYED');
+    // Rivals' kills are heard less the further away they are.
+    const hearing = pilot === 'player' ? 1 : Math.max(0.15, 1 - position.distanceTo(ship.position) / 150);
+    sound.explosion(SIZE_WEIGHT[asteroid.size] * hearing);
+    if (pilot === 'player') {
+      sound.killConfirm();
+    }
     this.deps.cameraRig.addShake(SIZE_WEIGHT[asteroid.size] * Math.max(0, 1 - position.distanceTo(ship.position) / 40));
     this.spawnFragments(asteroid, weapon);
 
@@ -273,10 +302,10 @@ export class CombatResolver {
   }
 
   /** Warhead blast: hurts nearby asteroids and the ship if it is too close. */
-  private detonateMissile(hit: WeaponHit): void {
+  private detonateMissile(hit: WeaponHit, pilot: PilotId): void {
     const { field, explosions, sound, ship } = this.deps;
     explosions.spawnExplosion(hit.point, 1.4, 'fire');
-    sound.explosion(0.35);
+    sound.explosion(0.35 * Math.max(0.15, 1 - hit.point.distanceTo(ship.position) / 150));
     for (const other of [...field.all]) {
       if (other === hit.asteroid) {
         continue;
@@ -285,12 +314,18 @@ export class CombatResolver {
       const splash = blastDamage(distance, MISSILE_BLAST.radius, MISSILE_SPLASH_DAMAGE);
       if (splash > 0) {
         const away = other.mesh.position.clone().sub(hit.point).normalize();
-        this.applyHit(other, other.mesh.position.clone().lerp(hit.point, 0.5), splash, 'missile', 0, away);
+        this.applyHit(other, other.mesh.position.clone().lerp(hit.point, 0.5), splash, 'missile', 0, away, pilot);
       }
     }
     const selfDamage = blastDamage(hit.point.distanceTo(ship.position), MISSILE_BLAST.radius, MISSILE_BLAST.damage);
     if (selfDamage > 0) {
-      this.damageShip(selfDamage, hit.point, 'Own missile blast', 'The interceptor was destroyed by its own missile');
+      const own = pilot === 'player';
+      this.damageShip(
+        selfDamage,
+        hit.point,
+        own ? 'Own missile blast' : `${pilotName(pilot)}'s missile blast`,
+        own ? 'The interceptor was destroyed by its own missile' : `The interceptor was caught in ${pilotName(pilot)}'s missile blast`,
+      );
     }
   }
 

@@ -1,6 +1,6 @@
 import { parseRuns, recordRun, type RunRecord } from '../logic/bestRuns';
 
-const STORAGE_KEY = 'singularity.bestRuns.v1';
+const STORAGE_KEY = 'singularity.bestRuns.v2';
 
 /**
  * Best runs kept in this browser. Storage can be unavailable (private

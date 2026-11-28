@@ -14,6 +14,8 @@ interface Contact {
   locked: boolean;
   /** Drawn as a square: the station. */
   square?: boolean;
+  /** Drawn as a triangle: a rival ship. */
+  triangle?: boolean;
 }
 
 /**
@@ -62,6 +64,7 @@ export class Radar {
     station: THREE.Vector3 | null = null,
     blind = false,
     satellites: readonly THREE.Vector3[] = [],
+    outposts: readonly { position: THREE.Vector3; color: string; triangle?: boolean }[] = [],
   ): void {
     const context = this.context;
     const centreX = this.width / 2;
@@ -87,6 +90,17 @@ export class Radar {
     if (station) {
       this.local.copy(station).sub(ship.position).applyQuaternion(this.inverse);
       contacts.push({ point: projectToScanner(this.local.toArray(), range, radius), color: '#5fd8ff', size: 3.5, locked: false, square: true });
+    }
+    for (const outpost of outposts) {
+      this.local.copy(outpost.position).sub(ship.position).applyQuaternion(this.inverse);
+      contacts.push({
+        point: projectToScanner(this.local.toArray(), range, radius),
+        color: outpost.color,
+        size: 3.5,
+        locked: false,
+        square: !outpost.triangle,
+        triangle: outpost.triangle,
+      });
     }
     for (const satellite of satellites) {
       this.local.copy(satellite).sub(ship.position).applyQuaternion(this.inverse);
@@ -191,7 +205,12 @@ export class Radar {
     context.ellipse(point.baseX, point.baseY, 2.5, 2.5 * SCANNER_TILT, 0, 0, Math.PI * 2);
     context.stroke();
     context.beginPath();
-    if (contact.square) {
+    if (contact.triangle) {
+      context.moveTo(point.x, point.y - size - 1);
+      context.lineTo(point.x + size, point.y + size);
+      context.lineTo(point.x - size, point.y + size);
+      context.closePath();
+    } else if (contact.square) {
       context.rect(point.x - size, point.y - size, size * 2, size * 2);
     } else {
       context.arc(point.x, point.y, size, 0, Math.PI * 2);

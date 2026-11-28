@@ -5,6 +5,7 @@ const params = new URLSearchParams(window.location.search);
 const game = new Game({
   autostart: params.has('autostart'),
   skipLaunch: params.has('skipLaunch'),
+  training: params.has('training'),
 });
 
 game.load().catch((error: unknown) => {

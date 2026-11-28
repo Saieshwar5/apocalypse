@@ -8,7 +8,8 @@ export class RadioVoice {
   private lastSpoken = '';
   private lastTime = 0;
 
-  speak(text: string): void {
+  /** `interrupt` false queues the line instead of cutting off one being read (radio chatter). */
+  speak(text: string, pitch = 0.9, interrupt = true): void {
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
     if (!this.enabled || !synth || typeof SpeechSynthesisUtterance === 'undefined') {
       return;
@@ -22,9 +23,14 @@ export class RadioVoice {
     this.lastTime = now;
     const utterance = new SpeechSynthesisUtterance(text.replace(/[→·:]/g, ', '));
     utterance.rate = 1.08;
-    utterance.pitch = 0.9;
+    utterance.pitch = pitch;
     utterance.volume = 0.8;
-    synth.cancel();
+    if (interrupt) {
+      synth.cancel();
+    } else if (synth.speaking || synth.pending) {
+      // Chatter never queues behind other speech: drop it.
+      return;
+    }
     synth.speak(utterance);
   }
 

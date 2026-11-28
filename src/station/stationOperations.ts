@@ -4,6 +4,7 @@ import type { SoundEffects } from '../audio/soundEffects';
 import type { CameraRig } from '../camera/cameraRig';
 import type { Explosions } from '../effects/explosions';
 import type { Hud } from '../hud/hud';
+import type { Wallet } from '../logic/economy';
 import type { InputState } from '../input/inputState';
 import { LOW_FUEL } from '../logic/stationSupply';
 import { damping } from '../math/orientation';
@@ -29,6 +30,8 @@ export interface StationOperationsDependencies {
   hud: Hud;
   cameraRig: CameraRig;
   input: InputState;
+  wallet: Wallet;
+  fuelPrice: () => number;
 }
 
 /**
@@ -40,7 +43,7 @@ export class StationOperations {
   readonly station: SpaceStation;
   readonly docking: DockingController;
   private readonly defence: StationDefence;
-  private readonly rocket: SupplyRocket;
+  readonly rocket: SupplyRocket;
   private fuelWarned = false;
 
   constructor(private readonly deps: StationOperationsDependencies) {
@@ -52,6 +55,8 @@ export class StationOperations {
       sound: deps.sound,
       hud: deps.hud,
       cameraRig: deps.cameraRig,
+      wallet: deps.wallet,
+      fuelPrice: deps.fuelPrice,
     });
     this.defence = new StationDefence({
       station: this.station,
@@ -151,6 +156,11 @@ export class StationOperations {
   }
 
   /** Markers for the overlay: the station, its commanded destination and any supply rocket. */
+  /** Where Aegis is and how it moves, or null once it is destroyed. */
+  whereabouts(): { position: THREE.Vector3; velocity: THREE.Vector3 } | null {
+    return this.present ? { position: this.station.position, velocity: this.station.velocity } : null;
+  }
+
   markers(): { world: THREE.Vector3; name: string; ghost: boolean }[] {
     if (!this.present) {
       return [];

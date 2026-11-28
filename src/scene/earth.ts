@@ -170,6 +170,16 @@ export class Earth {
     return new THREE.Vector3(0, 1, 0).applyQuaternion(this.group.quaternion);
   }
 
+  /** The day-side surface map, for the reflection stand-in. */
+  get dayMap(): THREE.Texture {
+    return this.surfaceUniforms.dayMap.value as THREE.Texture;
+  }
+
+  /** The planet's current world rotation, including tilt and spin. */
+  worldOrientation(target = new THREE.Quaternion()): THREE.Quaternion {
+    return this.spin.getWorldQuaternion(target);
+  }
+
   /** Swaps the surface maps, for example to show a colony world in another system. */
   setTextures(textures: EarthTextures): void {
     this.surfaceUniforms.dayMap.value = textures.day;

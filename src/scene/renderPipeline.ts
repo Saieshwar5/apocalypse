@@ -68,26 +68,4 @@ export class RenderPipeline {
   render(): void {
     this.composer.render();
   }
-
-  /** Builds a simple space environment so metal surfaces have something to reflect. */
-  createSpaceEnvironment(sunDirection: THREE.Vector3): THREE.Texture {
-    const environment = new THREE.Scene();
-    environment.background = new THREE.Color(0x020308);
-    const sun = new THREE.Mesh(
-      new THREE.SphereGeometry(6, 16, 8),
-      new THREE.MeshBasicMaterial({ color: new THREE.Color(40, 36, 30) }),
-    );
-    sun.position.copy(sunDirection).multiplyScalar(60);
-    environment.add(sun);
-    const planetGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(30, 16, 8),
-      new THREE.MeshBasicMaterial({ color: new THREE.Color(0.05, 0.1, 0.22) }),
-    );
-    planetGlow.position.set(0, -70, 0);
-    environment.add(planetGlow);
-    const generator = new THREE.PMREMGenerator(this.renderer);
-    const texture = generator.fromScene(environment, 0.04).texture;
-    generator.dispose();
-    return texture;
-  }
 }

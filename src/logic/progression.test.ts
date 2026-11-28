@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parseRuns, recordRun, shareText, type RunRecord } from './bestRuns';
 import { STAR_SYSTEMS, nextSystem } from './starSystems';
 
-const run = (score: number, victory = false): RunRecord => ({
-  score,
+const run = (earned: number, victory = false): RunRecord => ({
+  earned,
   planet: 'Earth',
   victory,
   stars: 2,
@@ -15,21 +15,21 @@ const run = (score: number, victory = false): RunRecord => ({
 describe('best runs', () => {
   it('keeps the five best, highest first', () => {
     let runs: RunRecord[] = [];
-    for (const score of [300, 900, 100, 700, 500, 800]) {
-      runs = recordRun(runs, run(score));
+    for (const earned of [300, 900, 100, 700, 500, 800]) {
+      runs = recordRun(runs, run(earned));
     }
-    expect(runs.map((entry) => entry.score)).toEqual([900, 800, 700, 500, 300]);
+    expect(runs.map((entry) => entry.earned)).toEqual([900, 800, 700, 500, 300]);
   });
 
   it('ignores stored data that is missing or malformed', () => {
     expect(parseRuns(null)).toEqual([]);
     expect(parseRuns('not json')).toEqual([]);
-    expect(parseRuns('{"score":1}')).toEqual([]);
-    expect(parseRuns(JSON.stringify([run(5), { score: 'x' }, null]))).toEqual([run(5)]);
+    expect(parseRuns('{"earned":1}')).toEqual([]);
+    expect(parseRuns(JSON.stringify([run(5), { earned: 'x' }, null]))).toEqual([run(5)]);
   });
 
   it('writes a result line for sharing', () => {
-    expect(shareText(run(17580, true))).toBe("Singularity: I held Earth's orbit ★★☆ with 17,580 points and 9 of 11 cities standing.");
+    expect(shareText(run(17580, true))).toBe("Singularity: I held Earth's orbit ★★☆ earning 17,580 cr with 9 of 11 cities standing.");
     expect(shareText(run(1200))).toContain('lost Earth');
   });
 });

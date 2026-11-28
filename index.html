@@ -21,11 +21,17 @@
     </div>
 
     <div id="hud" hidden>
+      <!-- The left-hand panels stack, so a taller panel never covers the next. -->
+      <div class="hud-left">
       <section class="hud-panel hud-status" aria-label="Planet status">
         <div class="hud-label"><span id="planet-label">Earth integrity</span> <span id="integrity-value">100%</span></div>
         <div class="bar"><div id="integrity-bar" class="bar-fill" data-level="stable"></div></div>
-        <div class="hud-row"><span>Score</span><strong id="score-value">0</strong></div>
-        <div class="hud-row"><span>Credits</span><strong id="credits-value">0</strong></div>
+        <div class="hud-label" title="Debris in orbit. At 0% the cascade closes orbit">Orbit health <span id="orbit-health-value">100%</span></div>
+        <div class="bar"><div id="orbit-health-bar" class="bar-fill" data-level="stable"></div></div>
+        <div class="hud-row"><span>Licence</span><strong id="licence-value" class="licence" data-stage="good">GOOD STANDING · 60</strong></div>
+        <div class="hud-row"><span>Balance</span><strong id="balance-value" class="money">500 cr</strong></div>
+        <div class="hud-row"><span>Earned this run</span><strong id="earned-value">0 cr</strong></div>
+        <div id="league-value" class="hud-caption league"></div>
         <span id="wave-value" hidden>1</span>
       </section>
 
@@ -43,10 +49,12 @@
         <div class="hud-label">Priority sites <span class="hud-label-note">impact in</span></div>
         <ol id="site-list"></ol>
       </section>
+      </div>
 
-      <section class="hud-panel hud-threats" aria-label="Incoming asteroids">
-        <div class="hud-label">Incoming <span class="hud-label-note">most urgent first</span></div>
+      <section class="hud-panel hud-threats" aria-label="Contract board">
+        <div class="hud-label">Contracts <span class="hud-label-note">Earth Defence Authority</span></div>
         <ol id="threat-list"></ol>
+        <div id="contract-summary" class="hud-caption"></div>
       </section>
 
       <section class="hud-radar" aria-label="Radar">
@@ -75,18 +83,28 @@
       </section>
 
       <section id="workshop" class="hud-panel hud-workshop" aria-label="Station workshop" hidden>
-        <div class="hud-label">Station workshop <span>Credits <strong id="workshop-credits">0</strong></span></div>
+        <div class="hud-label">Station workshop <span>Balance <strong id="workshop-credits" class="money">0 cr</strong></span></div>
         <ol id="workshop-list"></ol>
-        <div class="hud-caption">Press a number key to buy</div>
+        <div class="hud-caption">Press a number key to buy · I insures the ship (250 cr)</div>
       </section>
 
+      <section id="yard" class="hud-panel hud-workshop" aria-label="Vulcan Yard modules" hidden>
+        <div class="hud-label">Vulcan Yard · modules <span>Balance <strong id="yard-credits" class="money">0 cr</strong></span></div>
+        <div id="yard-fit" class="yard-fit"><span id="yard-slots"></span><span class="yard-handling"><i id="yard-handling-bar"></i></span><span id="yard-handling"></span></div>
+        <ol id="yard-list"></ol>
+        <div class="hud-caption">Number key buys, fits or removes · every module adds mass · uninsured, fitted modules are lost with the ship</div>
+      </section>
+
+      <div id="medal-toast" class="medal-toast" aria-live="polite" hidden><span class="medal-disc"></span><span class="medal-text"><strong></strong><em></em></span></div>
       <div id="hud-message" class="hud-message" role="status" aria-live="polite"></div>
+      <div id="radio-line" class="radio-line" aria-live="polite"></div>
       <div id="control-status" class="control-status" aria-label="Control status">
-        <span id="steer-status" data-state="off">CLICK TO STEER WITH THE MOUSE</span>
+        <span id="steer-status" data-state="off">CLICK FOR MOUSE STEERING</span>
         <span id="assist-status" data-state="on">FLIGHT ASSIST ON</span>
         <span id="motion-status" data-state="on">COASTING</span>
+        <span id="tow-status" data-state="on" hidden></span>
       </div>
-      <div id="hud-hint" class="hud-hint">W thrust · S brake · A/D/R/V slide · Shift boost · Click or Space fire · F missile · Z assist · Tab map</div>
+      <div id="hud-hint" class="hud-hint">W thrust · S brake · A/D/R/V slide · Shift boost · Click/Space fire · F missile · T tow · Z assist · Tab map</div>
       <div id="damage-flash" aria-hidden="true"></div>
     </div>
 
@@ -106,8 +124,12 @@
       <div class="screen-card">
         <p class="eyebrow">Planetary Defence Wing</p>
         <h1>Singularity</h1>
-        <p class="tagline">One interceptor. One planet. Hold the line.</p>
+        <p class="tagline">One interceptor. One planet. Paid by the rock.</p>
+        <label class="callsign" for="callsign-input">Your call sign <input id="callsign-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" value="VEGA" /></label>
         <button id="start-button" type="button" disabled>Loading…</button>
+        <button id="training-button" type="button" class="secondary">Training flight (new pilots start here)</button>
+        <label class="hardcore" for="hardcore-input"><input id="hardcore-input" type="checkbox" /> <span><strong>Hardcore licence</strong> · one ship, no emergency loan, +25% on every payment</span></label>
+        <p id="rank-line" class="rank-line">Rank: Cadet</p>
         <dl class="controls">
           <dt>Mouse or arrow keys</dt><dd>Steer</dd>
           <dt>W</dt><dd>Thrust. The ship keeps its speed when you let go</dd>
@@ -117,14 +139,16 @@
           <dt>Shift</dt><dd>Boost</dd>
           <dt>Left click / Space</dt><dd>Laser (short range: fly close)</dd>
           <dt>F / Right click</dt><dd>Missile at locked target</dd>
+          <dt>T</dt><dd>Connect the tow line to a contract satellite, or release it</dd>
           <dt>Z</dt><dd>Flight assist on or off (off: pure drift and gravity)</dd>
-          <dt>Fly slowly to Aegis</dt><dd>Brake near it and let go to dock: refuel, rearm, repair (W launches)</dd>
-          <dt>1 to 8 while docked</dt><dd>Buy upgrades with credits</dd>
+          <dt>Fly slowly to Aegis</dt><dd>Brake near it and let go to dock. Fuel, missiles and repairs cost money (W launches)</dd>
+          <dt>1 to 8 while docked</dt><dd>Buy upgrades with your earnings</dd>
+          <dt>I while docked</dt><dd>Insure the ship: a replacement then costs 200 cr instead of 900</dd>
           <dt>Enter</dt><dd>Leave a calm zone early (or skip the launch)</dd>
           <dt>Tab</dt><dd>Tactical map (slows time)</dd>
           <dt>C</dt><dd>Chase or cockpit camera</dd>
         </dl>
-        <p class="screen-note">Small rocks dent the planet; giants can end it. Follow the yellow PRIORITY marker: it shows whether you can reach a rock before it lands. Lasers only reach a short way, so fly to the rock; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, brake before you get too low, and do not lose your ship: there is only one.</p>
+        <p class="screen-note">You are a contract pilot. Every asteroid heading for the planet carries a contract from the Earth Defence Authority, paid by how much damage it would do, with a bonus for stopping it early; a rock that will burn up pays nothing, so scan before you chase. Spend your earnings on fuel, missiles, repairs and upgrades at Aegis. Small rocks dent the planet; giants can end it. Follow the yellow PRIORITY marker: it shows whether you can reach a rock before it lands. Lasers only reach a short way, so fly to the rock; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, brake before you get too low, and do not lose your ship: there is only one.</p>
       </div>
     </div>
 
@@ -137,6 +161,7 @@
           <input id="sensitivity-input" type="range" min="0.4" max="2" step="0.1" value="1" />
           <label for="quality-input">Graphics</label>
           <select id="quality-input">
+            <option value="auto">Automatic (measures your computer)</option>
             <option value="high">High (bloom, full resolution)</option>
             <option value="low">Low (faster)</option>
           </select>

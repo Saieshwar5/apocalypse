@@ -1,3 +1,4 @@
+import { handlingShare } from '../logic/shipModules';
 import * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import { LASER_RANGE, closestApproach } from '../logic/ballistics';
@@ -24,7 +25,7 @@ export function computeGuidance(ship: ShipController, ranked: readonly Asteroid[
       relative.copy(asteroid.mesh.position).sub(ship.position);
       const distance = Math.max(0, relative.length() - asteroid.radius);
       const closing = relative.lengthSq() > 0 ? ship.velocity.clone().sub(asteroid.velocity).dot(relative) / relative.length() : 0;
-      const reachSeconds = travelTimeTo(distance, closing, ship.thrustMultiplier);
+      const reachSeconds = travelTimeTo(distance, closing, ship.thrustMultiplier * handlingShare(ship.massFactor));
       return { item: asteroid, reachSeconds, impactSeconds: asteroid.timeToImpact ?? 0, distance };
     });
   const choice = choosePriority(candidates);

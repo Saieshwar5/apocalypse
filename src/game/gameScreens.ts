@@ -1,8 +1,12 @@
 import type { RunRecord } from '../logic/bestRuns';
+import { formatCredits } from '../logic/contracts';
 import { orbitRating } from '../logic/orbitPlan';
+
+const LICENCE_LABEL: Record<string, string> = { good: 'Good standing', warning: 'Warning', probation: 'Probation', recalled: 'Recalled' };
 
 export interface ScreenActions {
   onStart(): void;
+  onTraining(): void;
   onResume(): void;
   onRestart(): void;
   onNext(): void;
@@ -10,7 +14,23 @@ export interface ScreenActions {
 }
 
 export interface RunSummary {
-  score: number;
+  earned: number;
+  spent: number;
+  balance: number;
+  contractsCompleted: number;
+  contractsLost: number;
+  orbitHealth: number;
+  reputation: number;
+  licence: string;
+  shipsLost: number;
+  rank: string;
+  /** "Medals: 2 gold · 3 silver · 1 bronze". */
+  medals: string;
+  hardcore: boolean;
+  /** Tonnes of debris swept from orbit. */
+  debrisSwept: number;
+  /** Every pilot's earnings, best first. */
+  league: readonly { name: string; earned: number; you: boolean }[];
   wavesCleared: number;
   asteroidsDestroyed: number;
   impacts: number;
@@ -51,10 +71,16 @@ export class GameScreens {
 
   constructor(actions: ScreenActions) {
     this.startButton.addEventListener('click', () => actions.onStart());
+    element<HTMLButtonElement>('#training-button').addEventListener('click', () => actions.onTraining());
     element<HTMLButtonElement>('#resume-button').addEventListener('click', () => actions.onResume());
     element<HTMLButtonElement>('#restart-button').addEventListener('click', () => actions.onRestart());
     element<HTMLButtonElement>('#next-button').addEventListener('click', () => actions.onNext());
     element<HTMLButtonElement>('#share-button').addEventListener('click', () => actions.onShare());
+  }
+
+  /** The pilot's rank and what the next one needs, on the menu. */
+  setRank(text: string): void {
+    element<HTMLParagraphElement>('#rank-line').textContent = text;
   }
 
   showMenu(): void {
@@ -73,8 +99,19 @@ export class GameScreens {
 
   showGameOver(summary: RunSummary): void {
     const rows: [string, string][] = [
-      ['Score', summary.score.toLocaleString()],
+      ['Licence', `${summary.hardcore ? 'HARDCORE · ' : ''}${LICENCE_LABEL[summary.licence] ?? summary.licence} · ${Math.round(summary.reputation)}`],
+      ['Medals this run', summary.medals.replace(/^Medals: /, '')],
+      ['Ships lost', String(summary.shipsLost)],
+      ['Career rank', summary.rank],
+      ['Earned', formatCredits(summary.earned)],
+      ['Spent at the station', formatCredits(summary.spent)],
+      ['Balance', formatCredits(summary.balance)],
+      ['Contracts completed', String(summary.contractsCompleted)],
+      ['Contracts lost to impacts', String(summary.contractsLost)],
+      ...summary.league.map((row, index): [string, string] => [`${index + 1}. ${row.you ? 'You' : row.name}`, formatCredits(row.earned)]),
       [`${summary.planet} integrity`, `${Math.max(0, Math.round(summary.integrity))}%`],
+      ['Orbit health', `${Math.round(summary.orbitHealth)}%`],
+      ['Debris swept', `${summary.debrisSwept.toFixed(1)} t`],
       ['Fields cleared', String(summary.wavesCleared)],
       ['Asteroids destroyed', String(summary.asteroidsDestroyed)],
       ['Impacts', String(summary.impacts)],
@@ -92,7 +129,7 @@ export class GameScreens {
     element<HTMLParagraphElement>('#failure-reason').textContent = summary.reason;
     const stars = orbitRating(summary.integrity, summary.citiesStanding, summary.cityCount);
     element<HTMLHeadingElement>('#outcome-heading').textContent = summary.victory
-      ? `Orbit complete ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`
+      ? `Season complete ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}`
       : 'Mission failed';
     this.gameOver.dataset.outcome = summary.victory ? 'victory' : 'defeat';
     const nextButton = element<HTMLButtonElement>('#next-button');
@@ -103,12 +140,12 @@ export class GameScreens {
     element<HTMLOListElement>('#best-runs').replaceChildren(
       ...summary.bestRuns.map((run) => {
         const row = document.createElement('li');
-        const isCurrent = run.score === summary.current.score && run.date === summary.current.date && run.planet === summary.current.planet;
+        const isCurrent = run.earned === summary.current.earned && run.date === summary.current.date && run.planet === summary.current.planet;
         row.className = isCurrent ? 'current' : '';
         const what = document.createElement('span');
         what.textContent = `${run.date} · ${run.planet}${run.victory ? ` ${'★'.repeat(run.stars)}` : ''}`;
         const score = document.createElement('span');
-        score.textContent = run.score.toLocaleString();
+        score.textContent = formatCredits(run.earned);
         row.append(what, score);
         return row;
       }),

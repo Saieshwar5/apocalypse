@@ -1,3 +1,4 @@
+import { LOCK_RANGE } from '../weapons/missileLauncher';
 import * as THREE from 'three';
 import type { AsteroidField } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
@@ -11,7 +12,14 @@ import { randomUnitVector, type RandomSource } from '../logic/random';
 import { waveClearBonus } from '../logic/scoring';
 import { UPGRADES, loadoutFor, noUpgrades, purchase, type UpgradeLevels } from '../logic/upgrades';
 import { PASSER_BY_RATIO, chooseMaterial, type AsteroidSpawnPlan } from '../logic/waves';
+import { formatCredits } from '../logic/contracts';
+import { SATELLITE_INCOME } from '../logic/stationEconomy';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
+import type { ContractBook } from './contractBook';
+import type { SatelliteWork } from './satelliteWork';
+import type { RadioNet } from './radioNet';
+import { TrainingFlight } from './trainingFlight';
+import { beatForSector } from '../logic/story';
 import type { ShipController } from '../ship/shipController';
 import type { SiteDefence } from '../sites/siteDefence';
 import { STATION_NAME, type StationOperations } from '../station/stationOperations';
@@ -41,6 +49,18 @@ export interface CampaignDependencies {
   ship: ShipController;
   laser: LaserCannon;
   missiles: MissileLauncher;
+  contracts: ContractBook;
+  /** Satellite contracts: posted in calm zones, sometimes during fields. */
+  work: SatelliteWork;
+  /** A hint from berthing at an outpost, shown like the docking hint. */
+  extraHint: () => string | null;
+  /** Hauls, crew calls and the odd solar storm, posted in calm zones. */
+  calmZoneWork: () => void;
+  /** Working satellites, which pay the pilot a fee when a field is cleared. */
+  workingSatellites: () => number;
+  radio: RadioNet;
+  /** Records that the training flight was completed. */
+  onTrainingComplete: () => void;
 }
 
 /**
@@ -50,6 +70,8 @@ export interface CampaignDependencies {
  */
 export class Campaign {
   readonly director: WaveDirector;
+  /** The guided first flight; fields wait while it runs. */
+  readonly training: TrainingFlight;
   levels: UpgradeLevels = noUpgrades();
   orbitComplete = false;
   private readonly orbitMap: OrbitMap;
@@ -59,6 +81,8 @@ export class Campaign {
   private passerByDelays: number[] = [];
   /** Seconds until a solar flare starts in this field; Infinity when none is due. */
   private flareIn = Infinity;
+  /** Seconds until a satellite dodge threat is posted; Infinity when none is due. */
+  private dodgeIn = Infinity;
   private flareRemaining = 0;
 
   constructor(private readonly deps: CampaignDependencies) {
@@ -71,6 +95,16 @@ export class Campaign {
       return found;
     };
     this.orbitMap = new OrbitMap(find<HTMLCanvasElement>('#orbit-map'), find('#orbit-label'));
+    this.training = new TrainingFlight({
+      ship: deps.ship,
+      field: deps.field,
+      stationOps: deps.stationOps,
+      input: deps.input,
+      hud: deps.hud,
+      sound: deps.sound,
+      radio: deps.radio,
+      onComplete: deps.onTrainingComplete,
+    });
     this.workshop = new WorkshopPanel(find('#workshop'), find('#workshop-credits'), find<HTMLOListElement>('#workshop-list'));
   }
 
@@ -80,11 +114,15 @@ export class Campaign {
   }
 
   get credits(): number {
-    return this.deps.session.score - this.deps.session.spent;
+    return this.deps.session.wallet.balance;
   }
 
-  reset(difficulty = 0, keepUpgrades = false): void {
+  reset(difficulty = 0, keepUpgrades = false, training = false): void {
     this.director.reset(difficulty);
+    this.training.stop();
+    if (training) {
+      this.training.start();
+    }
     if (!keepUpgrades) {
       this.levels = noUpgrades();
     }
@@ -93,15 +131,22 @@ export class Campaign {
     this.passerByDelays = [];
     this.flareIn = Infinity;
     this.flareRemaining = 0;
+    this.dodgeIn = Infinity;
     this.applyLoadout();
   }
 
   update(deltaSeconds: number): void {
     const { input, hud, stationOps } = this.deps;
+    if (this.training.active) {
+      this.training.update(deltaSeconds);
+      this.workshop.update(stationOps.docking.state === 'docked', this.levels, this.credits);
+      return;
+    }
     this.seconds += deltaSeconds;
     this.handleEvents(this.director.update(deltaSeconds, this.deps.field.threatCount));
     this.releasePassersBy(deltaSeconds);
     this.updateFlare(deltaSeconds);
+    this.updateSatelliteJobs(deltaSeconds);
     this.updateTension();
 
     const docked = stationOps.docking.state === 'docked';
@@ -112,7 +157,7 @@ export class Campaign {
       hud.showMessage('Leaving the calm zone', 'info', 2);
     }
     const tip = TIPS.find(([from, to]) => this.seconds >= from && this.seconds < to);
-    hud.setHint(stationOps.docking.hint ?? (tip ? tip[2] : null));
+    hud.setHint(stationOps.docking.hint ?? this.deps.extraHint() ?? (tip ? tip[2] : null));
     this.workshop.update(docked, this.levels, this.credits);
     this.orbitMap.draw(this.director);
   }
@@ -125,27 +170,32 @@ export class Campaign {
       }
       const result = purchase(this.levels, upgrade.id, this.credits);
       if (!result.ok) {
-        hud.showMessage(result.reason === 'maxed' ? `${upgrade.name} is fully upgraded` : `Not enough credits for ${upgrade.name}`, 'warning', 2);
+        hud.showMessage(result.reason === 'maxed' ? `${upgrade.name} is fully upgraded` : `Not enough money for ${upgrade.name}`, 'warning', 2);
         return;
       }
+      session.wallet.spend(result.cost);
       this.levels = result.levels;
-      session.spent += result.cost;
       this.applyLoadout();
       hud.showMessage(`${upgrade.name} upgraded: ${upgrade.effect}`, 'success', 2.5);
       sound.chime();
     });
   }
 
-  /** Pushes upgrade effects into the systems that use them. */
-  private applyLoadout(): void {
-    const { ship, laser, missiles, stationOps } = this.deps;
+  /** Pushes upgrade and module effects into the systems that use them. */
+  applyLoadout(): void {
+    const { ship, laser, missiles, stationOps, session } = this.deps;
     const loadout = loadoutFor(this.levels);
-    ship.fuelCapacity = loadout.fuelCapacity;
+    const fit = session.fit;
+    ship.fuelCapacity = loadout.fuelCapacity * fit.fuelCapacity;
+    ship.fuel = Math.min(ship.fuel, ship.fuelCapacity);
     ship.shieldCapacity = loadout.shieldCapacity;
     ship.thrustMultiplier = loadout.thrustMultiplier;
+    ship.massFactor = fit.massFactor;
     laser.damageMultiplier = loadout.laserDamageMultiplier;
     laser.coolingMultiplier = loadout.laserCoolingMultiplier;
-    missiles.capacity = loadout.missileCapacity;
+    missiles.capacity = loadout.missileCapacity + fit.extraMissiles;
+    missiles.ammunition = Math.min(missiles.ammunition, missiles.capacity);
+    missiles.lockRange = LOCK_RANGE * fit.lockRange;
     stationOps.station.shieldCapacity = loadout.stationShieldCapacity;
   }
 
@@ -155,15 +205,27 @@ export class Campaign {
       if (event.type === 'sector-started') {
         session.impactsThisWave = 0;
         session.destroyedThisWave = 0;
+        this.deps.contracts.startField();
+        const beat = beatForSector(event.index);
+        if (beat) {
+          this.deps.radio.say(beat.speaker, beat.line);
+        }
         const plan = event.plan;
         if (!plan) {
           const dock = stationOps.present ? ` Dock at ${STATION_NAME} to refuel and upgrade.` : '';
           hud.showMessage(`Calm zone.${dock} Enter moves on when ready`, 'info', 5);
+          // Calm stretches are when satellite operators post work.
+          this.deps.radio.setCalm(true);
+          this.deps.radio.moment('calm-start');
+          this.calmZoneJobs();
           continue;
         }
+        this.deps.radio.setCalm(false);
+        this.deps.radio.moment('field-start');
         const passersBy = Math.max(1, Math.round(plan.spawns.length * PASSER_BY_RATIO));
         this.passerByDelays = Array.from({ length: passersBy }, () => this.deps.rng() * plan.durationSeconds);
         // Dense fields sometimes bring a solar flare that blinds the scanner for a while.
+        this.dodgeIn = this.deps.rng() < 0.25 ? 10 + this.deps.rng() * plan.durationSeconds * 0.5 : Infinity;
         this.flareIn = event.sector.kind === 'dense' && this.deps.rng() < 0.6 ? 12 + this.deps.rng() * 25 : Infinity;
         if (plan.hasGiant) {
           hud.showMessage('Giant asteroid detected. Intercept it far out, or push it off course with missiles', 'danger', 6);
@@ -175,10 +237,14 @@ export class Campaign {
         this.spawnAsteroid(event.spawn);
       } else if (event.type === 'wave-cleared') {
         const bonus = waveClearBonus(event.wave, session.destroyedThisWave, session.impactsThisWave);
-        session.score += bonus;
+        const income = this.deps.workingSatellites() * SATELLITE_INCOME;
+        session.wallet.earn(bonus + income);
         session.wavesCleared += 1;
+        const { fieldEarned, fieldLost } = this.deps.contracts;
         const clean = session.impactsThisWave === 0 ? ' No impacts.' : '';
-        const reward = bonus > 0 ? ` +${bonus} points.` : '';
+        const lost = fieldLost > 0 ? `, lost ${formatCredits(fieldLost)}` : '';
+        const satellites = income > 0 ? `, satellite fees ${formatCredits(income)}` : '';
+        const reward = ` Earned ${formatCredits(fieldEarned + bonus + income)}${bonus > 0 ? ` (bonus ${formatCredits(bonus)}${satellites})` : satellites ? ` (${satellites.slice(2)})` : ''}${lost}.`;
         sites.repairSurvivors(loadoutFor(this.levels).siteRepairMultiplier);
         const launchSite = sites.sites.find((site) => site.definition.kind === 'launch' && site.health > 0);
         const supply = stationOps.sendSupplies(launchSite?.localDirection ?? null);
@@ -187,6 +253,25 @@ export class Campaign {
       } else {
         this.orbitComplete = true;
       }
+    }
+  }
+
+  private calmZoneJobs(): void {
+    const { work, rng } = this.deps;
+    if (!work.yardBusy && rng() < 0.75 && work.postRepairTow()) {
+      this.deps.radio.moment('repair-posted');
+    }
+    if (rng() < 0.5) {
+      this.dodgeIn = 6 + rng() * 6;
+    }
+    this.deps.calmZoneWork();
+  }
+
+  private updateSatelliteJobs(deltaSeconds: number): void {
+    this.dodgeIn -= deltaSeconds;
+    if (this.dodgeIn <= 0) {
+      this.dodgeIn = Infinity;
+      this.deps.work.postDodge();
     }
   }
 

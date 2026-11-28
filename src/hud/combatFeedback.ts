@@ -50,9 +50,10 @@ export class CombatFeedback {
     });
   }
 
-  kill(point: THREE.Vector3, score: number, label: string): void {
+  /** Kill confirmation; `text` carries the label and any payment. */
+  kill(point: THREE.Vector3, text: string): void {
     this.killMarker = 0.45;
-    this.push({ world: point.clone(), drift: 0, text: `${label}  +${score}`, color: '#7dffb0', size: 16, age: 0, lifetime: 1.6 });
+    this.push({ world: point.clone(), drift: 0, text, color: '#7dffb0', size: 16, age: 0, lifetime: 1.8 });
   }
 
   /** Short text at a world point, for example a shield hit near the ship. */

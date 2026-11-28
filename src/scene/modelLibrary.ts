@@ -9,13 +9,17 @@ export interface ModelLibrary {
   station: THREE.Object3D;
   /** Three roots in one file: Sat_Comms, Sat_Nav and Sat_Weather. */
   satellites: THREE.Object3D;
+  /** The outposts: Vulcan Yard, Ceres Works and Halo. */
+  vulcan: THREE.Object3D;
+  ceres: THREE.Object3D;
+  halo: THREE.Object3D;
 }
 
 export async function loadModels(): Promise<ModelLibrary> {
   const loader = new GLTFLoader();
   const base = `${import.meta.env.BASE_URL}models/`;
-  const [interceptor, booster, launchPad, station, satellites] = await Promise.all(
-    ['interceptor.glb', 'booster.glb', 'launchpad.glb', 'station.glb', 'satellites.glb'].map(async (file) => {
+  const [interceptor, booster, launchPad, station, satellites, vulcan, ceres, halo] = await Promise.all(
+    ['interceptor.glb', 'booster.glb', 'launchpad.glb', 'station.glb', 'satellites.glb', 'vulcan.glb', 'ceres.glb', 'halo.glb'].map(async (file) => {
       try {
         return (await loader.loadAsync(`${base}${file}`)).scene;
       } catch (error) {
@@ -23,7 +27,7 @@ export async function loadModels(): Promise<ModelLibrary> {
       }
     }),
   );
-  return { interceptor, booster, launchPad, station, satellites };
+  return { interceptor, booster, launchPad, station, satellites, vulcan, ceres, halo };
 }
 
 /** Finds a socket (an empty placed in Blender) or fails loudly if the model changed. */
