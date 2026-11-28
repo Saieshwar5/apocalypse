@@ -329,6 +329,7 @@ export class PlaySession {
     this.combat.resolvePlanetImpacts(impacts, this.deps.camera.position);
     this.combat.resolveWeaponHits(this.laser.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'laser');
     this.combat.resolveWeaponHits(this.missiles.update(deltaSeconds, this.field.all, EARTH_RADIUS), 'missile');
+    this.combat.shipIgnores = this.services.haul.towedRock;
     this.combat.resolveShipCollisions();
     this.combat.resolveEscaped(this.field.collectEscaped());
     this.satellites.shipIgnores = this.services.work.towed;
@@ -363,7 +364,7 @@ export class PlaySession {
     shipModel.update(this.elapsed);
     sound.setEngine(this.shipActive ? ship.throttle : 0, ship.boosting);
 
-    this.targeting = this.shipActive ? computeTargeting(ship, this.missiles.lockedTarget, this.field.all) : null;
+    this.targeting = this.shipActive ? computeTargeting(ship, this.missiles.lockedTarget, this.combat.shipIgnores ? this.field.all.filter((rock) => rock !== this.combat.shipIgnores) : this.field.all) : null;
     this.guidance = computeGuidance(ship, ranked, this.satellites.all);
     this.beeps.update(realDeltaSeconds, Boolean(this.targeting?.collision || this.guidance.satelliteAhead), this.field.all);
     this.updateCamera(realDeltaSeconds);
@@ -406,7 +407,8 @@ export class PlaySession {
     if (this.laser.tryFire(deltaSeconds, input.firingPrimary, group, ship.velocity, shipModel.gunPorts)) {
       sound.laser();
     }
-    this.missiles.updateLock(group, this.field.all);
+    const towed = this.services.haul.towedRock;
+    this.missiles.updateLock(group, towed ? this.field.all.filter((rock) => rock !== towed) : this.field.all);
     if (input.consumePress('KeyF') || input.consumePress('MouseRight')) {
       if (this.missiles.tryFire(group, ship.velocity)) {
         sound.missile();

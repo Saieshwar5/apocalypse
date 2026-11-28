@@ -536,18 +536,18 @@ body {
   color: #ffd75e;
 }
 
-.licence {
+.licence-standing {
   font-size: 11px !important;
   letter-spacing: 0.04em;
   color: var(--accent);
 }
 
-.licence[data-stage='warning'] {
+.licence-standing[data-stage='warning'] {
   color: #ffb347;
 }
 
-.licence[data-stage='probation'],
-.licence[data-stage='recalled'] {
+.licence-standing[data-stage='probation'],
+.licence-standing[data-stage='recalled'] {
   color: var(--danger);
 }
 
@@ -2058,7 +2058,7 @@ button.confirming {
 .tow-card {
   position: absolute;
   left: 50%;
-  bottom: 86px;
+  bottom: 118px;
   transform: translateX(-50%);
   display: grid;
   gap: 2px;

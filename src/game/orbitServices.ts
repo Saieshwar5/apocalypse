@@ -299,8 +299,11 @@ export class OrbitServices {
     return this.rescue.waypoint() ?? this.crew.waypoint() ?? this.work.waypoint() ?? this.haul.waypoint();
   }
 
-  /** The hint line: berthing first, then any storm warning. */
+  /** The hint line: berthing first, then any storm warning. The tow card already says when to release. */
   get hint(): string | null {
+    if (this.berths.loadOnLine && this.delivery()?.step.state !== 'travel') {
+      return this.weather.hint;
+    }
     return this.berths.hint ?? this.weather.hint;
   }
 

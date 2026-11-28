@@ -29,6 +29,8 @@ export interface NavigationObjective {
   via?: THREE.Vector3;
   /** The flight director's advice for this trip. */
   director?: DirectorAdvice;
+  /** One more line under the instruction: for a rock, when it lands and whether you can make it. */
+  note?: { text: string; color: string };
   /** A drop zone around the objective: release a towed load inside it. */
   zone?: { center: THREE.Vector3; radius: number; state: string; text: string };
 }
@@ -188,10 +190,17 @@ function drawCompass(
     context.fillRect(cx - width / 2, line - 11, width, 17);
     context.fillStyle = DIRECTOR_COLOR[advice.phase];
     context.fillText(instruction, cx, line + 2);
+    line += 17;
+    context.font = `700 11px ${MONO}`;
+    if (objective.note) {
+      context.fillStyle = objective.note.color;
+      context.fillText(objective.note.text, cx, line);
+      line += 14;
+    }
     if (frame.autopilot) {
       context.font = `700 10px ${MONO}`;
       context.fillStyle = '#e48cff';
-      context.fillText('AUTOPILOT · any control takes over', cx, line + 17);
+      context.fillText('AUTOPILOT · any control takes over', cx, line);
     }
   }
 }

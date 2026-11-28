@@ -171,6 +171,11 @@ export class HaulWork {
     }
   }
 
+  /** The haul rock while it is on the tow line: the ship nudges it rather than crashing into it. */
+  get towedRock(): Asteroid | null {
+    return this.haul && this.deps.tow.body === this.haul.body ? this.haul.rock : null;
+  }
+
   /** The rock on the line and where it goes: Ceres's intake, the only place that buys rocks. */
   delivery(): DeliverySource | null {
     const haul = this.haul;

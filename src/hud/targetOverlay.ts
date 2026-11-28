@@ -77,6 +77,8 @@ export class TargetOverlay {
   quietLabels = false;
   /** True while the target compass shows the way: the old off-screen arrows step aside. */
   compassActive = false;
+  /** True while a towed load's drop zone is shown. */
+  delivering = false;
   private quiet = false;
 
   draw(deltaSeconds: number, frame: OverlayFrame): void {
@@ -126,7 +128,7 @@ export class TargetOverlay {
     if (frame.tactical) {
       this.drawShipMarker(frame.shipPosition);
     } else {
-      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet, compass: this.compassActive }, this.elapsed);
+      drawGuidance(context, this.projector, { ...frame.guidance, quiet: this.quiet, compass: this.compassActive, delivering: this.delivering }, this.elapsed);
       drawReticle(context, this.projector, frame.aimPoint, frame.targeting, frame.feedback, frame.overheated, this.elapsed);
     }
   }

@@ -48,7 +48,7 @@ export function feedHud(play: PlaySession, deltaSeconds: number, ranked: readonl
       braking: play.deps.input.isDown('KeyS'),
       berthed: play.stationOps.holdingShip || play.services.berths.holding,
     },
-    tow: delivery ? { title: delivery.title, step: `${delivery.step.text} · T releases`, state: delivery.step.state } : null,
+    tow: delivery ? { title: delivery.title, step: delivery.step.state === 'travel' ? `${delivery.step.text} · T lets go` : delivery.step.text, state: delivery.step.state } : null,
   });
   const range = (play.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * play.satellites.scannerBonus * play.services.weather.scannerFactor;
   const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));

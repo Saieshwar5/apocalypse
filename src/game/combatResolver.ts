@@ -179,6 +179,9 @@ export class CombatResolver {
     hud.showMessage(`${name} DESTROYED.${consequence}`, 'danger', 6);
   }
 
+  /** The rock on the ship's own tow line: touching it is a nudge, not a crash. */
+  shipIgnores: Asteroid | null = null;
+
   resolveShipCollisions(): void {
     const { field, explosions, ship } = this.deps;
     if (!this.deps.shipActive()) {
@@ -191,6 +194,15 @@ export class CombatResolver {
         continue;
       }
       const normal = offset.normalize();
+      if (asteroid === this.shipIgnores) {
+        // Slide round the load: keep the ship outside it and stop it moving into it.
+        ship.position.copy(asteroid.mesh.position).addScaledVector(normal, reach + 0.02);
+        const inward = ship.velocity.clone().sub(asteroid.velocity).dot(normal);
+        if (inward < 0) {
+          ship.velocity.addScaledVector(normal, -inward);
+        }
+        continue;
+      }
       ship.position.copy(asteroid.mesh.position).addScaledVector(normal, reach + 0.05);
       ship.velocity.addScaledVector(normal, 10 + asteroid.velocity.length());
       explosions.spawnRockChips(ship.position, 1.5);

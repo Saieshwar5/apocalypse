@@ -21,7 +21,8 @@ import {
 } from '../logic/navigation';
 import { handlingShare } from '../logic/shipModules';
 import { DOCKING } from '../logic/stationSupply';
-import { formatSpeed } from '../logic/units';
+import { formatCountdown, formatSpeed } from '../logic/units';
+import { VERDICT_COLOR, VERDICT_TEXT } from '../hud/guidanceOverlay';
 import { TOW, TOW_BRAKE_SHARE, TOW_SPEED } from '../logic/towing';
 import { damping, orientationFromForward } from '../math/orientation';
 import { EARTH_RADIUS } from '../scene/earth';
@@ -152,6 +153,7 @@ export class Navigation {
     radar.objective = this.objective ? { position: this.objective.world, color: this.objective.color } : null;
     radar.modeLabel = this.scannerMode.toUpperCase();
     this.deps.overlay.compassActive = this.objective !== null;
+    this.deps.overlay.delivering = this.objective?.zone !== undefined;
     if (flying && input.isDown('KeyX') && !this.autopilotOn) {
       this.align(deltaSeconds);
     }
@@ -227,6 +229,7 @@ export class Navigation {
     let knownVelocity: THREE.Vector3 | null = null;
     let key: string = kind;
     let zone: NavigationObjective['zone'];
+    let note: NavigationObjective['note'];
     if (kind === 'threat' && play.guidance.priority) {
       const rock = play.guidance.priority.item;
       world = rock.mesh.position;
@@ -235,6 +238,8 @@ export class Navigation {
       label = `${what}${rock.targetSite ? ` → ${rock.targetSite}` : ''}`;
       tag = 'PRIORITY';
       key = `threat-${rock.id}`;
+      const verdict = play.guidance.priority.verdict;
+      note = { text: `IMPACT ${formatCountdown(play.guidance.priority.impactSeconds)} · ${VERDICT_TEXT[verdict]}`, color: VERDICT_COLOR[verdict] };
     } else if (kind === 'job' && play.services.delivery()) {
       // Something is on the line: steer for its drop zone.
       const delivery = play.services.delivery() as Delivery;
@@ -300,7 +305,7 @@ export class Navigation {
     this.lastWorld.copy(world);
     this.lastKey = key;
     const velocity = this.velocity.clone();
-    return { kind, label, tag, world, velocity, color: COLORS[kind], approachSpeed: kind === 'threat' ? null : arriveSpeed, approachRange: 60, zone, ...this.plan(world, velocity, arriveSpeed, arriveRange) };
+    return { kind, label, tag, world, velocity, color: COLORS[kind], approachSpeed: kind === 'threat' ? null : arriveSpeed, approachRange: 60, zone, note, ...this.plan(world, velocity, arriveSpeed, arriveRange) };
   }
 
   /** The meeting point and the flight director's advice for this trip. */
