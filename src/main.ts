@@ -1,3 +1,4 @@
+import '@fontsource-variable/archivo/standard.css';
 import './styles.css';
 import { Game } from './game/game';
 

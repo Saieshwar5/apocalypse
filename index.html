@@ -136,49 +136,65 @@
     </div>
     <div id="photo-flash" class="photo-flash" aria-hidden="true"></div>
 
-    <div id="menu" class="screen" hidden>
-      <div class="screen-card">
-        <p class="eyebrow">Planetary Defence Wing</p>
-        <h1>Singularity</h1>
-        <p class="tagline">One interceptor. One planet. Paid by the rock.</p>
-        <label class="callsign" for="callsign-input">Your call sign <input id="callsign-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" value="VEGA" /></label>
-        <div class="ship-identity">
-          <label for="shipname-input">Ship name <input id="shipname-input" type="text" maxlength="18" autocomplete="off" spellcheck="false" placeholder="unnamed" /></label>
-          <label for="livery-input">Paint <select id="livery-input"></select></label>
+    <div id="menu" class="screen title-screen" hidden>
+      <div class="title-column">
+        <header class="title-head">
+          <h1 class="wordmark" aria-label="Singularity">
+            <span class="wordmark-text">Singularity</span>
+            <svg class="wordmark-orbit" viewBox="0 0 600 140" aria-hidden="true">
+              <g transform="rotate(-6 300 72)">
+                <path id="title-orbit" class="orbit-path" d="M 8 72 A 292 46 0 1 0 592 72 A 292 46 0 1 0 8 72" pathLength="1" />
+                <circle class="orbit-ship" r="4">
+                  <animateMotion dur="26s" repeatCount="indefinite" begin="1.6s"><mpath href="#title-orbit" /></animateMotion>
+                </circle>
+              </g>
+            </svg>
+          </h1>
+          <p class="title-brief">Earth crosses the comet stream tonight. You fly one interceptor under contract: every rock you stop is paid, and every one you miss lands on someone.</p>
+        </header>
+
+        <div class="title-actions">
+          <button id="start-button" type="button" class="launch" disabled>Loading…</button>
+          <div class="title-secondary">
+            <button id="training-button" type="button" class="quiet">Training flight</button>
+            <button id="menu-help-button" type="button" class="quiet">How to play</button>
+          </div>
         </div>
-        <button id="start-button" type="button" disabled>Loading…</button>
-        <button id="training-button" type="button" class="secondary">Training flight (new pilots start here)</button>
-        <button id="menu-help-button" type="button" class="secondary">How to play</button>
-        <label class="hardcore" for="hardcore-input"><input id="hardcore-input" type="checkbox" /> <span><strong>Hardcore licence</strong> · one ship, no emergency loan, +25% on every payment</span></label>
-        <p id="rank-line" class="rank-line">Rank: Cadet</p>
-        <details id="logbook" class="logbook" hidden>
-          <summary>Pilot's logbook</summary>
-          <ol id="logbook-list"></ol>
-        </details>
-        <dl class="controls">
-          <dt>Mouse or arrow keys</dt><dd>Steer</dd>
-          <dt>W</dt><dd>Thrust. The ship keeps its speed when you let go</dd>
-          <dt>S</dt><dd>Brake to a stop</dd>
-          <dt>A / D, R / V</dt><dd>Slide left / right, up / down</dd>
-          <dt>Q / E</dt><dd>Roll</dd>
-          <dt>Shift</dt><dd>Boost</dd>
-          <dt>Left click / Space</dt><dd>Laser (short range: fly close)</dd>
-          <dt>F / Right click</dt><dd>Missile at locked target</dd>
-          <dt>T</dt><dd>Connect the tow line to a contract satellite, or release it</dd>
-          <dt>Z</dt><dd>Flight assist on or off (off: pure drift and gravity)</dd>
-          <dt>Fly slowly to Aegis</dt><dd>Brake near it and let go to dock. Fuel, missiles and repairs cost money (W launches)</dd>
-          <dt>1 to 8 while docked</dt><dd>Buy upgrades with your earnings</dd>
-          <dt>I while docked</dt><dd>Insure the ship: a replacement then costs 200 cr instead of 900</dd>
-          <dt>Enter</dt><dd>Leave a calm zone early (or skip the launch)</dd>
-          <dt>Tab</dt><dd>Tactical map (slows time)</dd>
-          <dt>G</dt><dd>Choose what the compass beside the crosshair points at</dd>
-          <dt>Hold X</dt><dd>Turn the nose towards it</dd>
-          <dt>B / hold B</dt><dd>Scanner range / enlarge the scanner</dd>
-          <dt>H</dt><dd>Help: what to do now, controls, jobs, reading the screen</dd>
-          <dt>C</dt><dd>Chase or cockpit camera</dd>
-          <dt>P</dt><dd>Photo mode: orbit the ship, Space takes the picture</dd>
-        </dl>
-        <p class="screen-note">You are a contract pilot. Every asteroid heading for the planet carries a contract from the Earth Defence Authority, paid by how much damage it would do, with a bonus for stopping it early; a rock that will burn up pays nothing, so scan before you chase. Spend your earnings on fuel, missiles, repairs and upgrades at Aegis. Small rocks dent the planet; giants can end it. Follow the yellow PRIORITY marker: it shows whether you can reach a rock before it lands. Lasers only reach a short way, so fly to the rock; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, brake before you get too low, and do not lose your ship: there is only one.</p>
+
+        <section class="licence" aria-label="Pilot licence">
+          <div class="licence-top">
+            <span class="licence-issuer">Pilot licence, Earth Defence Authority</span>
+            <span id="licence-rank" class="licence-rank">Cadet</span>
+          </div>
+          <label class="licence-callsign" for="callsign-input">
+            <span class="licence-field">Call sign</span>
+            <input id="callsign-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" value="VEGA" />
+          </label>
+          <div class="licence-progress">
+            <div class="licence-bar"><i id="licence-bar"></i></div>
+            <p id="rank-line" class="licence-next">2,000 cr more to Pilot</p>
+          </div>
+          <div class="licence-ship">
+            <label for="shipname-input">
+              <span class="licence-field">Ship</span>
+              <input id="shipname-input" type="text" maxlength="18" autocomplete="off" spellcheck="false" placeholder="Name your ship" />
+            </label>
+            <div class="licence-paint">
+              <span class="licence-field">Paint</span>
+              <div id="paint-chips" class="paint-chips" role="radiogroup" aria-label="Paint"></div>
+              <select id="livery-input" class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
+            </div>
+          </div>
+          <dl id="licence-stats" class="licence-stats"></dl>
+          <label class="hardcore" for="hardcore-input"><input id="hardcore-input" type="checkbox" /> <span><strong>Hardcore licence</strong>: one ship and no loan, but 25% more pay</span></label>
+          <div class="licence-foot">
+            <details id="logbook" class="logbook" hidden>
+              <summary>Logbook</summary>
+              <ol id="logbook-list"></ol>
+            </details>
+            <button id="new-career-button" type="button" class="link">Start a new career</button>
+          </div>
+        </section>
       </div>
     </div>
 

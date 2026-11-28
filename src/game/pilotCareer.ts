@@ -1,7 +1,7 @@
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
 import type { InputState } from '../input/inputState';
-import { nextRank, parseCareer, rankFor, recordCareerRun, recordMedal, type RankName } from '../logic/career';
+import { RANKS, nextRank, parseCareer, rankFor, recordCareerRun, recordMedal, type RankName } from '../logic/career';
 import { JOB_LABEL, totalMedals } from '../logic/medals';
 import { addLogEntry } from '../logic/logbook';
 import { HARDCORE } from '../logic/reputation';
@@ -12,6 +12,18 @@ import { MedalBoard } from './medalBoard';
 import { ModuleYard } from './moduleYard';
 import type { PlaySession } from './playSession';
 import type { RadioNet } from './radioNet';
+
+export interface LicenceView {
+  rank: string;
+  /** 0..1 towards the next rank. */
+  progress: number;
+  /** What the next rank needs, in words. */
+  next: string;
+  gold: number;
+  seasons: number;
+  earned: number;
+  runs: number;
+}
 
 export interface PilotCareerDependencies {
   session: GameSession;
@@ -145,6 +157,30 @@ export class PilotCareer {
   /** This run's medals, for the end screen. */
   runMedals(): string {
     return this.medals?.summary() ?? 'Medals: none';
+  }
+
+  /** What the pilot licence on the title screen shows. */
+  licenceView(): LicenceView {
+    const next = nextRank(this.record);
+    const current = RANKS.find((rank) => rank.name === this.rank) ?? RANKS[0];
+    const target = RANKS.find((rank) => rank.name === next?.name);
+    // Progress by earnings towards the next rank (seasons are named in the line below the bar).
+    const span = target ? Math.max(1, target.earned - current.earned) : 1;
+    const progress = target ? Math.min(1, Math.max(0, (this.record.earned - current.earned) / span)) : 1;
+    const needs = next
+      ? [next.earnedNeeded > 0 ? `${next.earnedNeeded.toLocaleString('en-US')} cr more` : '', next.seasonsNeeded > 0 ? `${next.seasonsNeeded} more season${next.seasonsNeeded > 1 ? 's' : ''}` : '']
+          .filter(Boolean)
+          .join(' and ')
+      : '';
+    return {
+      rank: this.rank,
+      progress,
+      next: next ? `${needs} to ${next.name}` : 'Highest rank. The orbit is yours to keep',
+      gold: totalMedals(this.record.medals, 'gold'),
+      seasons: this.record.seasons,
+      earned: this.record.earned,
+      runs: this.record.runs,
+    };
   }
 
   /** The menu's career line. */

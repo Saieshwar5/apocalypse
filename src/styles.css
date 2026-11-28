@@ -852,11 +852,6 @@ body {
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.7));
 }
 
-#menu {
-  justify-content: flex-start;
-  padding-left: clamp(16px, 7vw, 120px);
-}
-
 .screen-card {
   width: min(460px, 100%);
   max-height: calc(100vh - 32px);
@@ -1081,7 +1076,7 @@ button.secondary {
 }
 
 #training-button {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .photo-mode {
@@ -1640,4 +1635,421 @@ button.confirming {
 #nav-list li.selected {
   background: rgba(228, 140, 255, 0.16);
   outline: 1px solid rgba(228, 140, 255, 0.5);
+}
+
+/* ------------------------------------------------------------------
+   Title screen: a mission wordmark crossed by an orbit, one brief,
+   one warm launch button, and the pilot's licence.
+   ------------------------------------------------------------------ */
+.title-screen {
+  --void: #03060c;
+  --starlight: #e9eef6;
+  --haze: #8c9ab0;
+  --atmosphere: #6fb7ff;
+  --sunrise: #ff9a4d;
+  --font-title: 'Archivo Variable', var(--font-ui);
+  justify-content: flex-start;
+  align-items: center;
+  padding: 32px clamp(20px, 6vw, 96px);
+  background: linear-gradient(90deg, rgba(3, 6, 12, 0.86) 0%, rgba(3, 6, 12, 0.55) 38%, rgba(3, 6, 12, 0) 62%);
+  font-family: var(--font-title);
+  color: var(--starlight);
+}
+
+.title-screen {
+  overflow-y: auto;
+}
+
+.title-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  width: min(540px, 100%);
+  margin: auto 0;
+}
+
+.wordmark {
+  position: relative;
+  margin: 0;
+  padding: 14px 0 10px;
+  font-family: var(--font-title);
+  font-size: clamp(30px, 4.5vw, 62px);
+  font-stretch: 125%;
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.012em;
+  text-transform: uppercase;
+  color: var(--starlight);
+}
+
+.wordmark-text {
+  position: relative;
+  z-index: 1;
+  display: block;
+  animation: title-settle 1.4s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
+
+/* The orbit crosses the wordmark: behind the letters on the far side, in front on the near side. */
+.wordmark-orbit {
+  position: absolute;
+  inset: -6% -4% -10% -2%;
+  width: 106%;
+  height: 120%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.orbit-path {
+  fill: none;
+  stroke: var(--atmosphere);
+  stroke-width: 1.2;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0.75;
+  animation: orbit-draw 1.8s 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.orbit-ship {
+  fill: var(--sunrise);
+  filter: drop-shadow(0 0 4px rgba(255, 154, 77, 0.9));
+  opacity: 0;
+  animation: ship-appear 0.6s 1.8s forwards;
+}
+
+@keyframes title-settle {
+  from {
+    opacity: 0;
+    letter-spacing: 0.12em;
+  }
+}
+
+@keyframes orbit-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ship-appear {
+  to {
+    opacity: 1;
+  }
+}
+
+.title-brief {
+  max-width: 46ch;
+  margin: 10px 0 0;
+  font-size: 16px;
+  line-height: 1.55;
+  font-stretch: 100%;
+  color: #c6d0de;
+}
+
+.title-actions {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+}
+
+.title-screen button {
+  font-family: var(--font-title);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+.title-screen button.launch {
+  min-height: 58px;
+  border-radius: 6px;
+  background: var(--sunrise);
+  color: #1d0d02;
+  font-size: 18px;
+  font-weight: 750;
+  font-stretch: 112%;
+  box-shadow: 0 10px 34px -12px rgba(255, 154, 77, 0.75);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.title-screen button.launch:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 40px -12px rgba(255, 154, 77, 0.95);
+}
+
+.title-screen button.launch:disabled {
+  background: #3a3f48;
+  color: var(--haze);
+  box-shadow: none;
+}
+
+.title-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.title-secondary button {
+  margin: 0;
+}
+
+.title-screen button.quiet {
+  min-height: 42px;
+  border: 1px solid rgba(233, 238, 246, 0.22);
+  border-radius: 6px;
+  background: rgba(3, 6, 12, 0.35);
+  color: var(--starlight);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.title-screen button.quiet:hover {
+  border-color: rgba(111, 183, 255, 0.6);
+}
+
+.title-screen button:focus-visible {
+  outline: 2px solid var(--atmosphere);
+  outline-offset: 2px;
+}
+
+.title-screen button.launch:focus-visible {
+  outline-color: rgba(255, 154, 77, 0.6);
+  outline-offset: 3px;
+}
+
+/* The pilot licence: an identity card, not a settings form. */
+.licence {
+  display: grid;
+  gap: 12px;
+  padding: 16px 20px 14px;
+  border: 1px solid rgba(111, 183, 255, 0.22);
+  border-radius: 10px;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(111, 183, 255, 0.1), transparent 60%),
+    rgba(5, 10, 19, 0.78);
+  backdrop-filter: blur(10px);
+  font-stretch: 100%;
+}
+
+.licence-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--haze);
+}
+
+.licence-rank {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(111, 183, 255, 0.14);
+  color: var(--atmosphere);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.licence-field {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--haze);
+}
+
+.licence-callsign input {
+  width: 100%;
+  padding: 2px 0 4px;
+  border: 0;
+  border-bottom: 1px solid rgba(233, 238, 246, 0.18);
+  background: none;
+  color: var(--starlight);
+  font: 800 30px var(--font-title);
+  font-stretch: 118%;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.licence-callsign input:focus,
+.licence-ship input:focus {
+  outline: none;
+  border-bottom-color: var(--atmosphere);
+}
+
+.licence-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.licence-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(233, 238, 246, 0.1);
+  overflow: hidden;
+}
+
+.licence-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--atmosphere);
+  transition: width 0.6s ease;
+}
+
+.licence-next {
+  margin: 0;
+  font-size: 13px;
+  color: #c6d0de;
+}
+
+.licence-ship {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.licence-ship input {
+  width: 100%;
+  padding: 2px 0 4px;
+  border: 0;
+  border-bottom: 1px solid rgba(233, 238, 246, 0.18);
+  background: none;
+  color: var(--starlight);
+  font: 700 16px var(--font-title);
+  font-stretch: 110%;
+  text-transform: uppercase;
+}
+
+.licence-ship input::placeholder {
+  color: rgba(140, 154, 176, 0.7);
+  text-transform: none;
+  font-weight: 500;
+  font-stretch: 100%;
+}
+
+.paint-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.paint-chips button {
+  width: 22px;
+  min-height: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid rgba(3, 6, 12, 0.9);
+  border-radius: 50%;
+  background: var(--chip);
+  box-shadow: 0 0 0 1px rgba(233, 238, 246, 0.25);
+}
+
+.paint-chips button[aria-checked='true'] {
+  box-shadow: 0 0 0 2px var(--starlight);
+}
+
+.licence-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid rgba(233, 238, 246, 0.08);
+}
+
+.licence-stats div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.licence-stats dt {
+  font-size: 12px;
+  color: var(--haze);
+}
+
+.licence-stats dd {
+  margin: 0;
+  color: var(--starlight);
+  font-size: 20px;
+  font-weight: 700;
+  font-stretch: 110%;
+  font-variant-numeric: tabular-nums;
+}
+
+.title-screen .hardcore {
+  justify-content: flex-start;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #b4bfcf;
+}
+
+.title-screen .hardcore strong {
+  color: #ffb4a8;
+  letter-spacing: 0;
+}
+
+.licence-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.title-screen .logbook {
+  margin: 0;
+  max-width: none;
+  flex: 1;
+}
+
+.title-screen .logbook summary {
+  color: var(--atmosphere);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.title-screen button.link {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--haze);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.title-screen button.link.confirming {
+  color: #ffb0a5;
+  background: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark-text,
+  .orbit-path,
+  .orbit-ship {
+    animation-duration: 0.01s;
+    animation-delay: 0s;
+  }
+}
+
+@media (max-width: 720px) {
+  .title-screen {
+    padding: 20px 16px;
+    background: rgba(3, 6, 12, 0.72);
+  }
+
+  .licence-callsign input {
+    font-size: 28px;
+  }
+
+  .licence-ship {
+    grid-template-columns: 1fr;
+  }
 }

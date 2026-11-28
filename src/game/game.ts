@@ -1,3 +1,5 @@
+import { TitleScreen } from '../hud/titleScreen';
+import { showShipOnTitle } from './titleShip';
 import { FlightSystems } from './flightSystems';
 import { liveryById } from '../logic/livery';
 import { CockpitInterior } from '../ship/cockpitInterior';
@@ -79,6 +81,7 @@ export class Game {
   private shipName = '';
   private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => this.flight.career.rank });
   private flight!: FlightSystems;
+  private title!: TitleScreen;
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -185,6 +188,10 @@ export class Game {
       input: this.input, hud: this.hud, overlay: this.overlay, radar: this.radar, sound: this.sound, radio: this.radio, rng: this.rng,
       pause: () => this.pauseFor(), resume: () => this.resume(), showPause: () => this.screens.showPause(), hidePause: () => this.screens.hideAll(),
       setInterface: (visible) => (this.hud.setVisible(visible), this.overlay.clear(), this.cockpit.setVisible(visible && this.cameraRig.view === 'cockpit')),
+    });
+    this.title = new TitleScreen(() => {
+      this.flight.career.resetCareer();
+      this.showRank();
     });
     this.shipModel.group.visible = false;
 
@@ -362,6 +369,7 @@ export class Game {
     const right = new THREE.Vector3().crossVectors(position, new THREE.Vector3(0, 1, 0)).normalize();
     const lookAt = right.multiplyScalar(27);
     this.cameraRig.place(position, lookAt, new THREE.Vector3(0, 1, 0), deltaSeconds);
+    showShipOnTitle(this.shipModel, this.camera, this.timer.getElapsed());
     this.earth.update(deltaSeconds);
     this.explosions.update(deltaSeconds);
     this.overlay.clear();
@@ -443,7 +451,7 @@ export class Game {
   }
 
   private showRank(): void {
-    this.screens.setRank(this.flight.career.rankLine());
+    this.title.render(this.flight.career.licenceView());
     this.flight.career.showLogbook();
   }
 
