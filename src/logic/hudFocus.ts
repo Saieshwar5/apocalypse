@@ -2,8 +2,8 @@
  * What deserves a place on the screen right now. The HUD shows what the
  * pilot needs to decide in this moment, brings other things up when they
  * suddenly matter, and keeps everything else one key away (Tab, the
- * tactical map, shows it all). Calm zones show the work-and-money view;
- * fields show the fighting view.
+ * tactical map, shows the planning view around the map). Calm zones show
+ * the work-and-money view; fields show the fighting view.
  */
 export type HudDensity = 'minimal' | 'standard' | 'full';
 
@@ -13,7 +13,7 @@ export interface HudSituation {
   density: HudDensity;
   /** In a calm zone (planning time) rather than a debris field. */
   calm: boolean;
-  /** The tactical map (Tab) is open: show everything. */
+  /** The tactical map (Tab) is open: the planning readings, and room for the map itself. */
   tactical: boolean;
   integrity: number;
   orbitHealth: number;
@@ -67,10 +67,32 @@ export interface HudVisibility {
 export const FLASH_SECONDS = { money: 4, league: 6 } as const;
 
 export function hudVisibility(situation: HudSituation): HudVisibility {
-  const all = situation.density === 'full' || situation.tactical;
+  const all = situation.density === 'full';
   const minimal = situation.density === 'minimal';
   const planning = situation.calm && !minimal;
   const sitesAlert = situation.threatenedSites + situation.damagedSites > 0;
+  if (situation.tactical) {
+    // The map shows the planning readings and leaves the flying ones out: the space belongs to the map.
+    return {
+      integrity: true,
+      orbitHealth: true,
+      licence: true,
+      balance: true,
+      earned: true,
+      league: true,
+      position: false,
+      stationRows: false,
+      sites: sitesAlert ? 'alert' : 'none',
+      boardRows: 8,
+      heat: false,
+      boost: false,
+      steerChip: false,
+      assistChip: false,
+      motionChip: false,
+      controlsLine: false,
+      allWorldLabels: true,
+    };
+  }
   return {
     integrity: all || situation.integrity < 100 || situation.calm,
     orbitHealth: all || situation.orbitHealth < 70 || planning,

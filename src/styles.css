@@ -1362,6 +1362,12 @@ body[data-photo-filter='mono'] #scene {
   color: var(--hud-dim, #9aa8bf);
 }
 
+.help-note {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--hud-dim, #9aa8bf);
+}
+
 .help-now {
   margin: 0;
   padding-left: 22px;
@@ -1690,6 +1696,22 @@ button.confirming {
   width: min(520px, calc(100vw - 32px));
   transform: translate(-50%, -62%);
   background: rgba(4, 10, 18, 0.86);
+}
+
+/* Beside the tactical map the list sits on the left, clear of the planet. */
+.nav-computer.on-map {
+  top: 200px;
+  left: 16px;
+  width: min(400px, calc(100vw - 32px));
+  transform: none;
+}
+
+.nav-computer.on-map #nav-list li {
+  grid-template-columns: 22px 34px 1fr 76px;
+}
+
+.nav-computer.on-map #nav-list li span:nth-child(n + 5) {
+  display: none;
 }
 
 #nav-list {

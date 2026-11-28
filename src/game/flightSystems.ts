@@ -119,7 +119,7 @@ export class FlightSystems {
         this.deps.radio.chatter('halo', "You're listening to Orbit FM, ambient from Halo deck three. Fly safe out there.");
       }
     }
-    this.navigation.update(deltaSeconds, play.shipActive && !play.tactical);
+    this.navigation.update(deltaSeconds, play.shipActive && !play.tactical, play.shipActive && play.tactical);
     return true;
   }
 

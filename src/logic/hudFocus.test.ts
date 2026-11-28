@@ -55,13 +55,26 @@ describe('HUD focus', () => {
     expect(visibility.boardRows).toBe(5);
   });
 
-  it('shows everything on the tactical map and at full density', () => {
-    for (const situation of [{ ...fighting, tactical: true }, { ...fighting, density: 'full' as const }]) {
-      const visibility = hudVisibility(situation);
-      expect(visibility.position && visibility.league && visibility.allWorldLabels && visibility.controlsLine).toBe(true);
-      expect(visibility.sites).toBe('all');
+  it('shows everything at full density', () => {
+    const visibility = hudVisibility({ ...fighting, density: 'full' });
+    expect(visibility.position && visibility.league && visibility.allWorldLabels && visibility.controlsLine).toBe(true);
+    expect(visibility.sites).toBe('all');
+    expect(visibility.boardRows).toBe(8);
+  });
+
+  it('gives the tactical map the planning readings and keeps the flying ones out of its way', () => {
+    for (const density of ['minimal', 'standard', 'full'] as const) {
+      const visibility = hudVisibility({ ...fighting, density, tactical: true });
+      expect(visibility.integrity && visibility.orbitHealth && visibility.licence && visibility.balance && visibility.league).toBe(true);
+      expect(visibility.allWorldLabels).toBe(true);
       expect(visibility.boardRows).toBe(8);
+      expect(visibility.position || visibility.heat || visibility.boost || visibility.controlsLine || visibility.steerChip).toBe(false);
+      expect(visibility.sites).toBe('none');
     }
+  });
+
+  it('still lists threatened sites on the map', () => {
+    expect(hudVisibility({ ...fighting, tactical: true, threatenedSites: 1 }).sites).toBe('alert');
   });
 
   it('keeps the controls line for new pilots', () => {

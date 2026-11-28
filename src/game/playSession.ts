@@ -388,7 +388,7 @@ export class PlaySession {
         input.consumeLook();
       }
       cameraRig.snap();
-      hud.showMessage(this.tactical ? 'Tactical map: time slowed. Mouse rotates, Q/E move the station, Tab returns' : 'Back in the cockpit', 'info', 2.5);
+      hud.showMessage(this.tactical ? 'Map open: time is slowed. Tab returns to the cockpit' : 'Back in the cockpit', 'info', 3);
     }
     if (input.consumePress('KeyI') && this.stationOps.docking.state === 'docked') {
       this.licence.buyInsurance();

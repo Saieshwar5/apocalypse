@@ -1,7 +1,7 @@
 import { OrbitRings } from '../world/orbitRings';
 import * as THREE from 'three';
 import type { Hud } from '../hud/hud';
-import type { NavigationObjective } from '../hud/navigationOverlay';
+import { routePoints, type NavigationObjective } from '../hud/navigationOverlay';
 import type { Radar } from '../hud/radar';
 import type { TargetOverlay } from '../hud/targetOverlay';
 import type { InputState } from '../input/inputState';
@@ -96,15 +96,15 @@ export class Navigation {
     this.disengage(null);
   }
 
-  /** Before the play session updates: keys, the objective, the scanner. */
-  update(deltaSeconds: number, flying: boolean): void {
+  /** Before the play session updates: keys, the objective, the scanner. `onMap`: the tactical map is open. */
+  update(deltaSeconds: number, flying: boolean, onMap = false): void {
     const { input, hud, radar, play } = this.deps;
     const holding = play.stationOps.holdingShip || play.services.berths.holding;
     if (holding && this.autopilotOn) {
       // The docking guides or the berth have the ship: the trip is over.
       this.disengage('Autopilot: arrived. The station has the ship');
     }
-    const picked = this.computer.update(deltaSeconds, flying && !holding);
+    const picked = this.computer.update(deltaSeconds, (flying || onMap) && !holding, onMap);
     if (picked === 'cleared') {
       this.mode = 'auto';
       hud.showMessage('Nav target cleared: the compass follows the action', 'info', 2.5);
@@ -112,7 +112,7 @@ export class Navigation {
       this.mode = 'target';
       const entry = this.computer.current();
       if (entry) {
-        hud.showMessage(`Nav target: ${entry.label}. Follow the compass and the flight director`, 'info', 3);
+        hud.showMessage(onMap ? `Destination: ${entry.label}. Tab returns to the cockpit, then U flies you there` : `Nav target: ${entry.label}. Follow the compass and the flight director`, 'info', 3);
         const { ship } = this.deps;
         const local = entry.world.clone().sub(ship.position).applyQuaternion(ship.object.quaternion.clone().invert());
         const tip =
@@ -185,8 +185,20 @@ export class Navigation {
     if (!visible) {
       return;
     }
-    overlay.drawNavTags(this.computer.visibleEntries().map(({ number, entry }) => ({ number, world: entry.world, label: entry.label })));
-    if (!this.objective || play.tactical) {
+    const listed = this.computer.visibleEntries();
+    if (play.tactical) {
+      const objective = this.objective;
+      const end = objective ? (objective.zone?.center ?? objective.meet ?? objective.world) : null;
+      overlay.drawMap({
+        shipPosition: ship.position,
+        planetRadius: EARTH_RADIUS,
+        tags: listed.map(({ number, entry, selected }) => ({ number, world: entry.world, label: entry.label, group: entry.group, selected })),
+        route: objective && end ? { points: routePoints(ship.position, objective.via ?? null, end), end, color: objective.color, label: objective.tag, zoneRadius: objective.zone?.radius ?? null } : null,
+      });
+      return;
+    }
+    overlay.drawNavTags(listed.map(({ number, entry }) => ({ number, world: entry.world, label: entry.label })));
+    if (!this.objective) {
       return;
     }
     const aimPoint = new THREE.Vector3(0, 0, -AIM_DISTANCE).applyMatrix4(ship.object.matrixWorld);

@@ -46,6 +46,8 @@ export class NavComputer {
   /** The picked target's id, or null. */
   selected: string | null = null;
   private page = -1;
+  /** Beside the tactical map the list stays open and picking keeps it open. */
+  private pinned = false;
   private entries: NavEntry[] = [];
   private refresh = 0;
   private readonly cloudIds = new WeakMap<DebrisCloud, number>();
@@ -53,6 +55,7 @@ export class NavComputer {
   private readonly panel = find('#nav-computer');
   private readonly list = find('#nav-list');
   private readonly pageLabel = find('#nav-page');
+  private readonly caption = find('#nav-caption');
 
   constructor(private readonly deps: NavComputerDependencies) {}
 
@@ -74,27 +77,39 @@ export class NavComputer {
   }
 
   /** Entries on the page now showing, numbered from 1, for the number tags in the world. */
-  visibleEntries(): { number: number; entry: NavEntry }[] {
+  visibleEntries(): { number: number; entry: NavEntry; selected: boolean }[] {
     if (!this.open) {
       return [];
     }
-    return this.entries.slice(this.page * PAGE, this.page * PAGE + PAGE).map((entry, index) => ({ number: index + 1, entry }));
+    return this.entries
+      .slice(this.page * PAGE, this.page * PAGE + PAGE)
+      .map((entry, index) => ({ number: index + 1, entry, selected: entry.id === this.selected }));
   }
 
   /**
    * Keys and the panel. Returns the id of a newly picked target, 'cleared'
-   * when the pilot cleared it, or null.
+   * when the pilot cleared it, or null. `onMap`: the tactical map is open,
+   * so the list sits beside it and stays open.
    */
-  update(deltaSeconds: number, allowed: boolean): string | null {
+  update(deltaSeconds: number, allowed: boolean, onMap = false): string | null {
     const { input } = this.deps;
     if (!allowed) {
+      this.pinned = false;
       this.close();
       return null;
+    }
+    if (onMap !== this.pinned) {
+      this.pinned = onMap;
+      this.page = onMap ? 0 : -1;
+      this.entries = this.build();
+      this.refresh = 0;
+      this.panel.classList.toggle('on-map', onMap);
+      this.caption.textContent = onMap ? 'Number key sets the destination · 0 clears it · Tab returns to the cockpit' : 'Number key sets the target · 0 clears it · U autopilot';
     }
     if (input.consumePress('KeyN')) {
       this.entries = this.build();
       const pages = Math.max(1, Math.ceil(this.entries.length / PAGE));
-      this.page = this.page + 1 >= pages ? -1 : this.page + 1;
+      this.page = this.page + 1 >= pages ? (this.pinned ? 0 : -1) : this.page + 1;
       this.refresh = 0;
     }
     if (!this.open) {
@@ -116,7 +131,11 @@ export class NavComputer {
           picked = entry.id;
         }
       }
-      this.close();
+      if (this.pinned) {
+        this.refresh = 0;
+      } else {
+        this.close();
+      }
       return picked;
     }
     this.refresh -= deltaSeconds;
@@ -139,7 +158,9 @@ export class NavComputer {
     const entries: Omit<NavEntry, 'distance'>[] = [];
     const jobText = play.services.jobRows().map((row) => `${row.title} ${row.detail}`).join(' | ');
     const waypoint = play.services.waypoint();
-    if (waypoint) {
+    // A waypoint that is simply "go to this satellite" is already in the list as that satellite's job.
+    const sameAsSatellite = waypoint !== null && play.satellites.all.some((satellite) => satellite.alive && jobText.includes(satellite.name) && satellite.position.distanceTo(waypoint.world) < 2);
+    if (waypoint && !sameAsSatellite) {
       entries.push({ id: `job:${waypoint.label}`, group: 'job', label: waypoint.label, world: waypoint.world, velocity: null, arriveSpeed: TOW.attachSpeed, arriveRange: 8 });
     }
     const aegis = play.stationOps.whereabouts();
@@ -207,7 +228,7 @@ export class NavComputer {
   private render(): void {
     const { ship } = this.deps;
     const pages = Math.max(1, Math.ceil(this.entries.length / PAGE));
-    this.pageLabel.textContent = pages > 1 ? `page ${this.page + 1}/${pages} · N next` : 'N closes';
+    this.pageLabel.textContent = pages > 1 ? `page ${this.page + 1}/${pages} · N next` : this.pinned ? '' : 'N closes';
     const inverse = ship.object.quaternion.clone().invert();
     this.list.replaceChildren(
       ...this.entries.slice(this.page * PAGE, this.page * PAGE + PAGE).map((entry, index) => {
