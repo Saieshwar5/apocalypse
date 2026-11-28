@@ -11,13 +11,11 @@ import { Hud } from '../hud/hud';
 import { Radar } from '../hud/radar';
 import { TargetOverlay } from '../hud/targetOverlay';
 import { InputState } from '../input/inputState';
-import { orbitRating } from '../logic/orbitPlan';
 import { createSeededRandom } from '../logic/random';
-import { STAR_SYSTEMS, nextSystem } from '../logic/starSystems';
+import { STAR_SYSTEMS } from '../logic/starSystems';
 import { shareText, type RunRecord } from '../logic/bestRuns';
 import { GroundScene } from '../launch/groundScene';
 import { LaunchCinematic } from '../launch/launchCinematic';
-import { pilotName } from '../logic/rivals';
 import { LAUNCH_SITE, OrbitInsertion, orbitPose } from '../launch/orbitInsertion';
 import { RocketEffects } from '../launch/rocketEffects';
 import { EARTH_RADIUS, Earth, loadEarthTextures, type EarthTextures } from '../scene/earth';
@@ -31,7 +29,6 @@ import { ShipController } from '../ship/shipController';
 import { GameSession } from './gameSession';
 import { GameScreens } from './gameScreens';
 import { PlaySession } from './playSession';
-import { saveRun } from './runHistory';
 import { bindSettingsControls, loadSettings, type QualityPreference, type Settings } from './settings';
 import { createSampler, effectiveQuality, sampleFrame, type GraphicsQuality } from '../logic/qualityTier';
 import { EnvironmentLighting } from '../scene/environmentLighting';
@@ -39,6 +36,7 @@ import { SUN_DIRECTION } from '../scene/sunDirection';
 import { RadioNet } from './radioNet';
 import { DEFAULT_CALL_SIGN } from '../logic/cast';
 import { PilotCareer } from './pilotCareer';
+import { runSummary } from './runSummary';
 import { FrameStats } from '../scene/frameStats';
 
 export type GamePhase = 'menu' | 'launch' | 'playing' | 'paused' | 'gameover';
@@ -435,46 +433,9 @@ export class Game {
     this.cockpit.setVisible(false);
     this.shipModel.group.visible = false;
     this.sound.setEngine(0, false);
-    const system = STAR_SYSTEMS[this.systemIndex];
-    const { citiesStanding, cityCount } = this.play.sites;
-    this.lastRun = {
-      earned: this.session.wallet.earned,
-      planet: system.planet,
-      victory,
-      stars: orbitRating(this.session.integrity, citiesStanding, cityCount),
-      citiesStanding,
-      cityCount,
-      date: new Date().toISOString().slice(0, 10),
-    };
-    const next = victory ? nextSystem(this.systemIndex) : null;
-    this.screens.showGameOver({
-      planet: system.planet,
-      nextStar: next?.star ?? null,
-      bestRuns: saveRun(this.lastRun),
-      current: this.lastRun,
-      earned: this.session.wallet.earned,
-      spent: this.session.wallet.spent,
-      balance: this.session.wallet.balance,
-      contractsCompleted: this.play.contracts.contractsCompleted,
-      contractsLost: this.play.contracts.contractsLost,
-      orbitHealth: this.play.services.debris.health,
-      reputation: this.play.licence.reputation,
-      licence: this.play.licence.stage,
-      shipsLost: this.play.licence.shipsLost,
-      rank: this.career.recordRun(this.session.wallet.earned, victory && this.play.licence.stage === 'good', reason),
-      medals: this.career.runMedals(),
-      hardcore: this.session.hardcore,
-      debrisSwept: this.play.services.debris.swept,
-      league: this.session.league().map(({ pilot, earned }) => ({ name: pilotName(pilot), earned, you: pilot === 'player' })),
-      wavesCleared: this.session.wavesCleared,
-      asteroidsDestroyed: this.session.asteroidsDestroyed,
-      impacts: this.session.totalImpacts,
-      citiesStanding: this.play.sites.citiesStanding,
-      cityCount: this.play.sites.cityCount,
-      reason,
-      victory,
-      integrity: this.session.integrity,
-    });
+    const summary = runSummary(this.play, this.session, this.career, STAR_SYSTEMS[this.systemIndex], this.systemIndex, reason, victory);
+    this.lastRun = summary.current;
+    this.screens.showGameOver(summary);
     this.sound.setAtmosphere(0);
     this.showRank();
   }

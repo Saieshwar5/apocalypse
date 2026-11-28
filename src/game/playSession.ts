@@ -10,10 +10,9 @@ import { ScorchMarks } from '../effects/scorchMarks';
 import { SpaceDust } from '../effects/spaceDust';
 import { CombatFeedback } from '../hud/combatFeedback';
 import type { Hud } from '../hud/hud';
-import { SCANNER_RANGE, type Radar } from '../hud/radar';
+import type { Radar } from '../hud/radar';
 import type { TargetOverlay } from '../hud/targetOverlay';
 import type { InputState } from '../input/inputState';
-import { altitudeReadout } from '../logic/atmosphere';
 import type { RandomSource } from '../logic/random';
 import { rankThreats } from '../logic/threats';
 import { damping, orientationFromForward } from '../math/orientation';
@@ -42,10 +41,11 @@ import { WarningBeeps } from './warningBeeps';
 import { Licence } from './licence';
 import { ShipLoss } from './shipLoss';
 import { OrbitServices } from './orbitServices';
+import { feedHud } from './hudFeed';
 import type { OutpostId } from '../station/outposts';
 
 /** Missiles delivered by supply rocket after each wave, until the space base exists. */
-const AIM_DISTANCE = 24;
+export const AIM_DISTANCE = 24;
 /** Time runs this much slower while the tactical map is open. */
 const TACTICAL_TIME_SCALE = 0.3;
 const TACTICAL_DISTANCE = 340;
@@ -95,26 +95,26 @@ export class PlaySession {
   private readonly visuals = new ThreatVisuals(EARTH_RADIUS);
   private readonly dust = new SpaceDust();
   private readonly scorches = new ScorchMarks();
-  private readonly feedback = new CombatFeedback();
+  readonly feedback = new CombatFeedback();
   private readonly shield = new ShieldBubble();
   private readonly rcs: RcsThrusters;
   readonly sites: SiteDefence;
-  private readonly siteMarkers: SiteMarkers;
+  readonly siteMarkers: SiteMarkers;
   private readonly plumes: ImpactPlumes;
-  private readonly hazards: FlightHazards;
+  readonly hazards: FlightHazards;
   readonly stationOps: StationOperations;
   readonly satellites: SatelliteTraffic;
   readonly services: OrbitServices;
   readonly licence: Licence;
   private readonly loss: ShipLoss;
-  private targeting: TargetingInfo | null = null;
-  private guidance: Guidance = { priority: null, satelliteAhead: null };
+  targeting: TargetingInfo | null = null;
+  guidance: Guidance = { priority: null, satelliteAhead: null };
   /** Map orbit angles, set from the ship's position when the map opens. */
   private readonly tacticalOrbit = new THREE.Spherical(TACTICAL_DISTANCE, Math.PI / 3, 0);
   private readonly beeps: WarningBeeps;
   private elapsed = 0;
 
-  constructor(private readonly deps: PlaySessionDependencies) {
+  constructor(readonly deps: PlaySessionDependencies) {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
     this.beeps = new WarningBeeps(deps.sound);
     this.licence = new Licence({ session: deps.session, hud: deps.hud, sound: deps.sound, radio: deps.radio });
@@ -426,75 +426,6 @@ export class PlaySession {
   }
 
   private updateHud(deltaSeconds: number, ranked: readonly Asteroid[], showTargets = true): void {
-    const { hud, radar, overlay, ship, shipModel, session, camera } = this.deps;
-    hud.update(deltaSeconds, {
-      integrity: session.integrity,
-      orbitHealth: this.services.debris.health,
-      licence: { summary: this.licence.summary, stage: this.licence.stage },
-      wave: Math.max(1, this.campaign.director.wave),
-      focus: { calm: this.campaign.director.phase !== 'field', tactical: this.tactical },
-      missileCapacity: this.missiles.capacity,
-      fuelCapacity: ship.fuelCapacity,
-      shieldCapacity: ship.shieldCapacity,
-      balance: session.wallet.balance,
-      earned: session.wallet.earned,
-      league: session.leagueRows(),
-      contracts: this.contracts.listings(ranked),
-      jobs: this.services.jobRows(),
-      contractSummary: this.contracts.summary(this.campaign.director.phase === 'field'),
-      laserHeat: this.laser.heat,
-      overheated: this.laser.overheated,
-      missiles: this.missiles.ammunition,
-      boost: ship.boostEnergy,
-      shield: ship.shield,
-      hull: ship.hull,
-      speed: ship.velocity.length(),
-      shipPosition: ship.position,
-      fuel: ship.fuel,
-      station: this.stationOps.hudInfo(),
-      altitude: altitudeReadout(ship.position.length(), EARTH_RADIUS),
-      zone: this.hazards.zone,
-      sites: this.sites.sites,
-      controls: {
-        mouseCaptured: this.deps.input.pointerLocked,
-        assist: ship.assist,
-        autopilot: this.hazards.pullingUp ? 'AUTO PULL-UP' : this.hazards.returning ? 'AUTOPILOT RETURNING' : null,
-        thrusting: this.deps.input.isDown('KeyW'),
-        braking: this.deps.input.isDown('KeyS'),
-        berthed: this.stationOps.holdingShip || this.services.berths.holding,
-        towing: this.services.work.towStatus(),
-      },
-    });
-    const range = (this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * this.satellites.scannerBonus * this.services.weather.scannerFactor;
-    const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
-    radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null, this.campaign.scannerBlind, this.satellites.positions(), this.services.radarContacts());
-    if (!showTargets || !this.shipActive || !this.targeting || this.stationOps.holdingShip) {
-      overlay.clear();
-      return;
-    }
-    camera.updateMatrixWorld();
-    overlay.draw(deltaSeconds, {
-      camera,
-      aimPoint: new THREE.Vector3(0, 0, -AIM_DISTANCE).applyMatrix4(shipModel.group.matrixWorld),
-      overheated: this.laser.overheated,
-      ranked,
-      targeting: this.targeting,
-      feedback: this.feedback,
-      tactical: this.tactical,
-      shipPosition: ship.position,
-      sites: this.siteMarkers.visibleLabels(camera.position),
-      stationMarkers: [...this.stationOps.markers(), ...this.services.markers()],
-      guidance: {
-        guidance: this.guidance,
-        satellites: this.satellites.all,
-        shipPosition: ship.position,
-        shipVelocity: ship.velocity,
-        showDrift: !ship.assist,
-        priorityPay: this.guidance.priority ? this.contracts.offerFor(this.guidance.priority.item) : 0,
-        waypoint: this.campaign.training.waypoint() ?? this.services.waypoint(),
-        debris: this.services.debris.labels(ship.position),
-        priorityEstimate: this.guidance.priority ? !this.guidance.priority.item.identified : false,
-      },
-    });
+    feedHud(this, deltaSeconds, ranked, showTargets);
   }
 }
