@@ -160,6 +160,7 @@ export class Game {
       this.explosions.group,
       this.damage.group,
     );
+    this.explosions.camera = this.camera;
     this.play = new PlaySession({
       scene: this.scene,
       camera: this.camera,

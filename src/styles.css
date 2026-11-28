@@ -396,6 +396,16 @@ body {
   pointer-events: none;
 }
 
+/* The glare of a blast or an impact: warm light from the middle of the view. */
+#blast-flash {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 244, 220, 0.9), rgba(255, 190, 120, 0.35) 55%, transparent 90%);
+  mix-blend-mode: screen;
+}
+
 .hud-hint.tip {
   bottom: 66px;
   padding: 6px 12px;

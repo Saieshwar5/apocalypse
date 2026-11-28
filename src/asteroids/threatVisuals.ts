@@ -224,10 +224,11 @@ export class ThreatVisuals {
     tail.cone.quaternion.setFromUnitVectors(this.up, direction.clone().negate());
     tail.cone.position.copy(asteroid.mesh.position).addScaledVector(direction, radius * 0.35);
     const flicker = 0.9 + Math.sin(this.elapsed * 37 + asteroid.id) * 0.06 + Math.sin(this.elapsed * 23) * 0.04;
-    tail.cone.scale.set(radius * (0.85 + heat * 0.3), radius * (1.2 + heat * 4.5) * flicker, radius * (0.85 + heat * 0.3));
+    // A long streak of fire: the fall through the air is seen from far across the orbit.
+    tail.cone.scale.set(radius * (0.85 + heat * 0.3), radius * (1.6 + heat * 7) * flicker, radius * (0.85 + heat * 0.3));
     (tail.cone.material as THREE.MeshBasicMaterial).opacity = heat * 0.75;
     tail.glow.position.copy(asteroid.mesh.position).addScaledVector(direction, radius * 0.6);
-    tail.glow.scale.setScalar(radius * (1.6 + heat * 1.6));
+    tail.glow.scale.setScalar(radius * (1.8 + heat * 2.4));
     tail.glow.material.opacity = heat * 0.8;
   }
 

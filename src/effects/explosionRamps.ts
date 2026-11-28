@@ -37,6 +37,14 @@ export const SPARK: ColorRamp = [
   1, 0, 0, 0, 0,
 ];
 
+/** A glowing fragment cooling as it flies: white-hot, then orange, then a dull red point. */
+export const EMBER: ColorRamp = [
+  0, 5, 3.6, 2.0, 0,
+  0.2, 3.4, 1.5, 0.4, 0,
+  0.6, 1.6, 0.42, 0.08, 0,
+  1, 0.2, 0.03, 0, 0,
+];
+
 /** Pulverised rock: fades in behind the fire and hangs around. */
 export const DUST: ColorRamp = [
   0, 0, 0, 0, 0,

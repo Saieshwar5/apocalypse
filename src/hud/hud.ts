@@ -142,6 +142,8 @@ export class Hud {
   private readonly towTitle = element<HTMLElement>('#tow-title');
   private readonly towStep = element<HTMLElement>('#tow-step');
   private readonly damageFlash = element<HTMLDivElement>('#damage-flash');
+  private readonly blastFlash = element<HTMLDivElement>('#blast-flash');
+  private glare = 0;
   private readonly defaultHint = this.hint.textContent ?? '';
   private sitePanel: SitePanel | null = null;
   private sitePanelSites: readonly SiteState[] | null = null;
@@ -235,6 +237,10 @@ export class Hud {
       this.flash = Math.max(0, this.flash - deltaSeconds * 1.8);
       this.damageFlash.style.opacity = String(this.flash);
     }
+    if (this.glare > 0) {
+      this.glare = Math.max(0, this.glare - deltaSeconds * 2.6);
+      this.blastFlash.style.opacity = String(this.glare * this.glare);
+    }
 
     if (this.radioTimer > 0) {
       this.radioTimer -= deltaSeconds;
@@ -323,6 +329,12 @@ export class Hud {
     set(this.assistStatus, visibility.assistChip);
     set(this.motionStatus, visibility.motionChip);
     set(this.hint, visibility.controlsLine || this.hint.classList.contains('tip'));
+  }
+
+  /** A blast or an impact lights the whole view for a moment. Kept gentle: never a full white screen. */
+  flashBlast(strength: number): void {
+    this.glare = Math.max(this.glare, Math.min(0.6, strength));
+    this.blastFlash.style.opacity = String(this.glare * this.glare);
   }
 
   /**
