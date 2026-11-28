@@ -273,8 +273,11 @@ export class OrbitServices {
     ];
   }
 
-  radarContacts(): { position: THREE.Vector3; color: string; triangle?: boolean }[] {
-    return [...this.outposts.list.map((outpost) => ({ position: outpost.position, color: outpost.color })), ...this.rivals.radarContacts()];
+  radarContacts(): { position: THREE.Vector3; color: string; triangle?: boolean; cloud?: number }[] {
+    const clouds = this.deps.traffic.fleet.debris.clouds
+      .filter((cloud) => cloud.mass >= 0.5)
+      .map((cloud) => ({ position: cloud.position, color: '#ffb35c', cloud: cloud.mass }));
+    return [...this.outposts.list.map((outpost) => ({ position: outpost.position, color: outpost.color })), ...this.rivals.radarContacts(), ...clouds];
   }
 
   jobRows(): JobRow[] {

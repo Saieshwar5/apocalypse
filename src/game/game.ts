@@ -1,3 +1,5 @@
+import { CockpitInterior } from '../ship/cockpitInterior';
+import { speedToKmPerSecond } from '../logic/units';
 import { DamageEffects } from '../ship/damageEffects';
 import * as THREE from 'three';
 import { SoundEffects } from '../audio/soundEffects';
@@ -67,6 +69,7 @@ export class Game {
   private readonly screens: GameScreens;
   private readonly explosions = new Explosions();
   private damage!: DamageEffects;
+  private readonly cockpit = new CockpitInterior();
   private environment!: EnvironmentLighting;
   private readonly frameStats = new FrameStats(new URLSearchParams(window.location.search).has('fps'));
   private readonly qualitySampler = createSampler();
@@ -118,6 +121,9 @@ export class Game {
     this.earth = new Earth(textures, SUN_DIRECTION);
     this.shipModel = createShipModel(models.interceptor);
     this.damage = new DamageEffects(this.shipModel.bounds);
+    // The cockpit hangs from the camera, so the camera joins the scene.
+    this.camera.add(this.cockpit.group);
+    this.scene.add(this.camera);
     this.ship = new ShipController(this.shipModel.group);
     this.cameraRig.setCockpitOffset(this.shipModel.cockpit);
     this.ground = new GroundScene(models, this.pipeline.renderer);
@@ -168,7 +174,7 @@ export class Game {
       outpostModels: { vulcan: models.vulcan, ceres: models.ceres, halo: models.halo },
       shipSource: models.interceptor,
       ship: this.ship,
-      setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
+      setCockpitFrame: (visible) => this.cockpit.setVisible(visible),
       radio: this.radio,
       onTrainingComplete: () => this.career.markTrainingDone(),
     });
@@ -220,7 +226,7 @@ export class Game {
     this.earth.reset(this.sunriseSpinAngle());
     this.shipModel.group.visible = true;
     this.cameraRig.view = 'chase';
-    this.screens.setCockpitFrame(false);
+    this.cockpit.setVisible(false);
     this.screens.hideAll();
     this.capturePointer();
     this.launch.start();
@@ -382,6 +388,7 @@ export class Game {
     this.play.update(deltaSeconds);
     this.career.update(deltaSeconds);
     this.damage.update(deltaSeconds, this.ship.hull, this.shipModel.group, this.ship.velocity, this.play.shipActive);
+    this.updateCockpit(deltaSeconds);
     // Solar storms light up the auroras; a warning makes them start to stir.
     const weather = this.play.services.weather.phase;
     this.earth.setAuroraStrength(weather === 'storm' ? 2.2 : weather === 'warning' ? 1.4 : 1);
@@ -399,6 +406,22 @@ export class Game {
     }
   }
 
+  private updateCockpit(deltaSeconds: number): void {
+    const { ship, play } = this;
+    const job = play.services.jobRows()[0];
+    const alert = ship.hull < 30 || ship.fuel < ship.fuelCapacity * 0.15 || play.services.weather.phase === 'storm';
+    this.cockpit.update(deltaSeconds, {
+      speedKmS: speedToKmPerSecond(ship.velocity.length()),
+      fuel: (ship.fuel / ship.fuelCapacity) * 100,
+      hull: ship.hull,
+      shield: (ship.shield / ship.shieldCapacity) * 100,
+      missiles: `${play.missiles.ammunition}/${play.missiles.capacity}`,
+      status: play.services.berths.holding || play.stationOps.holdingShip ? 'BERTHED' : ship.boosting ? 'BOOST' : ship.throttle > 0.5 ? 'THRUST' : 'COASTING',
+      job: job ? `${job.title} ${job.detail}` : 'No work posted',
+      alert,
+    });
+  }
+
   private showRank(): void {
     this.screens.setRank(this.career.rankLine());
   }
@@ -407,7 +430,7 @@ export class Game {
     this.phase = 'gameover';
     this.input.releasePointerLock();
     this.hud.setVisible(false);
-    this.screens.setCockpitFrame(false);
+    this.cockpit.setVisible(false);
     this.shipModel.group.visible = false;
     this.sound.setEngine(0, false);
     const system = STAR_SYSTEMS[this.systemIndex];
