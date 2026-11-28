@@ -1,3 +1,4 @@
+import { currentDelivery, type Delivery } from './delivery';
 import type * as THREE from 'three';
 import type { AsteroidField } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
@@ -127,7 +128,6 @@ export class OrbitServices {
       sound: deps.sound,
     });
     this.haul = new HaulWork({
-      aegis: () => deps.stationOps.whereabouts()?.position ?? null,
       ...job,
       field: deps.field,
       outposts: this.outposts,
@@ -283,6 +283,11 @@ export class OrbitServices {
     return [...this.outposts.list.map((outpost) => ({ position: outpost.position, color: outpost.color })), ...this.rivals.radarContacts(), ...clouds];
   }
 
+  /** What is on the player's tow line and where it goes, or null with a clear line. */
+  delivery(): Delivery | null {
+    return currentDelivery(this.tow, this.work, this.haul, this.rescue, this.deps.fleet, this.outposts);
+  }
+
   jobRows(): JobRow[] {
     return [...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.crew.rows(), ...this.haul.rows(), ...this.debris.rows()];
   }
@@ -296,7 +301,7 @@ export class OrbitServices {
 
   /** The hint line: berthing first, then any storm warning. */
   get hint(): string | null {
-    return this.haul.hint ?? this.berths.hint ?? this.weather.hint;
+    return this.berths.hint ?? this.weather.hint;
   }
 
   /** Work posted in a calm zone besides satellite jobs: hauls, crew calls, sometimes a storm. */

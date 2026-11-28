@@ -26,7 +26,8 @@ export interface WhatNowSituation {
   missiles: number;
   docked: boolean;
   berthedAt: string | null;
-  towing: boolean;
+  /** What is on the tow line, where it goes and the next step; null with a clear line. */
+  towing: { load: string; place: string; step: string } | null;
   storm: 'clear' | 'warning' | 'storm';
   sheltered: boolean;
   licenceGood: boolean;
@@ -54,7 +55,7 @@ export function whatNow(situation: WhatNowSituation): string[] {
     advice.push(`Fuel is low: fly to Aegis, brake below ${formatSpeed(DOCKING.maxRelativeSpeed)} beside it and let go to dock. Ceres sells the cheapest fuel. Press G until the compass says HOME.`);
   }
   if (situation.towing) {
-    advice.push('Something is on your tow line: fly it to the cyan diamond, nearly stop, then press T to release.');
+    advice.push(`You are towing ${situation.towing.load}. Take it to ${situation.towing.place}: the compass points there. ${situation.towing.step}.`);
   }
   if (threat) {
     const when = threat.seconds === null ? '' : ` in ${formatCountdown(threat.seconds)}`;

@@ -48,12 +48,13 @@ export class RadioTraffic {
     }
     this.lastBerth = berth;
 
-    const tow = play.services.work.towStatus();
-    const satellite = tow?.match(/(WX|NAV|COM)-\d [A-Z]+/)?.[0] ?? null;
-    if (satellite && satellite !== this.lastTow) {
-      radio.exchange(towExchange(satellite, this.next()));
+    // A new load, or the same load with a new destination (repaired and bound for its slot).
+    const delivery = play.services.delivery();
+    const tow = delivery ? `${delivery.load}>${delivery.place}` : null;
+    if (delivery && tow !== this.lastTow) {
+      radio.exchange(towExchange(delivery.load, delivery.place, delivery.contact, delivery.condition !== null, this.next()));
     }
-    this.lastTow = satellite;
+    this.lastTow = tow;
 
     const phase = play.campaign.director.phase;
     if (phase === 'calm' && this.lastPhase !== 'calm') {

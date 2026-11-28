@@ -10,7 +10,7 @@ const base: WhatNowSituation = {
   missiles: 8,
   docked: false,
   berthedAt: null,
-  towing: false,
+  towing: null,
   storm: 'clear',
   sheltered: false,
   licenceGood: true,

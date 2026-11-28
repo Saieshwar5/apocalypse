@@ -11,6 +11,7 @@ import { AIM_DISTANCE, type PlaySession } from './playSession';
  */
 export function feedHud(play: PlaySession, deltaSeconds: number, ranked: readonly Asteroid[], showTargets = true): void {
   const { hud, radar, overlay, ship, shipModel, session, camera } = play.deps;
+  const delivery = play.services.delivery();
   hud.update(deltaSeconds, {
     integrity: session.integrity,
     orbitHealth: play.services.debris.health,
@@ -46,8 +47,8 @@ export function feedHud(play: PlaySession, deltaSeconds: number, ranked: readonl
       thrusting: play.deps.input.isDown('KeyW'),
       braking: play.deps.input.isDown('KeyS'),
       berthed: play.stationOps.holdingShip || play.services.berths.holding,
-      towing: play.services.work.towStatus(),
     },
+    tow: delivery ? { title: delivery.title, step: `${delivery.step.text} · T releases`, state: delivery.step.state } : null,
   });
   const range = (play.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * play.satellites.scannerBonus * play.services.weather.scannerFactor;
   const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));

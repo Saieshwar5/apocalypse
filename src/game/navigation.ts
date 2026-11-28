@@ -6,7 +6,7 @@ import type { Radar } from '../hud/radar';
 import type { TargetOverlay } from '../hud/targetOverlay';
 import type { InputState } from '../input/inputState';
 import { MATERIAL_TRAITS } from '../logic/asteroidClasses';
-import { directorAdvice, meetingPoint } from '../logic/flightDirector';
+import { directorAdvice, meetingPoint, viaAround } from '../logic/flightDirector';
 import { FLIGHT } from '../logic/flightModel';
 import {
   OBJECTIVE_NAME,
@@ -22,10 +22,12 @@ import {
 import { handlingShare } from '../logic/shipModules';
 import { DOCKING } from '../logic/stationSupply';
 import { formatSpeed } from '../logic/units';
-import { TOW } from '../logic/towing';
+import { TOW, TOW_BRAKE_SHARE, TOW_SPEED } from '../logic/towing';
 import { damping, orientationFromForward } from '../math/orientation';
+import { EARTH_RADIUS } from '../scene/earth';
 import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipController';
 import type { GameSession } from './gameSession';
+import type { Delivery } from './delivery';
 import { NavComputer, type NavEntry } from './navComputer';
 import { AIM_DISTANCE, type PlaySession } from './playSession';
 import type { RadioNet } from './radioNet';
@@ -45,6 +47,8 @@ export interface NavigationDependencies {
 
 export type Objective = NavigationObjective & { kind: ObjectiveKind };
 
+/** Routes keep this far above the surface, and pass the planet with this much to spare. */
+const ROUTE = { clearAltitude: 11, margin: 7 } as const;
 /** A quick tap of B cycles the scanner range; holding it enlarges the scanner. */
 const HOLD_SECONDS = 0.3;
 const BERTH_SPEED = 3;
@@ -70,6 +74,9 @@ export class Navigation {
   private readonly velocity = new THREE.Vector3();
   private bHeld = 0;
   private warned = false;
+  private wasTowing = false;
+  /** The fastest worth flying with what is on the tow line. */
+  private speedCap = Infinity;
   private readonly rings = new OrbitRings();
 
   constructor(private readonly deps: NavigationDependencies) {
@@ -116,6 +123,13 @@ export class Navigation {
         this.deps.radio?.navCallout(entry.label, entry.world.distanceTo(ship.position), [local.x, local.y, local.z], tip);
       }
     }
+    // Connecting the tow line changes the question from "where is it?" to "where does it go?".
+    const towing = play.services.delivery() !== null;
+    if (towing && !this.wasTowing && this.mode !== 'auto') {
+      this.mode = 'auto';
+      this.computer.selected = null;
+    }
+    this.wasTowing = towing;
     const options = this.options();
     if (this.mode === 'target' && !options.target) {
       this.mode = 'auto';
@@ -192,6 +206,7 @@ export class Navigation {
     return {
       threat: play.guidance.priority !== null,
       job: play.services.waypoint() !== null,
+      committed: play.services.delivery() !== null || play.services.crew.aboard,
       station: true,
       home: play.stationOps.present,
       target: this.computer.selected !== null && this.computer.current() !== null,
@@ -211,6 +226,7 @@ export class Navigation {
     let arriveRange = 14;
     let knownVelocity: THREE.Vector3 | null = null;
     let key: string = kind;
+    let zone: NavigationObjective['zone'];
     if (kind === 'threat' && play.guidance.priority) {
       const rock = play.guidance.priority.item;
       world = rock.mesh.position;
@@ -219,6 +235,18 @@ export class Navigation {
       label = `${what}${rock.targetSite ? ` → ${rock.targetSite}` : ''}`;
       tag = 'PRIORITY';
       key = `threat-${rock.id}`;
+    } else if (kind === 'job' && play.services.delivery()) {
+      // Something is on the line: steer for its drop zone.
+      const delivery = play.services.delivery() as Delivery;
+      // Fly the ship to the middle of the zone and stop: the load, on its short line, settles inside it.
+      world = delivery.world;
+      knownVelocity = delivery.velocity;
+      label = `${delivery.load} to ${delivery.place}`;
+      tag = `DELIVER · ${delivery.place.toUpperCase()}`;
+      arriveSpeed = delivery.maxSpeed - 0.5;
+      arriveRange = 1.2;
+      key = `deliver-${delivery.load}-${delivery.place}`;
+      zone = { center: delivery.world, radius: delivery.radius, state: delivery.step.state, text: delivery.step.state === 'travel' ? `DROP ZONE · ${delivery.place.toUpperCase()}` : delivery.step.text.toUpperCase() };
     } else if (kind === 'job') {
       const waypoint = play.services.waypoint();
       if (waypoint) {
@@ -272,13 +300,17 @@ export class Navigation {
     this.lastWorld.copy(world);
     this.lastKey = key;
     const velocity = this.velocity.clone();
-    return { kind, label, tag, world, velocity, color: COLORS[kind], approachSpeed: kind === 'threat' ? null : arriveSpeed, approachRange: 60, ...this.plan(world, velocity, arriveSpeed, arriveRange) };
+    return { kind, label, tag, world, velocity, color: COLORS[kind], approachSpeed: kind === 'threat' ? null : arriveSpeed, approachRange: 60, zone, ...this.plan(world, velocity, arriveSpeed, arriveRange) };
   }
 
   /** The meeting point and the flight director's advice for this trip. */
-  private plan(world: THREE.Vector3, velocity: THREE.Vector3, arriveSpeed: number, arriveRange: number): Pick<NavigationObjective, 'meet' | 'director'> {
+  private plan(world: THREE.Vector3, velocity: THREE.Vector3, arriveSpeed: number, arriveRange: number): Pick<NavigationObjective, 'meet' | 'director' | 'via'> {
     const { ship } = this.deps;
-    const brake = FLIGHT.brake * ship.thrustMultiplier * handlingShare(ship.massFactor);
+    // A load on the line is dragged to a stop by the ship: the same thrusters slow more mass.
+    const tow = this.deps.play.services.tow;
+    const fragile = tow.load !== null;
+    const brake = (FLIGHT.brake * ship.thrustMultiplier * handlingShare(ship.massFactor) * ship.massFactor * (fragile ? TOW_BRAKE_SHARE : 1)) / (ship.massFactor + tow.loadMass);
+    this.speedCap = fragile ? TOW_SPEED.fragile : tow.loadMass > 0 ? TOW_SPEED.heavy : Infinity;
     const first = directorAdvice(this.directorInput(world, velocity, arriveSpeed, arriveRange, brake));
     // Aim where the target will be when the ship gets there, unless it is already close.
     const distance = world.distanceTo(ship.position);
@@ -286,7 +318,16 @@ export class Navigation {
       distance > arriveRange * 3
         ? new THREE.Vector3(...meetingPoint(ship.position.toArray(), world.toArray(), velocity.toArray(), Math.max(first.targetSpeed, 6)).point)
         : world.clone();
-    return { meet, director: directorAdvice(this.directorInput(meet, velocity, arriveSpeed, arriveRange, brake)) };
+    const input = this.directorInput(meet, velocity, arriveSpeed, arriveRange, brake);
+    // Earth in the way: steer round it. No stopping at the corner, so the leg is flown at speed.
+    const round = viaAround(ship.position.toArray(), meet.toArray(), EARTH_RADIUS + ROUTE.clearAltitude, ROUTE.margin);
+    if (round) {
+      const via = new THREE.Vector3(...round);
+      const leg = directorAdvice({ ...this.directorInput(via, new THREE.Vector3(), Math.min(FLIGHT.cruiseSpeed, this.speedCap), 0, brake), relativeSpeed: Infinity });
+      const phase = leg.phase === 'turn' || leg.phase === 'burn' ? leg.phase : 'coast';
+      return { meet, via, director: { phase, targetSpeed: leg.targetSpeed, brakeIn: null } };
+    }
+    return { meet, director: directorAdvice(input) };
   }
 
   private directorInput(point: THREE.Vector3, velocity: THREE.Vector3, arriveSpeed: number, arriveRange: number, brake: number) {
@@ -301,8 +342,8 @@ export class Navigation {
       relativeSpeed: relative.length(),
       angle: ship.forward().angleTo(direction),
       brake,
-      cruiseSpeed: FLIGHT.cruiseSpeed,
-      boostSpeed: FLIGHT.boostSpeed,
+      cruiseSpeed: Math.min(FLIGHT.cruiseSpeed, this.speedCap),
+      boostSpeed: Math.min(FLIGHT.boostSpeed, this.speedCap),
       arriveRange,
       arriveSpeed,
     };
@@ -341,7 +382,7 @@ export class Navigation {
     if (!this.objective || play.hazards.autopilot || this.hardcoreRefuses()) {
       return;
     }
-    this.turnTowards(this.objective.meet ?? this.objective.world, deltaSeconds, 3);
+    this.turnTowards(steerPoint(this.objective), deltaSeconds, 3);
   }
 
   private turnTowards(point: THREE.Vector3, deltaSeconds: number, sharpness: number): void {
@@ -394,12 +435,22 @@ export class Navigation {
     }
     const { ship } = this.deps;
     const phase = objective.director.phase;
-    if (phase === 'arrived') {
+    const delivery = this.deps.play.services.delivery();
+    if (delivery && !delivery.dodge) {
+      // Towing: the job is done when the load sits in the drop zone, slow enough to let go.
+      if (delivery.step.state === 'release') {
+        this.disengage('Autopilot: the load is in the drop zone. Release it (T)');
+        return IDLE_INPUT;
+      }
+      if (phase === 'arrived') {
+        return IDLE_INPUT;
+      }
+    } else if (phase === 'arrived') {
       this.disengage(`Autopilot: arrived at ${objective.label}. You have the controls`);
       return IDLE_INPUT;
     }
-    this.turnTowards(objective.meet ?? objective.world, deltaSeconds, 2.2);
-    const facing = ship.forward().angleTo((objective.meet ?? objective.world).clone().sub(ship.position)) < 0.35;
+    this.turnTowards(steerPoint(objective), deltaSeconds, 2.2);
+    const facing = ship.forward().angleTo(steerPoint(objective).clone().sub(ship.position)) < 0.35;
     if (phase === 'brake' || phase === 'arrive') {
       return { ...IDLE_INPUT, brake: 1 };
     }
@@ -408,6 +459,11 @@ export class Navigation {
     }
     return IDLE_INPUT;
   }
+}
+
+/** Where to point the nose: round the planet first, then the meeting point. */
+function steerPoint(objective: Objective): THREE.Vector3 {
+  return objective.via ?? objective.meet ?? objective.world;
 }
 
 /** The compass tag for a nav target: the call sign or station name, kept short. */

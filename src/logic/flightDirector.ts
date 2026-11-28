@@ -111,3 +111,55 @@ export function bearingArrow(x: number, y: number, behind: boolean): string {
   const arrow = ARROWS[(index + 8) % 8];
   return behind ? `${arrow}⟲` : arrow;
 }
+
+/**
+ * Earth is in the way more often than not. If the straight line from the
+ * ship to the target passes closer to the planet's centre than `safeRadius`,
+ * this returns a point to steer for instead: where a line from the ship just
+ * grazes a sphere `clearance` larger, on the side the target lies. Followed
+ * and recomputed as the ship moves, it leads the ship up to that sphere,
+ * round it, and off again once the way is clear. Null when the way is clear.
+ */
+export function viaAround(ship: Vec3Tuple, target: Vec3Tuple, safeRadius: number, clearance: number): Vec3Tuple | null {
+  const d: Vec3Tuple = [target[0] - ship[0], target[1] - ship[1], target[2] - ship[2]];
+  const lengthSquared = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+  if (lengthSquared === 0) {
+    return null;
+  }
+  const t = -(ship[0] * d[0] + ship[1] * d[1] + ship[2] * d[2]) / lengthSquared;
+  // Closest approach at either end: the line is leaving or arriving, not crossing.
+  if (t <= 0 || t >= 1) {
+    return null;
+  }
+  if (Math.hypot(ship[0] + d[0] * t, ship[1] + d[1] * t, ship[2] + d[2] * t) >= safeRadius) {
+    return null;
+  }
+  const distance = Math.hypot(...ship);
+  const outward: Vec3Tuple = distance > 1e-6 ? [ship[0] / distance, ship[1] / distance, ship[2] / distance] : [0, 1, 0];
+  // The way round: the part of the direction to the target that is square to "outward".
+  const along = d[0] * outward[0] + d[1] * outward[1] + d[2] * outward[2];
+  let side: Vec3Tuple = [d[0] - outward[0] * along, d[1] - outward[1] * along, d[2] - outward[2] * along];
+  let sideLength = Math.hypot(...side);
+  if (sideLength < 1e-6) {
+    // The target is straight through the centre: any way round will do.
+    const axis: Vec3Tuple = Math.abs(outward[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    side = [outward[1] * axis[2] - outward[2] * axis[1], outward[2] * axis[0] - outward[0] * axis[2], outward[0] * axis[1] - outward[1] * axis[0]];
+    sideLength = Math.hypot(...side);
+  }
+  side = [side[0] / sideLength, side[1] / sideLength, side[2] / sideLength];
+  const radius = safeRadius + clearance;
+  if (distance <= radius) {
+    // Already down at the sphere: fly along it, climbing a little.
+    const reach = 12;
+    return [ship[0] + (side[0] + outward[0] * 0.25) * reach, ship[1] + (side[1] + outward[1] * 0.25) * reach, ship[2] + (side[2] + outward[2] * 0.25) * reach];
+  }
+  // The grazing line leaves the ship at this angle from the line to the centre.
+  const sine = radius / distance;
+  const cosine = Math.sqrt(1 - sine * sine);
+  const reach = Math.sqrt(distance * distance - radius * radius);
+  return [
+    ship[0] + (side[0] * sine - outward[0] * cosine) * reach,
+    ship[1] + (side[1] * sine - outward[1] * cosine) * reach,
+    ship[2] + (side[2] * sine - outward[2] * cosine) * reach,
+  ];
+}

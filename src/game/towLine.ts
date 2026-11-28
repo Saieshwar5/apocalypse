@@ -42,6 +42,12 @@ export class TowLine {
   /** A body being hauled (a rock, an escape pod), or null; never at the same time as a satellite. */
   body: TowBody | null = null;
   private rockMass = 1;
+
+  /** Mass on the line relative to the bare ship (0 with a clear line), for planning how long braking takes. */
+  get loadMass(): number {
+    return this.load ? LOAD_MASS.satellite : this.body ? this.rockMass : 0;
+  }
+
   /** Set from the fitted modules: ship mass and the winch. */
   lineFit = { shipMass: 1, lineStrength: 1, lineSteadying: 1 };
   /** Set when a hauled rock's line snaps; cleared by whoever reports it. */

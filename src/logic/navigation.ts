@@ -86,12 +86,17 @@ export interface ObjectiveOptions {
   home: boolean;
   /** A target picked in the navigation computer still exists. */
   target?: boolean;
+  /** Something is on the tow line, or a crew is aboard: the job in hand comes before anything else. */
+  committed?: boolean;
   /** Low fuel or hull, or out of missiles. */
   needsHome: boolean;
 }
 
 /** What the game would point at by itself. */
 export function autoObjective(options: ObjectiveOptions): ObjectiveKind | null {
+  if (options.committed && options.job) {
+    return 'job';
+  }
   if (options.needsHome && options.home) {
     return 'home';
   }

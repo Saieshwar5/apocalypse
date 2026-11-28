@@ -2053,3 +2053,51 @@ button.confirming {
     grid-template-columns: 1fr;
   }
 }
+
+/* Tow card: what is on the line, where it goes, and the next step. */
+.tow-card {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 2px;
+  min-width: 320px;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 7px 16px 8px;
+  border: 1px solid rgba(143, 211, 255, 0.5);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgba(4, 12, 22, 0.82);
+  text-align: center;
+  --tow: #8fd3ff;
+  border-color: var(--tow);
+}
+
+.tow-card strong {
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: #eef5ff;
+}
+
+.tow-card span {
+  font-size: 13px;
+  color: var(--tow);
+}
+
+.tow-card[data-state='slow'],
+.tow-card[data-state='hold'] {
+  --tow: #ffb347;
+}
+
+.tow-card[data-state='release'],
+.tow-card[data-state='safe'] {
+  --tow: #7dffb0;
+  animation: tow-ready 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes tow-ready {
+  to {
+    box-shadow: 0 0 22px rgba(125, 255, 176, 0.45);
+  }
+}

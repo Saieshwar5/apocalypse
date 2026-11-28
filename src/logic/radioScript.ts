@@ -70,12 +70,15 @@ export function berthExchange(station: 'vulcan' | 'ceres' | 'halo', pick: number
   ];
 }
 
-/** A tow line on a contract satellite: the pilot reports, the yard answers. */
-export function towExchange(satellite: string, pick: number): Exchange {
-  const replies = ['Copy. Bring her in gently, {callsign}.', 'Good. Easy on the line, she is fragile.', 'Okafor here. Cradle is ready for her.'];
+/**
+ * Something on the tow line: the pilot reports it and whoever is waiting
+ * for it says where it goes.
+ */
+export function towExchange(load: string, place: string, contact: SpeakerId, fragile: boolean, pick: number): Exchange {
+  const tails = fragile ? ['Gently, she is fragile.', 'Easy on the line.', 'No hard pulls.'] : ['Brake early, it is heavy.', 'Nearly stop before you let go.', 'Take your time.'];
   return [
-    ['self', `Vulcan, {callsign}, I have ${satellite} on the line.`],
-    ['vulcan', replies[pick % replies.length]],
+    ['self', `{callsign} has ${load} on the line.`],
+    [contact, `Copy, {callsign}. Bring it to ${place}. ${tails[pick % tails.length]}`],
   ];
 }
 

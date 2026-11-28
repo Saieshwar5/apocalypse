@@ -297,10 +297,10 @@ export class SatelliteWork {
     return target ? { world: target.world, label: target.label } : null;
   }
 
-  /** The tow status for the control line, or null when not towing. */
-  towStatus(): string | null {
-    const load = this.deps.tow.load;
-    return load ? `TOWING ${load.name} ${Math.round(load.condition)}% · T LETS GO` : null;
+  /** The job a satellite belongs to, for showing where to deliver it. `ready`: it may go back to its slot. */
+  jobInfo(satellite: Satellite): { kind: SatelliteJobKind; ready: boolean; asteroid: Asteroid | null } | null {
+    const job = this.jobFor(satellite);
+    return job ? { kind: job.kind, ready: job.kind === 'repair-tow' ? job.repaired : job.clear, asteroid: job.asteroid } : null;
   }
 
   /** Ignored by the ship's collision test while on the line. */
@@ -451,7 +451,7 @@ export class SatelliteWork {
         : { world: this.deps.outposts.portPosition('vulcan'), label: 'VULCAN YARD CRADLE: RELEASE HERE (T)' };
     }
     if (!job.clear) {
-      return onLine ? null : { world: satellite.position.clone(), label: `CONNECT TO ${name} (T)` };
+      return onLine ? (job.asteroid ? { world: escapePoint(satellite, job.asteroid), label: "CLEAR OF THE ROCK'S PATH" } : null) : { world: satellite.position.clone(), label: `CONNECT TO ${name} (T)` };
     }
     return onLine
       ? { world: this.deps.fleet.slot(satellite).position, label: 'ORBIT SLOT: RELEASE HERE (T)' }

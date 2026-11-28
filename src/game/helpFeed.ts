@@ -13,6 +13,7 @@ export function adviceFor(play: PlaySession, ship: ShipController, navigation: N
   const priority = play.guidance.priority;
   const rock = priority?.item ?? null;
   const job = play.services.jobRows()[0] ?? null;
+  const delivery = play.services.delivery();
   const berthedAt = play.services.berths.berthedAt;
   const docked = play.stationOps.docking.state === 'docked';
   return whatNow({
@@ -34,7 +35,7 @@ export function adviceFor(play: PlaySession, ship: ShipController, navigation: N
     missiles: play.missiles.ammunition,
     docked,
     berthedAt: berthedAt ? play.services.outposts.get(berthedAt).name : null,
-    towing: play.services.work.towStatus() !== null,
+    towing: delivery ? { load: delivery.load, place: delivery.place, step: delivery.step.text } : null,
     storm: play.services.weather.phase,
     sheltered: docked || berthedAt !== null || inPlanetShadow(ship.position.toArray(), SUN_DIRECTION.toArray(), EARTH_RADIUS),
     licenceGood: play.licence.stage === 'good',
