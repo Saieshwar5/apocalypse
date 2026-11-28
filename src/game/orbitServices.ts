@@ -9,12 +9,14 @@ import type { PilotId } from '../logic/rivals';
 import type { RandomSource } from '../logic/random';
 import type { SatelliteFleet } from '../satellites/satelliteFleet';
 import type { ShipController } from '../ship/shipController';
-import { Outposts, type OutpostId } from '../station/outposts';
+import { Outposts, type ModelOutpostId } from '../station/outposts';
 import { SatelliteWork, type JobRow, type Waypoint } from './satelliteWork';
 import { TowLine } from './towLine';
 import { SpaceWeather } from './spaceWeather';
 import { CargoWork } from './cargoWork';
+import { CityLife } from './cityLife';
 import { cargoKindsFor, jobUnlocked } from '../logic/jobAccess';
+import { CITY_STATE_NAME, isCity } from '../logic/cities';
 import { RescueWork } from './rescueWork';
 import { EscortWork } from './escortWork';
 import type { StationOperations } from '../station/stationOperations';
@@ -42,7 +44,7 @@ const RIVAL_DEBRIS_SHARE = 0.5;
 
 export interface OrbitServicesDependencies {
   scene: THREE.Scene;
-  outpostModels: Record<OutpostId, THREE.Object3D>;
+  outpostModels: Record<ModelOutpostId, THREE.Object3D>;
   fleet: SatelliteFleet;
   traffic: SatelliteTraffic;
   ship: ShipController;
@@ -75,6 +77,8 @@ export interface StationMarker {
   edgeArrow?: boolean;
   /** Stations are squares; rival ships are triangles. */
   shape?: 'square' | 'triangle';
+  /** A great station's state, shown beside its name on the map. */
+  note?: string;
 }
 
 /**
@@ -93,6 +97,8 @@ export class OrbitServices {
   readonly haul: HaulWork;
   readonly weather: SpaceWeather;
   readonly cargo: CargoWork;
+  /** The three great stations: their lights, their calls and Farwatch's lookout. */
+  readonly cities: CityLife;
   readonly rescue: RescueWork;
   readonly escort: EscortWork;
 
@@ -197,6 +203,7 @@ export class OrbitServices {
       radio: deps.radio,
       rng: deps.rng,
     });
+    this.cities = new CityLife({ outposts: this.outposts, stocks: () => this.market.snapshot(), hud: deps.hud, radio: deps.radio });
     deps.scene.add(this.outposts.group, this.tow.mesh, this.market.group);
     this.debris = new OrbitDebris({
       ...job,
@@ -238,6 +245,7 @@ export class OrbitServices {
     this.haul.reset();
     this.weather.reset();
     this.cargo.reset();
+    this.cities.reset();
     this.rescue.reset();
     this.escort.reset();
   }
@@ -256,6 +264,7 @@ export class OrbitServices {
     this.work.update(deltaSeconds);
     this.haul.update();
     this.market.update(deltaSeconds);
+    this.cities.update();
     this.berths.update(deltaSeconds, active, pilotBusy);
     this.weather.update(deltaSeconds, active);
     this.cargo.update(deltaSeconds, active);
@@ -273,6 +282,7 @@ export class OrbitServices {
       ...this.outposts.list.map((outpost) => ({
         world: outpost.position,
         name: `${outpost.name} · fuel ${formatPrice(this.market.price(outpost.id, 'fuel'))}`,
+        note: isCity(outpost.id) ? CITY_STATE_NAME[this.cities.stateOf(outpost.id)].toUpperCase() : undefined,
         ghost: false,
         color: outpost.color,
         edgeArrow: false,

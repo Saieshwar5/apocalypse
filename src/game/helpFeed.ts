@@ -58,5 +58,6 @@ export function missionReadings(play: PlaySession, integrity: number): MissionRe
     satellitesTotal: play.satellites.fleet.satellites.length,
     aegis: stock ? { fuel: stock.fuel / STATION_STOCK.capacity.fuel, missiles: stock.missiles / STATION_STOCK.capacity.missiles } : null,
     licence: { stage: play.licence.stage, score: play.licence.reputation },
+    cities: play.services.cities.summary().map(({ name, state }) => ({ name, state })),
   };
 }

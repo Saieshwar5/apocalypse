@@ -44,7 +44,7 @@ import { ShipLoss } from './shipLoss';
 import { OrbitServices } from './orbitServices';
 import { TOW_BRAKE_SHARE } from '../logic/towing';
 import { feedHud } from './hudFeed';
-import type { OutpostId } from '../station/outposts';
+import type { ModelOutpostId } from '../station/outposts';
 
 /** Missiles delivered by supply rocket after each wave, until the space base exists. */
 export const AIM_DISTANCE = 24;
@@ -70,7 +70,7 @@ export interface PlaySessionDependencies {
   /** The Blender station model. */
   stationModel: THREE.Object3D;
   satellitesModel: THREE.Object3D;
-  outpostModels: Record<OutpostId, THREE.Object3D>;
+  outpostModels: Record<ModelOutpostId, THREE.Object3D>;
   /** The interceptor model, repainted for the rival pilots. */
   shipSource: THREE.Object3D;
   ship: ShipController;

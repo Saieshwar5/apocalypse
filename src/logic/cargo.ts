@@ -78,14 +78,19 @@ export interface CargoPlan {
   shortage: number;
 }
 
-/** The station (not Ceres, the depot) shortest of fuel or parts, and of which. */
+/** Where a good is loaded: the depot at Ceres, or for fuel also the port at Anchor, which lifts it from Earth. */
+export function isSource(station: StationId, good: Good): boolean {
+  return station === 'ceres' || (station === 'anchor' && good === 'fuel');
+}
+
+/** The station shortest of fuel or parts, and of which. A station never needs what it makes. */
 export function neediest(stocks: Record<StationId, Stock>, stations: readonly StationId[]): { station: StationId; good: Good; share: number } | null {
   let best: { station: StationId; good: Good; share: number } | null = null;
   for (const station of stations) {
-    if (station === 'ceres') {
-      continue;
-    }
     for (const good of ['fuel', 'parts'] as const) {
+      if (isSource(station, good)) {
+        continue;
+      }
       const share = stocks[station][good] / MARKETS[station].capacity[good];
       if (!best || share < best.share) {
         best = { station, good, share };
@@ -100,7 +105,8 @@ const KIND_WEIGHT: Record<CargoKind, number> = { routine: 5, urgent: 2, fragile:
 /**
  * The next transfer on offer. `stations` are those that exist (Aegis can be
  * lost); `kinds` are those the pilot's rank allows. Stock runs go from the
- * depot at Ceres to whichever station is shortest.
+ * depot at Ceres (or, for fuel, the port at Anchor) to whichever station is
+ * shortest.
  */
 export function planCargo(stocks: Record<StationId, Stock>, stations: readonly StationId[], kinds: readonly CargoKind[], rng: RandomSource): CargoPlan | null {
   if (kinds.length === 0 || stations.length < 2) {
@@ -117,16 +123,19 @@ export function planCargo(stocks: Record<StationId, Stock>, stations: readonly S
     }
   }
   if (kind === 'routine' || kind === 'urgent') {
-    const need = stations.includes('ceres') ? neediest(stocks, stations) : null;
-    if (!need) {
+    const need = neediest(stocks, stations);
+    // Load where there is most of it.
+    const sources = need ? stations.filter((station) => isSource(station, need.good) && station !== need.station) : [];
+    if (!need || sources.length === 0) {
       return null;
     }
+    const from = sources.reduce((best, station) => (stocks[station][need.good] > stocks[best][need.good] ? station : best));
     const room = MARKETS[need.station].capacity[need.good] - stocks[need.station][need.good];
-    const units = Math.floor(Math.min(CARGO.units, room, stocks.ceres[need.good]));
+    const units = Math.floor(Math.min(CARGO.units, room, stocks[from][need.good]));
     if (units < 10) {
       return null;
     }
-    return { kind, good: need.good, from: 'ceres', to: need.station, units, shortage: 1 - need.share };
+    return { kind, good: need.good, from, to: need.station, units, shortage: 1 - need.share };
   }
   // People live on Halo; instruments are built at Vulcan Yard. Either may be going out or coming home.
   const home: StationId = kind === 'passengers' ? 'halo' : 'vulcan';

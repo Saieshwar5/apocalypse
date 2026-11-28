@@ -1,3 +1,4 @@
+import type { StationId } from './stations';
 import type { SpeakerId } from './cast';
 
 /**
@@ -16,6 +17,9 @@ export const CHANNEL: Record<RadioSpeaker, string> = {
   vulcan: 'VULCAN',
   ceres: 'CERES',
   halo: 'HALO',
+  meridian: 'MERIDIAN',
+  anchor: 'ANCHOR',
+  farwatch: 'FARWATCH',
   kestrel: 'PILOTS',
   moth: 'PILOTS',
   self: 'YOU',
@@ -31,6 +35,9 @@ export const VOICE: Record<RadioSpeaker, { voice: number; pitch: number; rate: n
   vulcan: { voice: 1, pitch: 0.85, rate: 0.98 },
   ceres: { voice: 2, pitch: 0.72, rate: 0.95 },
   halo: { voice: 3, pitch: 1.05, rate: 1.02 },
+  meridian: { voice: 7, pitch: 1.0, rate: 1.0 },
+  anchor: { voice: 8, pitch: 0.8, rate: 0.96 },
+  farwatch: { voice: 9, pitch: 1.1, rate: 1.04 },
   kestrel: { voice: 4, pitch: 1.15, rate: 1.15 },
   moth: { voice: 5, pitch: 0.75, rate: 0.9 },
   self: { voice: 6, pitch: 0.95, rate: 1.1 },
@@ -41,7 +48,7 @@ export type RadioPriority = 'emergency' | 'ops' | 'chatter';
 
 export type Exchange = readonly (readonly [RadioSpeaker, string])[];
 
-const STATION_SPEAKER: Record<string, SpeakerId> = { vulcan: 'vulcan', ceres: 'ceres', halo: 'halo' };
+const STATION_SPEAKER: Record<string, SpeakerId> = { vulcan: 'vulcan', ceres: 'ceres', halo: 'halo', meridian: 'meridian', anchor: 'anchor', farwatch: 'farwatch' };
 
 /** Docking at Aegis: the pilot asks, control clears. */
 export function dockingExchange(pick: number): Exchange {
@@ -57,13 +64,16 @@ export function dockingExchange(pick: number): Exchange {
 }
 
 /** Berthing at an outpost: the pilot calls in, the station chief answers. */
-export function berthExchange(station: 'vulcan' | 'ceres' | 'halo', pick: number): Exchange {
+export function berthExchange(station: Exclude<StationId, 'aegis'>, pick: number): Exchange {
   const replies: Record<typeof station, readonly string[]> = {
     vulcan: ['Okafor. Berth two is yours, {callsign}. Mind the cranes.', 'Vulcan Yard. Clamps on. Parts and fuel at yard prices.'],
     ceres: ['Patel. Welcome to Ceres, {callsign}. Cheapest fuel in orbit.', 'Ceres Works. Berth is yours. Breathe through your mouth, the crushers are running.'],
     halo: ["Sato. Welcome aboard, {callsign}. Crew's been asking about you.", 'Halo here. Clamps on. Stay as long as you need.'],
+    meridian: ['Meridian harbour. Welcome to the city, {callsign}. Mind the ring as you leave.', 'Adeyemi. Good to see an Authority ship at our dock, {callsign}.'],
+    anchor: ['Lind. Berth six, {callsign}. Fuel is fresh up from the ground.', 'Anchor port. Clamps on. Cheapest tank in low orbit.'],
+    farwatch: ['Imani. Farwatch has you, {callsign}. It is a long way out: stay a while.', 'Farwatch. Clamps on. The dishes are listening.'],
   };
-  const names = { vulcan: 'Vulcan', ceres: 'Ceres', halo: 'Halo' };
+  const names = { vulcan: 'Vulcan', ceres: 'Ceres', halo: 'Halo', meridian: 'Meridian', anchor: 'Anchor', farwatch: 'Farwatch' };
   return [
     ['self', `${names[station]}, {callsign}, coming alongside to berth.`],
     [STATION_SPEAKER[station], replies[station][pick % replies[station].length]],

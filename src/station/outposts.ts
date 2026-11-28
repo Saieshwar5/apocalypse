@@ -4,13 +4,18 @@ import { orbitState } from '../logic/satellites';
 import { orientationFromForward } from '../math/orientation';
 import { requireNode } from '../scene/modelLibrary';
 import { SHIP_SCALE } from '../ship/shipModel';
+import { CITY_IDS, type CityId } from '../logic/cities';
+import { buildCity, type CityModel } from './cityModels';
 
 export type OutpostId = Exclude<StationId, 'aegis'>;
+/** The smaller outposts, whose shapes are Blender models. */
+export type ModelOutpostId = Exclude<OutpostId, CityId>;
 
 /** Root node names in the Blender files (art/blender/build_outposts.py). */
-const MODEL_ROOTS: Record<OutpostId, string> = { vulcan: 'Vulcan', ceres: 'Ceres', halo: 'Halo' };
+const MODEL_ROOTS: Record<ModelOutpostId, string> = { vulcan: 'Vulcan', ceres: 'Ceres', halo: 'Halo' };
 /** The ship is pushed out of this sphere around each station's centre. */
-const BODY_RADIUS: Record<OutpostId, number> = { vulcan: 3.2, ceres: 3.6, halo: 3.8 };
+const BODY_RADIUS: Record<ModelOutpostId, number> = { vulcan: 3.2, ceres: 3.6, halo: 3.8 };
+const CITY_SPIN: Record<CityId, number> = { meridian: 0.1, anchor: 0, farwatch: 0.03 };
 const HALO_SPIN = 0.12;
 
 export interface Outpost {
@@ -22,6 +27,8 @@ export interface Outpost {
   readonly velocity: THREE.Vector3;
   /** Socket on the model: the repair cradle, the refinery intake or the crew port. */
   readonly port: THREE.Object3D;
+  /** The ship is pushed out of this sphere at the centre. */
+  readonly bodyRadius: number;
 }
 
 /**
@@ -33,13 +40,14 @@ export class Outposts {
   readonly list: Outpost[];
   private readonly beacons: THREE.Object3D[] = [];
   private readonly ring: THREE.Object3D | null;
+  private readonly cities = new Map<CityId, CityModel>();
   private elapsed = 0;
 
-  constructor(models: Record<OutpostId, THREE.Object3D>) {
+  constructor(models: Record<ModelOutpostId, THREE.Object3D>) {
     this.group.name = 'outposts';
     const toned = new Set<THREE.Material>();
-    const ports: Record<OutpostId, string> = { vulcan: 'drop_zone', ceres: 'intake', halo: 'crew_port' };
-    this.list = (Object.keys(MODEL_ROOTS) as OutpostId[]).map((id) => {
+    const ports: Record<ModelOutpostId, string> = { vulcan: 'drop_zone', ceres: 'intake', halo: 'crew_port' };
+    this.list = (Object.keys(MODEL_ROOTS) as ModelOutpostId[]).map((id): Outpost => {
       const group = new THREE.Group();
       group.name = `outpost-${id}`;
       const model = requireNode(models[id], MODEL_ROOTS[id]).clone(true);
@@ -61,8 +69,16 @@ export class Outposts {
         position: group.position,
         velocity: new THREE.Vector3(),
         port: requireNode(model, ports[id]),
+        bodyRadius: BODY_RADIUS[id],
       };
     });
+    // The three great stations are built here from repeated parts.
+    for (const id of CITY_IDS) {
+      const city = buildCity(id);
+      this.cities.set(id, city);
+      this.group.add(city.group);
+      this.list.push({ id, name: STATIONS[id].name, color: STATIONS[id].color, group: city.group, position: city.group.position, velocity: new THREE.Vector3(), port: city.port, bodyRadius: city.bodyRadius });
+    }
     this.ring = this.get('halo').group.getObjectByName('HaloRing') ?? null;
     this.reset();
   }
@@ -95,6 +111,11 @@ export class Outposts {
     if (this.ring) {
       this.ring.rotation.z += HALO_SPIN * deltaSeconds;
     }
+    for (const [id, city] of this.cities) {
+      if (city.turning) {
+        city.turning.rotation.z += CITY_SPIN[id] * deltaSeconds;
+      }
+    }
     const blink = Math.sin(this.elapsed * 3) > 0.6;
     for (const beacon of this.beacons) {
       beacon.visible = blink;
@@ -107,7 +128,7 @@ export class Outposts {
     for (const outpost of this.list) {
       const offset = position.clone().sub(outpost.position);
       const distance = offset.length();
-      const radius = BODY_RADIUS[outpost.id];
+      const radius = outpost.bodyRadius;
       if (distance >= radius || distance === 0) {
         continue;
       }
@@ -117,6 +138,14 @@ export class Outposts {
       if (inward < 0) {
         velocity.addScaledVector(normal, -inward * 1.4);
       }
+    }
+  }
+
+  /** How brightly a great station's windows burn, 0..1: it follows the station's supplies. */
+  setCityLights(id: CityId, level: number): void {
+    const city = this.cities.get(id);
+    if (city) {
+      city.lights.emissiveIntensity = 0.1 + level * 1.7;
     }
   }
 

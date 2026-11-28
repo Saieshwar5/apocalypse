@@ -13,6 +13,17 @@ import {
   type Stock,
 } from '../logic/stationEconomy';
 import type { StationId } from '../logic/stations';
+import { CITY_IDS, stepCity } from '../logic/cities';
+
+function startingStocks(): Record<Exclude<StationId, 'aegis'>, Stock> {
+  const stocks = {} as Record<Exclude<StationId, 'aegis'>, Stock>;
+  for (const station of Object.keys(MARKETS) as StationId[]) {
+    if (station !== 'aegis') {
+      stocks[station] = { ...MARKETS[station].start };
+    }
+  }
+  return stocks;
+}
 
 export interface StationMarketDependencies {
   /** Where each station is now; null when it is gone (Aegis destroyed). */
@@ -52,13 +63,11 @@ export class StationMarket {
 
   constructor(private readonly deps: StationMarketDependencies) {
     this.group.name = 'shuttles';
-    this.stocks = { vulcan: { ...MARKETS.vulcan.start }, ceres: { ...MARKETS.ceres.start }, halo: { ...MARKETS.halo.start } };
+    this.stocks = startingStocks();
   }
 
   reset(): void {
-    this.stocks.vulcan = { ...MARKETS.vulcan.start };
-    this.stocks.ceres = { ...MARKETS.ceres.start };
-    this.stocks.halo = { ...MARKETS.halo.start };
+    Object.assign(this.stocks, startingStocks());
     this.aegisParts = MARKETS.aegis.start.parts;
     for (const shuttle of this.shuttles) {
       shuttle.group.removeFromParent();
@@ -110,6 +119,10 @@ export class StationMarket {
   update(deltaSeconds: number): void {
     this.add('ceres', 'fuel', DRONE_OUTPUT.fuel * deltaSeconds);
     this.add('ceres', 'parts', DRONE_OUTPUT.parts * deltaSeconds);
+    // The great stations live on their stores.
+    for (const city of CITY_IDS) {
+      this.stocks[city] = stepCity(city, this.stocks[city], deltaSeconds);
+    }
     this.runWorkshop(deltaSeconds);
     this.dispatchShuttles(deltaSeconds);
     this.flyShuttles(deltaSeconds);

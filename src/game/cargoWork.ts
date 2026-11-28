@@ -45,7 +45,7 @@ interface Contract extends CargoPlan {
   knocks: number;
 }
 
-const SPEAKER: Record<StationId, SpeakerId> = { aegis: 'control', vulcan: 'vulcan', ceres: 'ceres', halo: 'halo' };
+const SPEAKER: Record<StationId, SpeakerId> = { aegis: 'control', vulcan: 'vulcan', ceres: 'ceres', halo: 'halo', meridian: 'meridian', anchor: 'anchor', farwatch: 'farwatch' };
 
 function nameOf(station: StationId): string {
   return STATIONS[station].name
