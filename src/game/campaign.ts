@@ -1,3 +1,4 @@
+import { LOCK_RANGE } from '../weapons/missileLauncher';
 import * as THREE from 'three';
 import type { AsteroidField } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
@@ -180,16 +181,21 @@ export class Campaign {
     });
   }
 
-  /** Pushes upgrade effects into the systems that use them. */
-  private applyLoadout(): void {
-    const { ship, laser, missiles, stationOps } = this.deps;
+  /** Pushes upgrade and module effects into the systems that use them. */
+  applyLoadout(): void {
+    const { ship, laser, missiles, stationOps, session } = this.deps;
     const loadout = loadoutFor(this.levels);
-    ship.fuelCapacity = loadout.fuelCapacity;
+    const fit = session.fit;
+    ship.fuelCapacity = loadout.fuelCapacity * fit.fuelCapacity;
+    ship.fuel = Math.min(ship.fuel, ship.fuelCapacity);
     ship.shieldCapacity = loadout.shieldCapacity;
     ship.thrustMultiplier = loadout.thrustMultiplier;
+    ship.massFactor = fit.massFactor;
     laser.damageMultiplier = loadout.laserDamageMultiplier;
     laser.coolingMultiplier = loadout.laserCoolingMultiplier;
-    missiles.capacity = loadout.missileCapacity;
+    missiles.capacity = loadout.missileCapacity + fit.extraMissiles;
+    missiles.ammunition = Math.min(missiles.ammunition, missiles.capacity);
+    missiles.lockRange = LOCK_RANGE * fit.lockRange;
     stationOps.station.shieldCapacity = loadout.stationShieldCapacity;
   }
 

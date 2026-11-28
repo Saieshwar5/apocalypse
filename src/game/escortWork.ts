@@ -1,3 +1,5 @@
+import type { ModuleEffects } from '../logic/shipModules';
+import { escortScore } from '../logic/medals';
 import * as THREE from 'three';
 import type { Asteroid, AsteroidField } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
@@ -29,6 +31,9 @@ export interface EscortWorkDependencies {
   sound: SoundEffects;
   radio: RadioNet;
   rng: RandomSource;
+  /** Seconds of play, for grading jobs; and what the fitted modules do. */
+  clock: () => number;
+  fit: () => ModuleEffects;
 }
 
 /**
@@ -39,6 +44,9 @@ export interface EscortWorkDependencies {
 export class EscortWork {
   private threats: Asteroid[] = [];
   private wasFlying = false;
+  /** Play clock when the rocks were posted, and when the last one was dealt with. */
+  private startedAt = 0;
+  private clearedAt: number | null = null;
 
   constructor(private readonly deps: EscortWorkDependencies) {}
 
@@ -56,6 +64,9 @@ export class EscortWork {
     this.wasFlying = flying;
     if (this.threats.length === 0 || !rocket) {
       return;
+    }
+    if (this.clearedAt === null && this.threats.every((rock) => !rock.alive)) {
+      this.clearedAt = this.deps.clock();
     }
     for (const rock of this.threats) {
       if (rock.alive && flying && rock.mesh.position.distanceTo(rocket.position) < HIT_DISTANCE + rock.radius) {
@@ -77,6 +88,8 @@ export class EscortWork {
   }
 
   private start(rocket: SupplyRocket): void {
+    this.startedAt = this.deps.clock();
+    this.clearedAt = null;
     const { field, rng, hud, radio, sound } = this.deps;
     const crossing = rocket.positionAhead(CROSSING_SECONDS);
     for (let index = 0; index < 2; index += 1) {
@@ -105,7 +118,9 @@ export class EscortWork {
   private finish(): void {
     const { wallet, events, hud, sound } = this.deps;
     wallet.earn(ESCORT_PAY);
-    events.emit({ type: 'satellite-job-completed' });
+    const cleared = this.clearedAt ?? this.deps.clock();
+    const score = escortScore(CROSSING_SECONDS - (cleared - this.startedAt), CROSSING_SECONDS);
+    events.emit({ type: 'satellite-job-completed', job: 'escort', score, pay: ESCORT_PAY });
     hud.showMessage(`Supply rocket delivered safely. Escort paid: ${formatCredits(ESCORT_PAY)}`, 'success', 4);
     sound.killConfirm();
     this.threats = [];

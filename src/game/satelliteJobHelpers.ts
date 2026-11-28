@@ -1,3 +1,5 @@
+import { placementScore, timeScore, type JobKind } from '../logic/medals';
+import type { SatelliteJobKind } from '../logic/satelliteJobs';
 import type * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import type { PilotId } from '../logic/rivals';
@@ -96,4 +98,14 @@ export function announceTowEvent(event: TowEvent, hud: Hud, sound: SoundEffects,
   }
   sound.dockClamp();
   return true;
+}
+
+export const JOB_FOR: Record<SatelliteJobKind, JobKind> = { dodge: 'dodge', 'repair-tow': 'tow', reboost: 'reboost' };
+/** Posted to finished, flown well. */
+const JOB_PAR_SECONDS: Record<SatelliteJobKind, number> = { dodge: 25, 'repair-tow': 150, reboost: 60 };
+
+/** How well a satellite job was done: placing it on its slot, and the time it took. */
+export function jobScore(kind: SatelliteJobKind, seconds: number, offsetFromSlot: number | null): number {
+  const time = timeScore(seconds, JOB_PAR_SECONDS[kind]);
+  return kind === 'dodge' ? time : Math.min(placementScore(offsetFromSlot), 0.6 + 0.4 * time);
 }

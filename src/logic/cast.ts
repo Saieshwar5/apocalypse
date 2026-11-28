@@ -63,6 +63,7 @@ export type Moment =
   | 'licence-warning'
   | 'licence-good'
   | 'big-save'
+  | 'gold-medal'
   | 'banter';
 
 export const LINES: Record<Moment, Partial<Record<SpeakerId, readonly string[]>>> = {
@@ -102,6 +103,11 @@ export const LINES: Record<Moment, Partial<Record<SpeakerId, readonly string[]>>
   'big-save': {
     control: ['That rock was headed for {site}. Well flown, {callsign}.'],
     halo: ['Sato on Halo. {site} owes you one, pilot.'],
+  },
+  'gold-medal': {
+    control: ['Textbook, {callsign}. That one goes in the training files.', 'Clean as they come, {callsign}. The Authority noticed.'],
+    moth: ['Moth. Now that is flying. Thirty years and I could not have done it neater.'],
+    kestrel: ['Kestrel. Lucky. Do it twice and I will be impressed.'],
   },
   banter: {
     kestrel: ['Kestrel. Anyone else think Aegis coffee tastes like coolant?', 'Kestrel here. Bet I clear more rocks than anyone this orbit.'],

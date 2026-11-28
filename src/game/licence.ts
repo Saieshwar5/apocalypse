@@ -40,6 +40,8 @@ export class Licence {
   stage: LicenceStage = 'good';
   insured = false;
   shipsLost = 0;
+  /** Whether the last ship lost was insured (its modules are then replaced too). */
+  lastLossInsured = false;
   private probation: Probation | null = null;
   private contractsSinceUpdate = 0;
 
@@ -128,7 +130,11 @@ export class Licence {
   handleShipLoss(): ShipLossOutcome {
     const { wallet } = this.deps.session;
     this.shipsLost += 1;
+    this.lastLossInsured = this.insured;
     this.record({ type: 'ship-lost' });
+    if (this.deps.session.hardcore) {
+      return { replaced: false, reason: 'Hardcore licence: there are no replacement ships. The career ends with this one' };
+    }
     const fee = replacementFee(this.insured);
     let borrowed = false;
     if (wallet.balance < fee && wallet.borrow()) {

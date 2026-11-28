@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { handlingShare, turnShare } from '../logic/shipModules';
 import {
   applyShipDamage,
   createDefenseState,
@@ -63,6 +64,8 @@ export class ShipController {
   fuelCapacity = FUEL_CAPACITY;
   shieldCapacity = 100;
   thrustMultiplier = 1;
+  /** Mass with the fitted modules (1 bare): heavier ships thrust and turn more slowly. */
+  massFactor = 1;
   /** Mouse steering multiplier from the settings. */
   lookSensitivity = 1;
   defense: DefenseState = createDefenseState();
@@ -144,9 +147,11 @@ export class ShipController {
     const safeDelta = Math.max(deltaSeconds, 1 / 240);
     const mousePitch = (-input.look.y * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta;
     const mouseYaw = (-input.look.x * LOOK_SENSITIVITY * this.lookSensitivity) / safeDelta;
-    const targetPitch = THREE.MathUtils.clamp(mousePitch + input.pitch * KEY_TURN_RATE, -MAX_TURN_RATE, MAX_TURN_RATE);
-    const targetYaw = THREE.MathUtils.clamp(mouseYaw - input.yaw * KEY_TURN_RATE, -MAX_TURN_RATE, MAX_TURN_RATE);
-    const targetRoll = -input.roll * ROLL_RATE;
+    const agility = turnShare(this.massFactor);
+    const maxTurn = MAX_TURN_RATE * agility;
+    const targetPitch = THREE.MathUtils.clamp(mousePitch + input.pitch * KEY_TURN_RATE * agility, -maxTurn, maxTurn);
+    const targetYaw = THREE.MathUtils.clamp(mouseYaw - input.yaw * KEY_TURN_RATE * agility, -maxTurn, maxTurn);
+    const targetRoll = -input.roll * ROLL_RATE * agility;
     this.angularVelocity.lerp(this.scratch.set(targetPitch, targetYaw, targetRoll), damping(14, deltaSeconds));
 
     this.turn.setFromEuler(
@@ -163,7 +168,7 @@ export class ShipController {
   private updateThrust(deltaSeconds: number, input: FlightInput): void {
     const wantsBoost = input.boost && input.thrust > 0 && this.boostEnergy > 1 && this.fuel > 0;
     // An empty tank leaves weak reserve thrust, so the ship can still limp home.
-    const power = thrustScale(this.fuel) * this.thrustMultiplier;
+    const power = thrustScale(this.fuel) * this.thrustMultiplier * handlingShare(this.massFactor);
     const mainEngines = Math.max(input.thrust, input.brake);
     const sideEngines = Math.min(1, Math.abs(input.strafe) + Math.abs(input.lift));
     this.fuel = Math.max(0, this.fuel - fuelBurned(mainEngines, sideEngines, wantsBoost, deltaSeconds));

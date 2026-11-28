@@ -55,6 +55,8 @@ export interface HudSnapshot {
     autopilot: string | null;
     thrusting: boolean;
     braking: boolean;
+    /** Held at a station berth or docked. */
+    berthed: boolean;
     /** What is on the tow line, or null. */
     towing: string | null;
   };
@@ -268,7 +270,7 @@ export class Hud {
       controls.autopilot ?? (controls.mouseCaptured ? 'MOUSE STEERING' : 'CLICK FOR MOUSE STEERING'),
     );
     setStatus(this.assistStatus, controls.assist ? 'on' : 'off', controls.assist ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF: DRIFTING');
-    const motion = controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING';
+    const motion = controls.berthed ? 'BERTHED' : controls.braking ? 'BRAKING' : controls.thrusting ? 'THRUST' : speed < 0.3 ? 'STOPPED' : 'COASTING';
     setStatus(this.motionStatus, controls.braking ? 'off' : 'on', motion);
     this.towStatus.hidden = controls.towing === null;
     setStatus(this.towStatus, 'off', controls.towing ?? '');

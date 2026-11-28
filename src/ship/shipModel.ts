@@ -1,3 +1,5 @@
+import type { ModuleId } from '../logic/shipModules';
+import { ModuleHardware } from './moduleHardware';
 import * as THREE from 'three';
 import { createConeGradientTexture, getGlowTexture } from '../scene/glowTexture';
 import { requireNode } from '../scene/modelLibrary';
@@ -23,6 +25,8 @@ export interface ShipModel {
   /** Leans the hull into a turn; purely visual, so aiming is unaffected. */
   setBank(yawRate: number, deltaSeconds: number): void;
   update(elapsedSeconds: number): void;
+  /** Shows the fitted modules as hardware on the hull. */
+  setModules(fitted: readonly ModuleId[]): void;
 }
 
 interface Engine {
@@ -154,6 +158,8 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint
 
   let throttle = 0;
   let boost = false;
+  const hardware = new ModuleHardware(bounds);
+  group.add(hardware.group);
   return {
     group,
     gunPorts: [local('gun_L'), local('gun_R')],
@@ -162,12 +168,17 @@ export function createShipModel(source: THREE.Object3D, scale = SHIP_SCALE, tint
     setBank(yawRate, deltaSeconds) {
       const target = THREE.MathUtils.clamp(yawRate * 0.28, -0.55, 0.55);
       model.rotation.z += (target - model.rotation.z) * (1 - Math.exp(-6 * deltaSeconds));
+      hardware.group.rotation.z = model.rotation.z;
     },
     setThrottle(level, boosting) {
       throttle = THREE.MathUtils.clamp(level, 0, 1);
       boost = boosting;
     },
+    setModules(fitted) {
+      hardware.show(fitted);
+    },
     update(elapsedSeconds) {
+      hardware.update(elapsedSeconds);
       const flicker = 0.9 + Math.sin(elapsedSeconds * 47) * 0.05 + Math.sin(elapsedSeconds * 31) * 0.05;
       const length = (0.15 + throttle * (boost ? 1.6 : 0.8)) * flicker;
       for (const engine of engines) {

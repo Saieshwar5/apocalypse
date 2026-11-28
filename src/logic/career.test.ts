@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_CAREER, nextRank, parseCareer, rankFor, recordCareerRun } from './career';
+import { EMPTY_CAREER, nextRank, parseCareer, rankFor, recordCareerRun, recordMedal } from './career';
 import { SEASON_ONE, beatForSector } from './story';
 
 describe('career and ranks', () => {
@@ -18,14 +18,17 @@ describe('career and ranks', () => {
 
   it('adds runs to the career', () => {
     const after = recordCareerRun(EMPTY_CAREER, 1200, true);
-    expect(after).toEqual({ earned: 1200, seasons: 1, runs: 1, trainingDone: false });
+    expect(after).toEqual({ ...EMPTY_CAREER, earned: 1200, seasons: 1, runs: 1 });
+    expect(recordCareerRun(EMPTY_CAREER, 0, true, true).hardcoreSeasons).toBe(1);
     expect(recordCareerRun(after, -50, false).earned).toBe(1200);
   });
 
   it('survives missing or edited storage', () => {
     expect(parseCareer(null)).toEqual(EMPTY_CAREER);
     expect(parseCareer('not json')).toEqual(EMPTY_CAREER);
-    expect(parseCareer('{"earned":-5,"seasons":2.7,"trainingDone":true}')).toEqual({ earned: 0, seasons: 2, runs: 0, trainingDone: true });
+    expect(parseCareer('{"earned":-5,"seasons":2.7,"trainingDone":true}')).toEqual({ ...EMPTY_CAREER, seasons: 2, trainingDone: true });
+    const medalled = parseCareer(JSON.stringify(recordMedal(EMPTY_CAREER, 'rescue', 'gold')));
+    expect(medalled.medals.rescue.gold).toBe(1);
   });
 });
 

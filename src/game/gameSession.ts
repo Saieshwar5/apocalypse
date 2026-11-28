@@ -1,3 +1,4 @@
+import { moduleEffects, type ModuleEffects } from '../logic/shipModules';
 import { MAX_PLANET_INTEGRITY } from '../logic/planetDamage';
 import { Wallet } from '../logic/economy';
 import { GameEvents } from './gameEvents';
@@ -20,6 +21,12 @@ export class GameSession {
   sitesLost = 0;
   /** Asteroids that burned up harmlessly in the atmosphere. */
   burnUps = 0;
+  /** Seconds of play this run, for timing jobs. */
+  clock = 0;
+  /** What the fitted modules do; set by the yard. */
+  fit: ModuleEffects = moduleEffects([]);
+  /** Hardcore licence: no replacement ships, no loan, better pay. */
+  hardcore = false;
 
   /** New star system in the same campaign: the planet is fresh, the money carries on. */
   resetForNextSystem(): void {
@@ -67,5 +74,6 @@ export class GameSession {
     this.wavesCleared = 0;
     this.sitesLost = 0;
     this.burnUps = 0;
+    this.clock = 0;
   }
 }

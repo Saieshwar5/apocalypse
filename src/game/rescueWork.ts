@@ -1,3 +1,5 @@
+import type { ModuleEffects } from '../logic/shipModules';
+import { timeScore } from '../logic/medals';
 import * as THREE from 'three';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Explosions } from '../effects/explosions';
@@ -19,6 +21,8 @@ import type { TowBody, TowLine } from './towLine';
 /** Pull on a pod: it is falling, which is the whole problem. */
 const POD_GRAVITY = 0.45;
 const RESCUE_PAY = 600;
+/** Posted to delivered at Halo, flown well. */
+const RESCUE_PAR_SECONDS = 50;
 /** Halo takes the pod at its crew port, this close and nearly still. */
 const PORT_RANGE = 10;
 
@@ -70,6 +74,9 @@ export interface RescueWorkDependencies {
   sound: SoundEffects;
   radio: RadioNet;
   rng: RandomSource;
+  /** Seconds of play, for grading jobs; and what the fitted modules do. */
+  clock: () => number;
+  fit: () => ModuleEffects;
 }
 
 /**
@@ -79,6 +86,13 @@ export interface RescueWorkDependencies {
  * as losing a crew.
  */
 export class RescueWork {
+  private postedAt = 0;
+
+  /** Halo's fee, more with a crew cabin to carry the survivors in comfort. */
+  private get pay(): number {
+    return Math.round(RESCUE_PAY * this.deps.fit().crewPay);
+  }
+
   private pod: EscapePod | null = null;
 
   constructor(private readonly deps: RescueWorkDependencies) {}
@@ -108,8 +122,9 @@ export class RescueWork {
     pod.velocity.copy(along).multiplyScalar(1.2).addScaledVector(up, -0.6);
     scene.add(pod.group);
     this.pod = pod;
+    this.postedAt = this.deps.clock();
     radio.say('halo', 'Mayday relay: an ore carrier lost power and ejected an escape pod. It is falling. Catch it and bring it to Halo!', true);
-    hud.showMessage(`Rescue: an escape pod is falling towards the atmosphere. Catch it (T) and bring it to Halo (${formatCredits(RESCUE_PAY)})`, 'danger', 6);
+    hud.showMessage(`Rescue: an escape pod is falling towards the atmosphere. Catch it (T) and bring it to Halo (${formatCredits(this.pay)})`, 'danger', 6);
     sound.alarm();
     return true;
   }
@@ -138,10 +153,11 @@ export class RescueWork {
     sound.dockClamp();
     const halo = outposts.get('halo');
     if (pod.position.distanceTo(outposts.portPosition('halo')) <= PORT_RANGE && isPlaced(0, pod.velocity.distanceTo(halo.velocity))) {
-      wallet.earn(RESCUE_PAY);
-      events.emit({ type: 'satellite-job-completed' });
+      const pay = this.pay;
+      wallet.earn(pay);
+      events.emit({ type: 'satellite-job-completed', job: 'rescue', score: timeScore(this.deps.clock() - this.postedAt, RESCUE_PAR_SECONDS), pay });
       radio.say('halo', 'Pod is aboard and the crew is alive. Thank you, {callsign}. Halo will not forget this.', true);
-      hud.showMessage(`Rescue complete: ${formatCredits(RESCUE_PAY)}`, 'success', 4);
+      hud.showMessage(`Rescue complete: ${formatCredits(pay)}`, 'success', 4);
       sound.killConfirm();
       this.remove();
       return;
@@ -180,7 +196,7 @@ export class RescueWork {
     const sink = -pod.velocity.dot(pod.position.clone().normalize());
     const altitude = pod.position.length() - EARTH_RADIUS - ATMOSPHERE.top;
     const left = sink > 0.05 ? ` · burns up in ${formatCountdown(altitude / sink)}` : '';
-    return [{ title: 'Rescue: falling escape pod', detail: this.carrying ? 'take it to Halo\'s crew port and release (T)' : `catch it with the tow line (T)${left}`, pay: RESCUE_PAY, urgent: true }];
+    return [{ title: 'Rescue: falling escape pod', detail: this.carrying ? 'take it to Halo\'s crew port and release (T)' : `catch it with the tow line (T)${left}`, pay: this.pay, urgent: true }];
   }
 
   waypoint(): Waypoint | null {

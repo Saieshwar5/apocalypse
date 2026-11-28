@@ -96,11 +96,12 @@ export function debrisDamageScale(relativeSpeed: number): number {
 }
 
 /** Tonnes the net collects this step, never more than the cloud holds. */
-export function sweptTonnes(relativeSpeed: number, cloudMass: number, deltaSeconds: number): number {
-  if (relativeSpeed > SWEEP.maxRelativeSpeed) {
+/** `rate` and `speedLimit` multiply the net's intake and its top speed (a sweeper net module). */
+export function sweptTonnes(relativeSpeed: number, cloudMass: number, deltaSeconds: number, rate = 1, speedLimit = 1): number {
+  if (relativeSpeed > SWEEP.maxRelativeSpeed * speedLimit) {
     return 0;
   }
-  return Math.min(cloudMass, SWEEP.tonnesPerSecond * deltaSeconds);
+  return Math.min(cloudMass, SWEEP.tonnesPerSecond * rate * deltaSeconds);
 }
 
 /** Hazard radius of a cloud: thicker clouds spread wider. */

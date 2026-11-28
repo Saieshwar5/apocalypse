@@ -130,7 +130,7 @@ export class OutpostBerths {
       }
     }
     ship.repair(0, SERVICE_RATE.shield * deltaSeconds);
-    this.hint = `Berthed at ${outpost.name}: fuel ${Math.round((ship.fuel / ship.fuelCapacity) * 100)}% at ${formatPrice(price)} · hull ${Math.round(ship.hull)}% · bill ${formatCredits(this.bill)} · W launches`;
+    this.hint = `Berthed at ${outpost.name}: fuel ${Math.round((ship.fuel / ship.fuelCapacity) * 100)}% at ${formatPrice(price)} · hull ${Math.round(ship.hull)}% · bill ${formatCredits(this.bill)}${outpost.id === 'vulcan' ? ' · 1-7 modules' : ''} · W launches`;
 
     if (input.isDown('KeyW')) {
       const away = ship.forward();
