@@ -23,6 +23,8 @@ export interface MissionReadings {
   /** Aegis Station's stock as shares of full, 0 to 1; null when there is no station. */
   aegis: { fuel: number; missiles: number } | null;
   licence: { stage: LicenceStage; score: number };
+  /** The three great stations: name and how well supplied each is. */
+  cities?: readonly { name: string; state: 'thriving' | 'steady' | 'short' | 'failing' }[];
 }
 
 export interface Duty {
@@ -68,9 +70,9 @@ const STATIC: readonly Omit<Duty, 'reading'>[] = [
   {
     id: 'stations',
     title: 'Keep the stations supplied',
-    why: 'Aegis gives you fuel, missiles and repairs. Its stock arrives by supply rocket after each field, while the Launch Complex stands.',
+    why: 'Three great stations live on fuel and parts: Meridian, a city of forty thousand; Anchor, the port where supplies come up from Earth; and Farwatch, the lookout that sees rocks coming.',
     how: 'Cargo runs carry fuel and parts from the depot at Ceres Works to whichever station is short. Escort the supply rocket through the debris.',
-    cost: 'Stations run short: fuel costs more, and there may be no missiles left when you dock.',
+    cost: 'Their lights go dim and prices climb. A starved Anchor stops lifting fuel; a starved Farwatch sees less, so rocks are found later.',
   },
   {
     id: 'people',
@@ -108,6 +110,10 @@ function reading(id: DutyId, r: MissionReadings): Duty['reading'] {
       return { text: `${r.satellitesWorking} of ${r.satellitesTotal} satellites working`, state: level(share, 1, 0.6) };
     }
     case 'stations':
+      if (r.cities && r.cities.length > 0) {
+        const worst = r.cities.some((city) => city.state === 'failing') ? 'bad' : r.cities.some((city) => city.state === 'short') ? 'watch' : 'good';
+        return { text: r.cities.map((city) => `${city.name} ${city.state === 'short' ? 'running short' : city.state}`).join(' · '), state: worst };
+      }
       if (!r.aegis) {
         return null;
       }
@@ -148,6 +154,9 @@ export const PEOPLE: readonly Person[] = [
   { name: 'Chief Okafor, Vulcan Yard', role: 'Repairs satellites and sells ship modules.' },
   { name: 'Foreman Patel, Ceres Works', role: 'Runs the depot that makes the orbit\'s fuel and parts.' },
   { name: 'Commander Sato, Halo', role: 'Looks after the people of the orbit: passengers and rescues.' },
+  { name: 'Mayor Adeyemi, Meridian', role: 'Speaks for the city of forty thousand in medium orbit.' },
+  { name: 'Harbourmaster Lind, Anchor', role: 'Runs the port in low orbit, where supplies come up from Earth.' },
+  { name: 'Watch Officer Imani, Farwatch', role: 'Keeps the lookout far out, and the yard that builds ships.' },
   { name: 'Kestrel and Moth', role: 'Rival pilots after the same contracts. They are not enemies.' },
 ];
 

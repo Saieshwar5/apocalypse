@@ -50,7 +50,7 @@ export function feedHud(play: PlaySession, deltaSeconds: number, ranked: readonl
     },
     tow: delivery ? { title: delivery.title, step: delivery.step.state === 'travel' ? `${delivery.step.text} · T lets go` : delivery.step.text, state: delivery.step.state } : null,
   });
-  const range = (play.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * play.satellites.scannerBonus * play.services.weather.scannerFactor;
+  const range = (play.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * play.satellites.scannerBonus * play.services.weather.scannerFactor * play.services.cities.watchFactor;
   const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
   radar.draw(deltaSeconds, shipModel.group, play.field.all, urgent, play.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, play.stationOps.present ? play.stationOps.station.position : null, play.campaign.scannerBlind, play.satellites.positions(), play.services.radarContacts());
   if (!showTargets || !play.shipActive || !play.targeting || play.stationOps.holdingShip) {

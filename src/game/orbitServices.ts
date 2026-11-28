@@ -9,12 +9,15 @@ import type { PilotId } from '../logic/rivals';
 import type { RandomSource } from '../logic/random';
 import type { SatelliteFleet } from '../satellites/satelliteFleet';
 import type { ShipController } from '../ship/shipController';
-import { Outposts, type OutpostId } from '../station/outposts';
+import { Outposts, type ModelOutpostId } from '../station/outposts';
 import { SatelliteWork, type JobRow, type Waypoint } from './satelliteWork';
 import { TowLine } from './towLine';
 import { SpaceWeather } from './spaceWeather';
 import { CargoWork } from './cargoWork';
+import { CityLife } from './cityLife';
+import { StoryArc } from './storyArc';
 import { cargoKindsFor, jobUnlocked } from '../logic/jobAccess';
+import { CITY_STATE_NAME, isCity } from '../logic/cities';
 import { RescueWork } from './rescueWork';
 import { EscortWork } from './escortWork';
 import type { StationOperations } from '../station/stationOperations';
@@ -42,7 +45,7 @@ const RIVAL_DEBRIS_SHARE = 0.5;
 
 export interface OrbitServicesDependencies {
   scene: THREE.Scene;
-  outpostModels: Record<OutpostId, THREE.Object3D>;
+  outpostModels: Record<ModelOutpostId, THREE.Object3D>;
   fleet: SatelliteFleet;
   traffic: SatelliteTraffic;
   ship: ShipController;
@@ -75,6 +78,8 @@ export interface StationMarker {
   edgeArrow?: boolean;
   /** Stations are squares; rival ships are triangles. */
   shape?: 'square' | 'triangle';
+  /** A great station's state, shown beside its name on the map. */
+  note?: string;
 }
 
 /**
@@ -93,6 +98,10 @@ export class OrbitServices {
   readonly haul: HaulWork;
   readonly weather: SpaceWeather;
   readonly cargo: CargoWork;
+  /** The three great stations: their lights, their calls and Farwatch's lookout. */
+  readonly cities: CityLife;
+  /** The season's story, as things the pilot does. */
+  readonly story: StoryArc;
   readonly rescue: RescueWork;
   readonly escort: EscortWork;
 
@@ -130,6 +139,7 @@ export class OrbitServices {
     });
     this.haul = new HaulWork({
       ...job,
+      onEvidence: () => this.story.evidenceDelivered(),
       field: deps.field,
       outposts: this.outposts,
       market: this.market,
@@ -197,6 +207,17 @@ export class OrbitServices {
       radio: deps.radio,
       rng: deps.rng,
     });
+    this.story = new StoryArc({
+      session: deps.session,
+      postEvidence: () => this.haul.post(true),
+      atMeridian: () => this.berths.berthedAt === 'meridian',
+      input: deps.input,
+      wallet: deps.walletOf('player'),
+      events: deps.session.events,
+      hud: deps.hud,
+      radio: deps.radio,
+    });
+    this.cities = new CityLife({ outposts: this.outposts, stocks: () => this.market.snapshot(), hud: deps.hud, radio: deps.radio });
     deps.scene.add(this.outposts.group, this.tow.mesh, this.market.group);
     this.debris = new OrbitDebris({
       ...job,
@@ -238,6 +259,8 @@ export class OrbitServices {
     this.haul.reset();
     this.weather.reset();
     this.cargo.reset();
+    this.cities.reset();
+    this.story.reset();
     this.rescue.reset();
     this.escort.reset();
   }
@@ -256,6 +279,8 @@ export class OrbitServices {
     this.work.update(deltaSeconds);
     this.haul.update();
     this.market.update(deltaSeconds);
+    this.cities.update();
+    this.story.update(deltaSeconds);
     this.berths.update(deltaSeconds, active, pilotBusy);
     this.weather.update(deltaSeconds, active);
     this.cargo.update(deltaSeconds, active);
@@ -273,6 +298,7 @@ export class OrbitServices {
       ...this.outposts.list.map((outpost) => ({
         world: outpost.position,
         name: `${outpost.name} · fuel ${formatPrice(this.market.price(outpost.id, 'fuel'))}`,
+        note: isCity(outpost.id) ? CITY_STATE_NAME[this.cities.stateOf(outpost.id)].toUpperCase() : undefined,
         ghost: false,
         color: outpost.color,
         edgeArrow: false,
@@ -310,7 +336,7 @@ export class OrbitServices {
     if (this.berths.loadOnLine && this.delivery()?.step.state !== 'travel') {
       return this.weather.hint;
     }
-    return this.berths.hint ?? this.weather.hint;
+    return this.story.hint ?? this.berths.hint ?? this.weather.hint;
   }
 
   /**
@@ -318,8 +344,9 @@ export class OrbitServices {
    * stations, sometimes a storm or a rescue. Rock hauls for Ceres are not
    * posted any more; the job is kept for a later story mission.
    */
-  calmZoneWork(): void {
+  calmZoneWork(sector: number): void {
     const { rng, session } = this.deps;
+    this.story.calmSector(sector);
     this.cargo.post();
     if (rng() < 0.3) {
       this.weather.warn();

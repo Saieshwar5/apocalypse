@@ -5,6 +5,7 @@ import type { Asteroid, AsteroidField } from '../asteroids/asteroidField';
 import type { SoundEffects } from '../audio/soundEffects';
 import type { Hud } from '../hud/hud';
 import { formatCredits } from '../logic/contracts';
+import { EVIDENCE } from '../logic/story';
 import type { Wallet } from '../logic/economy';
 import { randomBetween, randomUnitVector, type RandomSource } from '../logic/random';
 import { HAUL_PAY_PER_TONNE, haulLoadMass, haulTonnes } from '../logic/stationEconomy';
@@ -19,6 +20,8 @@ import { rockBody, type TowBody, type TowLine } from './towLine';
 import type { RadioNet } from './radioNet';
 
 export interface HaulWorkDependencies {
+  /** Called when the season's strange rock reaches Farwatch's yard. */
+  onEvidence?: () => void;
   field: AsteroidField;
   outposts: Outposts;
   market: StationMarket;
@@ -49,6 +52,8 @@ interface Haul {
   /** Play clock at the first connection, and the par time for the trip from there. */
   connectedAt: number | null;
   par: number;
+  /** The season's strange rock: it goes to Farwatch's yard, not to Ceres. */
+  evidence: boolean;
 }
 
 /**
@@ -71,7 +76,7 @@ export class HaulWork {
   }
 
   /** Ceres posts a haul: a loose carbon-rich rock drifting in the orbit band. */
-  post(): boolean {
+  post(evidence = false): boolean {
     if (this.haul) {
       return false;
     }
@@ -79,12 +84,17 @@ export class HaulWork {
     const position = new THREE.Vector3(...randomUnitVector(rng)).multiplyScalar(randomBetween(rng, 110, 150));
     // A slow drift: at the old 1.2 a rock left the orbit band (and was removed) before most pilots reached it.
     const drift = new THREE.Vector3(...randomUnitVector(rng)).cross(position).setLength(0.35);
-    const rock = field.spawnFragment('medium', 'carbon', position, drift);
+    const rock = field.spawnFragment('medium', evidence ? 'iron' : 'carbon', position, drift);
     rock.passerBy = true;
     rock.identified = true;
     rock.kept = true;
     const tonnes = haulTonnes(rock.radius);
-    this.haul = { rock, body: rockBody(rock), tonnes, connectedAt: null, par: 0 };
+    this.haul = { rock, body: rockBody(rock), tonnes, connectedAt: null, par: 0, evidence };
+    if (evidence) {
+      hud.showMessage(`A rock with a thruster bolted to it. Tow it to Farwatch's yard (${formatCredits(EVIDENCE.pay)})`, 'warning', 6);
+      sound.chime();
+      return true;
+    }
     hud.showMessage(`Ceres Works: haul a ${tonnes.toFixed(1)} t carbon rock to our intake for ${formatCredits(this.pay(tonnes))}`, 'info', 5);
     sound.chime();
     return true;
@@ -109,7 +119,7 @@ export class HaulWork {
       if (haul.connectedAt === null) {
         haul.connectedAt = this.deps.clock();
         // A loaded ship covers about five units a second, door to door.
-        haul.par = 25 + haul.rock.mesh.position.distanceTo(this.deps.outposts.portPosition('ceres')) / 5;
+        haul.par = 25 + haul.rock.mesh.position.distanceTo(this.deps.outposts.portPosition(this.destination(haul))) / 5;
       }
       hud.showMessage(`Tow line on the ${haul.tonnes.toFixed(1)} t rock. Very heavy: plan your fuel and brake early`, 'success', 3.5);
       sound.dockClamp();
@@ -128,14 +138,21 @@ export class HaulWork {
     }
     const rock = haul.rock;
     sound.dockClamp();
-    const ceres = outposts.get('ceres');
-    const intake = outposts.portPosition('ceres');
+    const ceres = outposts.get(this.destination(haul));
+    const intake = outposts.portPosition(this.destination(haul));
     const delivered = rock.mesh.position.distanceTo(intake) <= INTAKE_RANGE && isPlaced(0, rock.velocity.distanceTo(ceres.velocity));
     if (!delivered) {
       hud.showMessage('Rock released. It drifts until you connect again (T)', 'info', 2.5);
       return;
     }
     field.remove(rock);
+    if (haul.evidence) {
+      wallet.earn(EVIDENCE.pay);
+      this.haul = null;
+      sound.killConfirm();
+      this.deps.onEvidence?.();
+      return;
+    }
     const made = market.refine(haul.tonnes);
     const pay = this.pay(haul.tonnes);
     wallet.earn(pay);
@@ -185,15 +202,15 @@ export class HaulWork {
     const { outposts } = this.deps;
     return {
       load: `${haul.tonnes.toFixed(1)} t rock`,
-      place: 'Ceres Works intake',
-      world: outposts.portPosition('ceres'),
-      velocity: outposts.get('ceres').velocity,
+      place: haul.evidence ? 'Farwatch yard' : 'Ceres Works intake',
+      world: outposts.portPosition(this.destination(haul)),
+      velocity: outposts.get(this.destination(haul)).velocity,
       radius: INTAKE_RANGE,
       maxSpeed: PLACEMENT.maxSpeed,
       loadPosition: haul.rock.mesh.position,
       loadVelocity: haul.rock.velocity,
       condition: null,
-      contact: 'ceres',
+      contact: haul.evidence ? 'farwatch' : 'ceres',
     };
   }
 
@@ -205,9 +222,9 @@ export class HaulWork {
     const onLine = this.deps.tow.body === haul.body;
     return [
       {
-        title: `Asteroid haul · ${haul.tonnes.toFixed(1)} t to Ceres`,
-        detail: onLine ? 'tow it to Ceres Works intake and release (T)' : 'connect to the carbon rock (T)',
-        pay: this.pay(haul.tonnes),
+        title: haul.evidence ? 'The strange rock → Farwatch yard' : `Asteroid haul · ${haul.tonnes.toFixed(1)} t to Ceres`,
+        detail: onLine ? `tow it to ${haul.evidence ? "Farwatch's yard" : 'Ceres Works intake'} and release (T)` : `connect to the ${haul.evidence ? 'rock with the thruster' : 'carbon rock'} (T)`,
+        pay: haul.evidence ? EVIDENCE.pay : this.pay(haul.tonnes),
         urgent: false,
       },
     ];
@@ -219,8 +236,12 @@ export class HaulWork {
       return null;
     }
     return this.deps.tow.body === haul.body
-      ? { world: this.deps.outposts.portPosition('ceres'), label: 'CERES INTAKE: RELEASE HERE (T)' }
+      ? { world: this.deps.outposts.portPosition(this.destination(haul)), label: haul.evidence ? 'FARWATCH YARD: RELEASE HERE (T)' : 'CERES INTAKE: RELEASE HERE (T)' }
       : { world: haul.rock.mesh.position.clone(), label: 'CONNECT TO THE HAUL ROCK (T)' };
+  }
+
+  private destination(haul: Haul): 'farwatch' | 'ceres' {
+    return haul.evidence ? 'farwatch' : 'ceres';
   }
 
   private pay(tonnes: number): number {

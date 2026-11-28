@@ -2,7 +2,7 @@
  * The people of the orbit. Every voice on the radio belongs to someone with
  * a name, a job and a manner, so the pilot remembers people, not systems.
  */
-export type SpeakerId = 'control' | 'vulcan' | 'ceres' | 'halo' | 'kestrel' | 'moth';
+export type SpeakerId = 'control' | 'vulcan' | 'ceres' | 'halo' | 'meridian' | 'anchor' | 'farwatch' | 'kestrel' | 'moth';
 
 export interface Speaker {
   id: SpeakerId;
@@ -18,6 +18,9 @@ export const CAST: Record<SpeakerId, Speaker> = {
   vulcan: { id: 'vulcan', label: 'CHIEF OKAFOR · VULCAN', color: '#ffb347', pitch: 0.85 },
   ceres: { id: 'ceres', label: 'FOREMAN PATEL · CERES', color: '#7dffb0', pitch: 0.7 },
   halo: { id: 'halo', label: 'COMMANDER SATO · HALO', color: '#cfe3ff', pitch: 0.95 },
+  meridian: { id: 'meridian', label: 'MAYOR ADEYEMI · MERIDIAN', color: '#ffe6a8', pitch: 1.05 },
+  anchor: { id: 'anchor', label: 'HARBOURMASTER LIND · ANCHOR', color: '#9ad8c8', pitch: 0.8 },
+  farwatch: { id: 'farwatch', label: 'WATCH OFFICER IMANI · FARWATCH', color: '#d6b8ff', pitch: 1.1 },
   kestrel: { id: 'kestrel', label: 'KESTREL', color: '#ff6b5e', pitch: 1.15 },
   moth: { id: 'moth', label: 'MOTH', color: '#ffd75e', pitch: 0.75 },
 };

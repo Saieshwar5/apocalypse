@@ -1,3 +1,4 @@
+import { storyEnding } from '../logic/story';
 import { DIFFICULTY } from '../logic/difficulty';
 import { saveRun } from './runHistory';
 import { orbitRating } from '../logic/orbitPlan';
@@ -55,7 +56,7 @@ export function runSummary(
     impacts: session.totalImpacts,
     citiesStanding: play.sites.citiesStanding,
     cityCount: play.sites.cityCount,
-    reason,
+    reason: [reason, storyEnding(session.story)].filter(Boolean).join('\n'),
     victory,
     integrity: session.integrity,
   };

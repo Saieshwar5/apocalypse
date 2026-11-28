@@ -889,6 +889,22 @@ body {
   text-align: center;
 }
 
+/* The end of a run: wider, so every line of the summary fits on one row. */
+#game-over .screen-card.compact {
+  width: min(470px, 100%);
+}
+
+#game-over .eyebrow {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.summary dt {
+  white-space: nowrap;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--info);
@@ -1793,6 +1809,10 @@ button.confirming {
 
 #nav-list li[data-group='pilot'] span:nth-child(3) {
   color: #ffb3a8;
+}
+
+#nav-list li[data-group='orbit'] span:nth-child(3) {
+  color: #c9b6ff;
 }
 
 #nav-list li[data-group='debris'] span:nth-child(3) {

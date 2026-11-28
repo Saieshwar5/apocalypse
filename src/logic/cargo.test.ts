@@ -3,12 +3,15 @@ import { CARGO, cargoParSeconds, cargoPay, neediest, planCargo, type CargoKind }
 import { MARKETS, type Stock } from './stationEconomy';
 import type { StationId } from './stations';
 
-const ALL: StationId[] = ['aegis', 'vulcan', 'ceres', 'halo'];
+const ALL: StationId[] = ['aegis', 'vulcan', 'ceres', 'halo', 'meridian', 'anchor', 'farwatch'];
 const full = (): Record<StationId, Stock> => ({
   aegis: { ...MARKETS.aegis.capacity },
   vulcan: { ...MARKETS.vulcan.capacity },
   ceres: { ...MARKETS.ceres.capacity },
   halo: { ...MARKETS.halo.capacity },
+  meridian: { ...MARKETS.meridian.capacity },
+  anchor: { ...MARKETS.anchor.capacity },
+  farwatch: { ...MARKETS.farwatch.capacity },
 });
 const fixed = (...values: number[]) => {
   let index = 0;
@@ -66,6 +69,7 @@ describe('cargo planning', () => {
   it('sends a routine load from Ceres to the shortest station, sized to fit', () => {
     const stocks = full();
     stocks.vulcan.fuel = 170;
+    stocks.anchor.fuel = 100;
     const plan = planCargo(stocks, ALL, ['routine'], fixed(0));
     expect(plan).toMatchObject({ kind: 'routine', from: 'ceres', to: 'vulcan', good: 'fuel', units: 30 });
     expect(plan?.shortage).toBeCloseTo(0.15);
@@ -77,6 +81,16 @@ describe('cargo planning', () => {
     stocks.halo.parts = 0;
     stocks.ceres.parts = 4;
     expect(planCargo(stocks, ALL, ['routine'], fixed(0))).toBeNull();
+  });
+
+  it('loads fuel at Anchor when the port has more of it than the depot', () => {
+    const stocks = full();
+    stocks.meridian.fuel = 50;
+    stocks.ceres.fuel = 80;
+    expect(planCargo(stocks, ALL, ['routine'], fixed(0))).toMatchObject({ from: 'anchor', to: 'meridian', good: 'fuel' });
+    stocks.ceres.fuel = MARKETS.ceres.capacity.fuel;
+    stocks.anchor.fuel = 100;
+    expect(planCargo(stocks, ALL, ['routine'], fixed(0))?.from).toBe('ceres');
   });
 
   it('leaves Aegis out once it is gone', () => {

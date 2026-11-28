@@ -231,7 +231,7 @@ export class TargetOverlay {
     const name = !map ? station.name : station.shape === 'triangle' ? station.name.split(' ')[0] : station.name.split(' · ')[0];
     // On the map a station also says which of the three orbits it is in.
     const tier = map && station.shape !== 'triangle' && !station.ghost ? ` · ${orbitTierAt(station.world.length()).toUpperCase()}` : '';
-    const label = `${name}${tier} ${formatDistance(station.world.distanceTo(shipPosition))}`;
+    const label = `${name}${tier}${map && station.note ? ` · ${station.note}` : ''} ${formatDistance(station.world.distanceTo(shipPosition))}`;
     context.save();
     context.strokeStyle = station.color ?? '#5fd8ff';
     context.fillStyle = station.color ?? '#5fd8ff';

@@ -5,7 +5,7 @@ import type { ScreenProjector } from './screenProjector';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const SELECTED = '#e48cff';
-const GROUP_COLOR: Record<NavGroup, string> = { job: '#8fd3ff', station: '#7dffb0', satellite: '#cfd8e6', pilot: '#ffb3a8', debris: '#ffb35c' };
+const GROUP_COLOR: Record<NavGroup, string> = { job: '#8fd3ff', station: '#7dffb0', orbit: '#c9b6ff', satellite: '#cfd8e6', pilot: '#ffb3a8', debris: '#ffb35c' };
 /** Stations and pilots already carry their own names on the map. */
 const NAMED_ELSEWHERE: readonly NavGroup[] = ['station', 'pilot'];
 const LABEL_LENGTH = 26;
@@ -25,6 +25,8 @@ export interface MapFrame {
   planetRadius: number;
   /** The destinations in the list beside the map, numbered as the list numbers them. */
   tags: readonly MapTag[];
+  /** The three orbits, each named at a point on its ring. */
+  tiers?: readonly { world: THREE.Vector3; label: string }[];
   /** The way to the current objective: points from the ship to where it ends, with its name. */
   route: { points: readonly THREE.Vector3[]; end: THREE.Vector3; color: string; label: string; zoneRadius: number | null } | null;
 }
@@ -42,6 +44,15 @@ function shorten(text: string): string {
 export function drawMap(context: CanvasRenderingContext2D, projector: ScreenProjector, frame: MapFrame): void {
   context.save();
   const seen = (world: THREE.Vector3) => !projector.hiddenBehindSphere(world, frame.planetRadius);
+
+  context.font = `600 10px ${MONO}`;
+  context.fillStyle = 'rgba(201, 182, 255, 0.75)';
+  for (const tier of frame.tiers ?? []) {
+    const point = projector.project(tier.world);
+    if (point.visible && seen(tier.world)) {
+      context.fillText(tier.label, point.x + 6, point.y - 6);
+    }
+  }
 
   if (frame.route) {
     const { route } = frame;

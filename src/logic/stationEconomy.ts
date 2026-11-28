@@ -24,6 +24,10 @@ export const MARKETS: Record<StationId, StationMarketDefinition> = {
   vulcan: { capacity: { fuel: 200, parts: 80 }, start: { fuel: 80, parts: 30 }, basePrice: { fuel: 2.4, parts: 7 }, sells: ['fuel'] },
   ceres: { capacity: { fuel: 500, parts: 150 }, start: { fuel: 320, parts: 60 }, basePrice: { fuel: 1.2, parts: 5 }, sells: ['fuel'] },
   halo: { capacity: { fuel: 250, parts: 40 }, start: { fuel: 120, parts: 10 }, basePrice: { fuel: 2.2, parts: 8 }, sells: ['fuel'] },
+  // The great stations hold far more, and use it (see logic/cities).
+  meridian: { capacity: { fuel: 700, parts: 160 }, start: { fuel: 420, parts: 90 }, basePrice: { fuel: 2.1, parts: 7 }, sells: ['fuel'] },
+  anchor: { capacity: { fuel: 600, parts: 90 }, start: { fuel: 330, parts: 50 }, basePrice: { fuel: 1.4, parts: 7 }, sells: ['fuel'] },
+  farwatch: { capacity: { fuel: 320, parts: 110 }, start: { fuel: 190, parts: 60 }, basePrice: { fuel: 2.6, parts: 8 }, sells: ['fuel'] },
 };
 
 /** Prices run from 0.7x the base price with a full store to 1.6x when it is nearly empty. */
@@ -35,7 +39,7 @@ export function unitPrice(basePrice: number, stock: number, capacity: number): n
 /** What Ceres makes from a tonne of hauled rock. */
 export const REFINERY = { fuelPerTonne: 8, partsPerTonne: 2 } as const;
 /** Ceres's own mining drones: a trickle per second, so the economy runs if nobody hauls. */
-export const DRONE_OUTPUT: Stock = { fuel: 0.6, parts: 0.05 };
+export const DRONE_OUTPUT: Stock = { fuel: 0.6, parts: 0.11 };
 /** Ceres pays this per tonne of rock delivered to its intake. */
 export const HAUL_PAY_PER_TONNE = 40;
 

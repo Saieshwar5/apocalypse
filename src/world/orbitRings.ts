@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const SEGMENTS = 96;
-const POOL = 6;
+const POOL = 9;
 
 /**
  * Orbit lines for the tactical map: for each object, the circle it is
