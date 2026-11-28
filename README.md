@@ -50,6 +50,43 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## HUD simplification: what matters now, everything on Tab
+
+The HUD used to show about 73 readings at once, most of them irrelevant to
+the moment. Now a small rule (`src/logic/hudFocus.ts`) decides each frame
+what is worth showing:
+
+- **Always**: the reticle and target markers, fuel, shield, hull, missiles
+  and speed, the 3D scanner, the orbit bar, the top of the contract board
+  and one message line.
+- **When it matters**: Earth integrity once it is damaged; Orbit Health
+  below 70%; the licence when it is not in good standing; the balance for a
+  few seconds after a payment (shown as "+320 cr → 1,820 cr"); the league
+  when someone overtakes; the position panel in low orbit, near the edge
+  of the defence zone, or when fuel, hull or missiles are low; priority
+  sites only while one is threatened or damaged; laser heat while the laser
+  is warm; boost while it recharges; the steering and assist chips only
+  when they need attention.
+- **Calm zones show the planning view**: standing, money, league, the full
+  board and the sites.
+- **Tab (the tactical map) shows everything.**
+- **Messages take turns** on one line: a danger interrupts, job news waits
+  until it is done, a repeated message just stays up longer, and news that
+  waited more than six seconds is dropped instead of shown late.
+- **Quieter world labels**: stations are named only within 8,000 km,
+  healthy cities are not labelled, and satellites are named only when close
+  or in the way. Icons stay.
+- **In a fight the board lists the rocks first** (after anything with a
+  deadline); in calm zones the jobs lead.
+- The controls line and opening tips are shown for the first two runs and
+  in training.
+- **HUD density** on the pause screen: Minimal, Standard (default) or
+  Full (every reading, always).
+
+Measured on the same moments of play, visible HUD readings: in a fight
+73 → 23 (Standard) or 21 (Minimal); in a calm zone 70 → 33; the tactical
+map still shows everything.
+
 ## Stage 8: a living orbit, and things to play with
 
 - **The orbit is busy without you.** Rockets launch from Earth's
