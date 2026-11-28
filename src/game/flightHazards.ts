@@ -28,12 +28,17 @@ export interface HazardDependencies {
   explosions: Explosions;
 }
 
+/** Low-altitude messages are not repeated within this many seconds. */
+const ALTITUDE_QUIET_SECONDS = 15;
+
 /**
  * Dangers that come from where the ship flies rather than from asteroids:
  * heating and break-up in the atmosphere, straying out of the defence zone
  * (the autopilot turns the ship back), and a crippled hull.
  */
 export class FlightHazards {
+  /** Seconds before another low-altitude message may be shown. */
+  private altitudeQuiet = 0;
   readonly group = new THREE.Group();
   zone: AtmosphereZone = 'space';
   /** True while the autopilot is flying the ship back towards Earth. */
@@ -98,10 +103,13 @@ export class FlightHazards {
 
     if (!this.pullingUp && needsPullUp(altitude, sinkRate, handlingShare(ship.massFactor))) {
       this.pullingUp = true;
-      hud.showMessage('Too low. Automatic pull-up has the ship', 'danger', 3);
+      // The status line shows AUTO PULL-UP; repeating the message in a dogfight near Earth buried contract news.
+      if (this.altitudeQuiet <= 0) {
+        hud.showMessage('Too low. Automatic pull-up has the ship', 'danger', 2.5);
+      }
+      this.altitudeQuiet = ALTITUDE_QUIET_SECONDS;
     } else if (this.pullingUp && pullUpComplete(altitude, sinkRate)) {
       this.pullingUp = false;
-      hud.showMessage('Clear of the atmosphere. You have the controls', 'success', 3);
     }
     if (this.pullingUp) {
       // Climb at an angle, keeping the direction of travel, so the ship skims out.
@@ -143,10 +151,12 @@ export class FlightHazards {
     const altitude = ship.position.length() - EARTH_RADIUS;
     this.zone = active ? atmosphereZone(altitude) : 'space';
     const heat = this.zone === 'space' || this.zone === 'warning' ? 0 : Math.max(0.15, entryHeat(altitude));
+    this.altitudeQuiet = Math.max(0, this.altitudeQuiet - deltaSeconds);
 
     if (this.zone !== this.lastZone) {
-      if (this.zone === 'warning' && this.lastZone === 'space') {
-        hud.showMessage('Atmosphere below. Keep your nose up', 'warning', 3);
+      if (this.zone === 'warning' && this.lastZone === 'space' && this.altitudeQuiet <= 0) {
+        hud.showMessage('Atmosphere below. Keep your nose up', 'warning', 2.5);
+        this.altitudeQuiet = ALTITUDE_QUIET_SECONDS;
       } else if (this.zone === 'atmosphere') {
         hud.showMessage('In the atmosphere: the hull is heating', 'danger', 4);
       }

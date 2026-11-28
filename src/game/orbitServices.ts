@@ -35,6 +35,9 @@ import type { CombatResolver } from './combatResolver';
 import type { ContractBook } from './contractBook';
 import type { GameSession } from './gameSession';
 
+/** Rivals pick their shots like professionals: their kills leave half the debris. */
+const RIVAL_DEBRIS_SHARE = 0.5;
+
 export interface OrbitServicesDependencies {
   scene: THREE.Scene;
   outpostModels: Record<OutpostId, THREE.Object3D>;
@@ -199,7 +202,7 @@ export class OrbitServices {
       sound: deps.sound,
       rng: deps.rng,
     });
-    deps.combat.shatterHook = (asteroid, weapon, position) => this.debris.shatter(asteroid, weapon, position);
+    deps.combat.shatterHook = (asteroid, weapon, position, pilot) => this.debris.shatter(asteroid, weapon, position, pilot === 'player' ? 1 : RIVAL_DEBRIS_SHARE);
     this.rivals = new RivalPilots({
       scene: deps.scene,
       shipSource: deps.shipSource,

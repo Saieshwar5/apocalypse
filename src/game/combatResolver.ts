@@ -66,7 +66,7 @@ export class CombatResolver {
   private readonly ironWarned = new Set<number>();
 
   /** Turns a destroyed rock into orbital debris; returns the tonnes left. Set by the play session. */
-  shatterHook: ((asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3) => number) | null = null;
+  shatterHook: ((asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3, pilot: PilotId) => number) | null = null;
 
   constructor(private readonly deps: CombatDependencies) {}
 
@@ -274,7 +274,7 @@ export class CombatResolver {
     const position = asteroid.mesh.position.clone();
     const splits = fragmentsOnDestroy(asteroid.size, weapon) !== null;
     // Fragments a laser splits off carry on as asteroids; the rest becomes orbital debris.
-    const debris = this.shatterHook?.(asteroid, weapon, position) ?? 0;
+    const debris = this.shatterHook?.(asteroid, weapon, position, pilot) ?? 0;
     if (debris > 0 && pilot === 'player') {
       session.events.emit({ type: 'debris-left', tonnes: debris });
     }

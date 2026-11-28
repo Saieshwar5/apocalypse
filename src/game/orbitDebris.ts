@@ -83,8 +83,9 @@ export class OrbitDebris {
   }
 
   /** Debris left by destroying a rock here; returns the tonnes added. */
-  shatter(asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3): number {
-    const tonnes = shatterDebris(asteroid.size, weapon, position.length(), EARTH_RADIUS);
+  /** `share` scales the debris: rivals, as licensed professionals, leave half. */
+  shatter(asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3, share = 1): number {
+    const tonnes = shatterDebris(asteroid.size, weapon, position.length(), EARTH_RADIUS) * share;
     if (tonnes <= 0) {
       return 0;
     }

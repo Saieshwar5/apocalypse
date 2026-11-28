@@ -1,3 +1,4 @@
+import { DamageEffects } from '../ship/damageEffects';
 import * as THREE from 'three';
 import { SoundEffects } from '../audio/soundEffects';
 import { CameraRig } from '../camera/cameraRig';
@@ -65,6 +66,7 @@ export class Game {
   private readonly radar: Radar;
   private readonly screens: GameScreens;
   private readonly explosions = new Explosions();
+  private damage!: DamageEffects;
   private environment!: EnvironmentLighting;
   private readonly frameStats = new FrameStats(new URLSearchParams(window.location.search).has('fps'));
   private readonly qualitySampler = createSampler();
@@ -115,6 +117,7 @@ export class Game {
     this.earthTextures = textures;
     this.earth = new Earth(textures, SUN_DIRECTION);
     this.shipModel = createShipModel(models.interceptor);
+    this.damage = new DamageEffects(this.shipModel.bounds);
     this.ship = new ShipController(this.shipModel.group);
     this.cameraRig.setCockpitOffset(this.shipModel.cockpit);
     this.ground = new GroundScene(models, this.pipeline.renderer);
@@ -144,6 +147,7 @@ export class Game {
       createMoon(new THREE.Vector3(-0.55, 0.2, 0.8)),
       this.shipModel.group,
       this.explosions.group,
+      this.damage.group,
     );
     this.play = new PlaySession({
       scene: this.scene,
@@ -212,6 +216,7 @@ export class Game {
     this.applySystemLook();
     this.radio.reset();
     this.explosions.clear();
+    this.damage.clear();
     this.earth.reset(this.sunriseSpinAngle());
     this.shipModel.group.visible = true;
     this.cameraRig.view = 'chase';
@@ -376,6 +381,7 @@ export class Game {
   private updatePlaying(deltaSeconds: number): void {
     this.play.update(deltaSeconds);
     this.career.update(deltaSeconds);
+    this.damage.update(deltaSeconds, this.ship.hull, this.shipModel.group, this.ship.velocity, this.play.shipActive);
     // Solar storms light up the auroras; a warning makes them start to stir.
     const weather = this.play.services.weather.phase;
     this.earth.setAuroraStrength(weather === 'storm' ? 2.2 : weather === 'warning' ? 1.4 : 1);
