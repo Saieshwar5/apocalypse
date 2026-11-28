@@ -56,7 +56,7 @@ export class FlightSystems {
     const { play, ship, input, hud, sound, radio, session } = deps;
     this.career = new PilotCareer({ session, hud, sound, input, radio, showModules: (fitted) => deps.shipModel.setModules(fitted) });
     this.career.attach(play);
-    this.navigation = new Navigation({ play, ship, input, hud, overlay: deps.overlay, radar: deps.radar, session, radio });
+    this.navigation = new Navigation({ play, ship, input, hud, overlay: deps.overlay, radar: deps.radar, session, radio, scene: deps.scene });
     this.help = new HelpDesk({
       input,
       hud,

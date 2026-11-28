@@ -1,3 +1,4 @@
+import { OrbitRings } from '../world/orbitRings';
 import * as THREE from 'three';
 import type { Hud } from '../hud/hud';
 import type { NavigationObjective } from '../hud/navigationOverlay';
@@ -37,6 +38,8 @@ export interface NavigationDependencies {
   radar: Radar;
   session: GameSession;
   radio?: RadioNet;
+  /** Where the tactical map's orbit lines are drawn. */
+  scene?: THREE.Scene;
 }
 
 export type Objective = NavigationObjective & { kind: ObjectiveKind };
@@ -66,11 +69,13 @@ export class Navigation {
   private readonly velocity = new THREE.Vector3();
   private bHeld = 0;
   private warned = false;
+  private readonly rings = new OrbitRings();
 
   constructor(private readonly deps: NavigationDependencies) {
     this.computer = new NavComputer({ play: deps.play, ship: deps.ship, input: deps.input, hud: deps.hud });
     deps.radar.rangeFor = (full) => scannerRange(this.scannerMode, full, this.objective ? this.objective.world.distanceTo(deps.ship.position) : null);
     deps.play.autopilot = (input, deltaSeconds) => this.autopilotInput(input, deltaSeconds);
+    deps.scene?.add(this.rings.group);
   }
 
   reset(): void {
@@ -127,6 +132,25 @@ export class Navigation {
     if (flying && input.isDown('KeyX') && !this.autopilotOn) {
       this.align(deltaSeconds);
     }
+    this.showOrbits();
+  }
+
+  /** On the tactical map: the stations' orbits, and the nav target's in its own colour. */
+  private showOrbits(): void {
+    const { play } = this.deps;
+    if (!play.tactical) {
+      this.rings.show([]);
+      return;
+    }
+    const orbits = play.services.outposts.list.map((outpost) => ({ position: outpost.position, velocity: outpost.velocity, color: outpost.color }));
+    const aegis = play.stationOps.whereabouts();
+    if (aegis) {
+      orbits.push({ ...aegis, color: '#5fd8ff' });
+    }
+    if (this.objective) {
+      orbits.unshift({ position: this.objective.world, velocity: this.objective.velocity, color: this.objective.color });
+    }
+    this.rings.show(orbits);
   }
 
   /** After the play session has drawn the overlay: the navigation aids and the list numbers. */
