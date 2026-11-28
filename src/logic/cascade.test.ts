@@ -33,7 +33,7 @@ describe('debris from destroying rocks', () => {
 
 describe('orbit health', () => {
   it('falls with debris and stays between 0 and 100', () => {
-    expect(orbitHealth(0)).toBe(100);
+    expect(orbitHealth(25)).toBeCloseTo(100 - 25 * CASCADE.healthPerTonne, 6);
     expect(orbitHealth(25)).toBe(80);
     expect(orbitHealth(1000)).toBe(0);
   });
