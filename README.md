@@ -48,6 +48,32 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 4: rival pilots
+
+- Two rival pilots work the same orbit: KESTREL (red), a hunter who goes
+  after asteroid contracts and prefers big or iron rocks, and MOTH (yellow),
+  a hauler who takes satellite jobs and nearby rocks. They fly the same ship
+  (repainted) with the same flight model, top speeds, braking, fuel, laser
+  range and missiles as you, steered by an autopilot instead of keys.
+- They read the same contract board, skip work they cannot reach before
+  impact or that you are clearly about to take, and head to Aegis to
+  refuel (and pay for it) when low.
+- Pay is shared by damage dealt: whoever damaged a rock is paid a share,
+  so a giant fought together pays everyone who helped. A rock a rival took
+  alone is reported ("KESTREL took the medium iron").
+- A satellite job a rival claims is reserved for them while they work it
+  (shown on the board as "claimed by MOTH"); they tow, drop off at Vulcan
+  Yard, collect and return just as you do.
+- They are competitors, never enemies: they do not shoot you. Your stray
+  shots on their hull cost a 100 cr fine and an angry radio call; their
+  missile blasts can still hurt you if you fly into them.
+- You see them: red and yellow triangles on screen and on the scanner, with
+  what each is doing ("KESTREL → medium rock 2,000 km"). You hear them:
+  short radio lines in their own voices, rationed so they do not talk over
+  mission control. A league table under your earnings ranks all three
+  pilots, and the end screen shows it.
+- Only your own kills count towards the field-clear bonus.
+
 ## Stage 3: stations and towing
 
 - Three new stations on their own orbits, built in Blender like Aegis:
@@ -253,7 +279,7 @@ npm run build
 wave timing, laser range, aim-ahead, blasts, shield and hull, units, priority
 sites, atmosphere zones and the automatic pull-up, the flight model, guidance,
 contract pay, station prices and the wallet, the tow line, placement and
-satellite job paths,
+satellite job paths, rival choices, shared pay, radio rationing, the autopilot,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.

@@ -12,6 +12,7 @@ import { STAR_SYSTEMS, nextSystem } from '../logic/starSystems';
 import { shareText, type RunRecord } from '../logic/bestRuns';
 import { GroundScene } from '../launch/groundScene';
 import { LaunchCinematic } from '../launch/launchCinematic';
+import { pilotName } from '../logic/rivals';
 import { LAUNCH_SITE, OrbitInsertion, orbitPose } from '../launch/orbitInsertion';
 import { RocketEffects } from '../launch/rocketEffects';
 import { Earth, loadEarthTextures, type EarthTextures } from '../scene/earth';
@@ -142,6 +143,7 @@ export class Game {
       stationModel: models.station,
       satellitesModel: models.satellites,
       outpostModels: { vulcan: models.vulcan, ceres: models.ceres, halo: models.halo },
+      shipSource: models.interceptor,
       ship: this.ship,
       setCockpitFrame: (visible) => this.screens.setCockpitFrame(visible),
     });
@@ -363,6 +365,7 @@ export class Game {
       balance: this.session.wallet.balance,
       contractsCompleted: this.play.contracts.contractsCompleted,
       contractsLost: this.play.contracts.contractsLost,
+      league: this.session.league().map(({ pilot, earned }) => ({ name: pilotName(pilot), earned, you: pilot === 'player' })),
       wavesCleared: this.session.wavesCleared,
       asteroidsDestroyed: this.session.asteroidsDestroyed,
       impacts: this.session.totalImpacts,

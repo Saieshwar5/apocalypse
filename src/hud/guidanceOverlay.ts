@@ -228,6 +228,7 @@ function drawWaypoint(context: CanvasRenderingContext2D, projector: ScreenProjec
   context.rotate(-angle);
   context.translate(-(centreX + Math.cos(angle) * ring), -(centreY + Math.sin(angle) * ring));
   context.textAlign = 'center';
-  context.fillText(`JOB · ${waypoint.label} · ${distance}`, centreX, centreY - ring - 18);
+  // Below the priority lines, where the message banner cannot cover it.
+  context.fillText(`JOB · ${waypoint.label} · ${distance}`, centreX, centreY + ring + 78);
   context.restore();
 }

@@ -19,7 +19,8 @@ import { rankThreats } from '../logic/threats';
 import { damping, orientationFromForward } from '../math/orientation';
 import { EARTH_RADIUS, type Earth } from '../scene/earth';
 import { ShieldBubble } from '../ship/shieldBubble';
-import { IDLE_INPUT, type FlightInput, type ShipController } from '../ship/shipController';
+import { IDLE_INPUT, type ShipController } from '../ship/shipController';
+import { handleShipToggles, readFlightInput } from '../input/flightKeys';
 import type { ShipModel } from '../ship/shipModel';
 import { LaserCannon } from '../weapons/laserCannon';
 import { MissileLauncher } from '../weapons/missileLauncher';
@@ -35,6 +36,7 @@ import type { GameSession } from './gameSession';
 import { computeGuidance, type Guidance } from './guidance';
 import { computeTargeting, type TargetingInfo } from './targeting';
 import { Campaign } from './campaign';
+import { RIVALS, pilotName } from '../logic/rivals';
 import { OrbitServices } from './orbitServices';
 import type { OutpostId } from '../station/outposts';
 
@@ -65,6 +67,8 @@ export interface PlaySessionDependencies {
   stationModel: THREE.Object3D;
   satellitesModel: THREE.Object3D;
   outpostModels: Record<OutpostId, THREE.Object3D>;
+  /** The interceptor model, repainted for the rival pilots. */
+  shipSource: THREE.Object3D;
   ship: ShipController;
   /** Shows or hides the cockpit frame overlay. */
   setCockpitFrame: (visible: boolean) => void;
@@ -108,7 +112,7 @@ export class PlaySession {
 
   constructor(private readonly deps: PlaySessionDependencies) {
     this.field = new AsteroidField(EARTH_RADIUS, deps.rng);
-    this.contracts = new ContractBook({ wallet: deps.session.wallet, hud: deps.hud, feedback: this.feedback });
+    this.contracts = new ContractBook({ walletOf: (pilot) => deps.session.walletOf(pilot), hud: deps.hud, feedback: this.feedback });
     deps.shipModel.group.add(this.shield.mesh);
     this.sites = new SiteDefence(deps.earth, STAR_SYSTEMS[0].sites);
     this.siteMarkers = new SiteMarkers(deps.earth, this.sites);
@@ -174,11 +178,17 @@ export class PlaySession {
       fleet: this.satellites.fleet,
       ship: deps.ship,
       field: this.field,
-      wallet: deps.session.wallet,
+      walletOf: (pilot) => deps.session.walletOf(pilot),
       hud: deps.hud,
       sound: deps.sound,
       input: deps.input,
       rng: deps.rng,
+      shipSource: deps.shipSource,
+      contracts: this.contracts,
+      combat: this.combat,
+      session: deps.session,
+      playerProjectiles: [this.laser.group, this.missiles.group],
+      station: () => (this.stationOps.present ? { position: this.stationOps.station.position, velocity: this.stationOps.station.velocity } : null),
     });
     this.campaign = new Campaign({
       field: this.field,
@@ -243,7 +253,7 @@ export class PlaySession {
     const { ship, shipModel, earth, explosions, sound, cameraRig } = this.deps;
     const active = this.shipActive;
     const flying = active && !this.tactical && !this.stationOps.holdingShip;
-    const input = flying ? this.hazards.filterInput(this.readFlightInput(), deltaSeconds) : IDLE_INPUT;
+    const input = flying ? this.hazards.filterInput(readFlightInput(this.deps.input), deltaSeconds) : IDLE_INPUT;
     ship.assistOverride = this.hazards.autopilot;
     ship.update(deltaSeconds, input);
     shipModel.group.updateMatrixWorld();
@@ -271,7 +281,7 @@ export class PlaySession {
     this.combat.resolveEscaped(this.field.collectEscaped());
     this.satellites.shipIgnores = this.services.work.towed;
     this.satellites.update(deltaSeconds, active);
-    this.services.update(deltaSeconds, flying && !this.hazards.autopilot);
+    this.services.update(deltaSeconds, flying && !this.hazards.autopilot, active);
     const lostCause = this.combat.consumeShipLost();
     if (lostCause && active) {
       this.destroyShip(lostCause);
@@ -332,35 +342,7 @@ export class PlaySession {
       this.deps.setCockpitFrame(view === 'cockpit');
       cameraRig.snap();
     }
-    if (input.consumePress('KeyZ') && !this.tactical) {
-      const ship = this.deps.ship;
-      ship.assist = !ship.assist;
-      hud.showMessage(
-        ship.assist ? 'Flight assist on: the ship goes where it points' : 'Flight assist off: the ship drifts, and gravity pulls it',
-        'info',
-        3,
-      );
-    }
-    if (input.consumePress('KeyM')) {
-      hud.showMessage(sound.toggleMute() ? 'Sound off' : 'Sound on', 'info', 1.5);
-    }
-  }
-
-  private readFlightInput(): FlightInput {
-    const input = this.deps.input;
-    const axis = (positive: string[], negative: string[]) =>
-      (positive.some((code) => input.isDown(code)) ? 1 : 0) - (negative.some((code) => input.isDown(code)) ? 1 : 0);
-    return {
-      look: input.consumeLook(),
-      pitch: axis(['ArrowUp'], ['ArrowDown']),
-      yaw: axis(['ArrowRight'], ['ArrowLeft']),
-      thrust: input.isDown('KeyW') ? 1 : 0,
-      brake: input.isDown('KeyS') ? 1 : 0,
-      strafe: axis(['KeyD'], ['KeyA']),
-      lift: axis(['KeyR'], ['KeyV']),
-      roll: axis(['KeyE'], ['KeyQ']),
-      boost: input.isDown('ShiftLeft') || input.isDown('ShiftRight'),
-    };
+    handleShipToggles(input, this.deps.ship, hud, sound, !this.tactical);
   }
 
   private updateWeapons(deltaSeconds: number): void {
@@ -439,6 +421,12 @@ export class PlaySession {
       shieldCapacity: ship.shieldCapacity,
       balance: session.wallet.balance,
       earned: session.wallet.earned,
+      league: session.league().map(({ pilot, earned }) => ({
+        name: pilotName(pilot),
+        earned,
+        color: pilot === 'player' ? '#7dffb0' : (RIVALS.find((rival) => rival.id === pilot)?.color ?? '#e8f1ff'),
+        you: pilot === 'player',
+      })),
       contracts: this.contracts.listings(ranked),
       jobs: this.services.jobRows(),
       contractSummary: this.contracts.summary(this.campaign.director.phase === 'field'),

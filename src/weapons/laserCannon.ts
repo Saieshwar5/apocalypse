@@ -52,11 +52,12 @@ export class LaserCannon {
   private readonly previous = new THREE.Vector3();
   private readonly scratch = new THREE.Vector3();
 
-  constructor() {
+  /** `color` is HDR, so bolts glow under bloom; rivals fire their own colour. */
+  constructor(color = new THREE.Color(7, 1.1, 0.7)) {
     const geometry = new THREE.CylinderGeometry(0.045, 0.045, 3, 6, 1, true);
     geometry.rotateX(Math.PI / 2);
     const material = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(7, 1.1, 0.7),
+      color,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,

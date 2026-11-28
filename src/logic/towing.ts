@@ -20,6 +20,12 @@ export const TOW = {
   shipMass: 1,
   /** Beyond this stretch the line snaps. */
   breakStretch: 6,
+  /**
+   * The line's winch and stabilisers steady a swinging load: the share of
+   * the load's motion relative to the ship removed each second. Without it
+   * a load circles a stopped ship on the rope and cannot be placed.
+   */
+  steadying: 0.8,
 } as const;
 
 /** Masses relative to the ship. */
@@ -59,9 +65,18 @@ export function towStep(state: TowState, deltaSeconds: number): TowStep {
   const offset = sub(state.loadPosition, state.shipPosition);
   const distance = length(offset);
   const stretch = distance - TOW.length;
-  const none: TowStep = { shipDelta: [0, 0, 0], loadDelta: [0, 0, 0], tension: 0, stretch: Math.max(0, stretch), snapped: false };
+  const relative = sub(state.loadVelocity, state.shipVelocity);
+  // Steadying is shared by mass like any internal force, so momentum is kept.
+  const steady = scale(relative, (1 - Math.exp(-TOW.steadying * deltaSeconds)) * (TOW.shipMass / (TOW.shipMass + state.loadMass)));
+  const none: TowStep = {
+    shipDelta: scale(steady, state.loadMass / TOW.shipMass),
+    loadDelta: scale(steady, -1),
+    tension: 0,
+    stretch: Math.max(0, stretch),
+    snapped: false,
+  };
   if (stretch > TOW.breakStretch) {
-    return { ...none, snapped: true };
+    return { ...none, shipDelta: [0, 0, 0], loadDelta: [0, 0, 0], snapped: true };
   }
   if (stretch <= 0 || distance === 0) {
     return none;
@@ -72,8 +87,8 @@ export function towStep(state: TowState, deltaSeconds: number): TowStep {
   const tension = Math.max(0, TOW.stiffness * stretch + TOW.damping * separating);
   const impulse = tension * deltaSeconds;
   return {
-    shipDelta: scale(direction, impulse / TOW.shipMass),
-    loadDelta: scale(direction, -impulse / state.loadMass),
+    shipDelta: add(scale(direction, impulse / TOW.shipMass), none.shipDelta),
+    loadDelta: add(scale(direction, -impulse / state.loadMass), none.loadDelta),
     tension,
     stretch,
     snapped: false,
@@ -96,6 +111,10 @@ export function isPlaced(distanceFromSlot: number, relativeSpeed: number): boole
 export function placementAccuracy(distanceFromSlot: number): number {
   const share = Math.min(1, Math.max(0, distanceFromSlot / PLACEMENT.radius));
   return 1 - 0.3 * share;
+}
+
+function add(a: Vec3Tuple, b: Vec3Tuple): Vec3Tuple {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 }
 
 function sub(a: Vec3Tuple, b: Vec3Tuple): Vec3Tuple {
