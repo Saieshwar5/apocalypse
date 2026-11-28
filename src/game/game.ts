@@ -1,7 +1,4 @@
-import { HelpDesk } from './helpDesk';
-import { adviceFor } from './helpFeed';
-import { Navigation } from './navigation';
-import { WorldLayer } from './worldLayer';
+import { FlightSystems } from './flightSystems';
 import { liveryById } from '../logic/livery';
 import { CockpitInterior } from '../ship/cockpitInterior';
 import { cockpitReadings } from './cockpitFeed';
@@ -38,7 +35,6 @@ import { EnvironmentLighting } from '../scene/environmentLighting';
 import { SUN_DIRECTION } from '../scene/sunDirection';
 import { RadioNet } from './radioNet';
 import { DEFAULT_CALL_SIGN } from '../logic/cast';
-import { PilotCareer } from './pilotCareer';
 import { runSummary } from './runSummary';
 import { FrameStats } from '../scene/frameStats';
 
@@ -81,11 +77,8 @@ export class Game {
   private callSign = DEFAULT_CALL_SIGN;
   private hardcore = false;
   private shipName = '';
-  private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => this.career.rank });
-  private career!: PilotCareer;
-  private worldLayer!: WorldLayer;
-  private navigation!: Navigation;
-  private helpDesk!: HelpDesk;
+  private readonly radio = new RadioNet({ hud: this.hud, sound: this.sound, callSign: () => this.callSign, rank: () => this.flight.career.rank });
+  private flight!: FlightSystems;
   private shipModel!: ShipModel;
   private ship!: ShipController;
   private earth!: Earth;
@@ -183,23 +176,12 @@ export class Game {
       ship: this.ship,
       setCockpitFrame: (visible) => this.cockpit.setVisible(visible),
       radio: this.radio,
-      onTrainingComplete: () => this.career.markTrainingDone(),
+      onTrainingComplete: () => this.flight.career.markTrainingDone(),
     });
-    this.career = new PilotCareer({ session: this.session, hud: this.hud, sound: this.sound, input: this.input, radio: this.radio, showModules: (fitted) => this.shipModel.setModules(fitted) });
-    this.career.attach(this.play);
-    this.helpDesk = new HelpDesk({
-      input: this.input,
-      hud: this.hud,
-      advice: () => adviceFor(this.play, this.ship, this.navigation),
-      pause: () => this.pauseFor(),
-      resume: () => this.resume(),
-      showPause: () => this.screens.showPause(),
-      hidePause: () => this.screens.hideAll(),
-    });
-    this.navigation = new Navigation({ play: this.play, ship: this.ship, input: this.input, hud: this.hud, overlay: this.overlay, radar: this.radar, session: this.session });
-    this.worldLayer = new WorldLayer({
-      scene: this.scene, camera: this.camera, earth: this.earth, play: this.play, career: this.career, input: this.input,
-      hud: this.hud, sound: this.sound, radio: this.radio, rng: this.rng, wallet: this.session.wallet, ship: () => this.shipModel.group,
+    this.flight = new FlightSystems({
+      scene: this.scene, camera: this.camera, earth: this.earth, play: this.play, session: this.session, ship: this.ship, shipModel: this.shipModel,
+      input: this.input, hud: this.hud, overlay: this.overlay, radar: this.radar, sound: this.sound, radio: this.radio, rng: this.rng,
+      pause: () => this.pauseFor(), resume: () => this.resume(), showPause: () => this.screens.showPause(), hidePause: () => this.screens.hideAll(),
       setInterface: (visible) => (this.hud.setVisible(visible), this.overlay.clear(), this.cockpit.setVisible(visible && this.cameraRig.view === 'cockpit')),
     });
     this.shipModel.group.visible = false;
@@ -244,10 +226,7 @@ export class Game {
       this.session.reset();
     }
     this.play.reset(system, continuing, training);
-    this.career.startRun(this.hardcore && !training);
-    this.worldLayer.reset();
-    this.navigation.reset();
-    this.hud.newPilot = training || this.career.record.runs < 2;
+    this.flight.startRun(this.hardcore, training);
     this.applySystemLook();
     this.radio.reset();
     this.explosions.clear();
@@ -422,17 +401,11 @@ export class Game {
   }
 
   private updatePlaying(deltaSeconds: number): void {
-    this.helpDesk.update();
-    if (this.phase !== 'playing') {
+    if (!this.flight.beforePlay(deltaSeconds, () => this.phase === 'playing')) {
       return;
     }
-    if (this.worldLayer.update(deltaSeconds, this.play.shipActive)) {
-      return;
-    }
-    this.navigation.update(deltaSeconds, this.play.shipActive && !this.play.tactical);
     this.play.update(deltaSeconds);
-    this.navigation.draw();
-    this.career.update(deltaSeconds);
+    this.flight.afterPlay(deltaSeconds);
     this.overlay.quietLabels = !(this.hud.visibility?.allWorldLabels ?? true);
     this.damage.update(deltaSeconds, this.ship.hull, this.shipModel.group, this.ship.velocity, this.play.shipActive);
     this.cockpit.update(deltaSeconds, cockpitReadings(this.ship, this.play, this.shipName));
@@ -452,8 +425,8 @@ export class Game {
   }
 
   private showRank(): void {
-    this.screens.setRank(this.career.rankLine());
-    this.career.showLogbook();
+    this.screens.setRank(this.flight.career.rankLine());
+    this.flight.career.showLogbook();
   }
 
   private endRun(reason: string, victory = false): void {
@@ -463,7 +436,7 @@ export class Game {
     this.cockpit.setVisible(false);
     this.shipModel.group.visible = false;
     this.sound.setEngine(0, false);
-    const summary = runSummary(this.play, this.session, this.career, STAR_SYSTEMS[this.systemIndex], this.systemIndex, reason, victory);
+    const summary = runSummary(this.play, this.session, this.flight.career, STAR_SYSTEMS[this.systemIndex], this.systemIndex, reason, victory);
     this.lastRun = summary.current;
     this.screens.showGameOver(summary);
     this.sound.setAtmosphere(0);
