@@ -78,6 +78,13 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 - **Their state matters.** Anchor lifts fuel from Earth while it has parts
   and stops when it has none. Farwatch's lookout sets how far your scanner
   sees: 15% further when thriving, 30% less when failing.
+- **They can be hit.** Now and then a rock is found on course for one of
+  them, with under a minute of warning. Stop it and the station pays 520
+  cr. Let it through and the station is holed: it loses 40% of its stores
+  and a third of its structure, burns dimmer, and (for a senior pilot)
+  sends out an escape pod. It mends slowly while it has parts.
+- **Meridian moves the money.** While the city thrives every job pays 10%
+  more; while it is failing, 15% less. Its habitat ring is solid.
 - **Cargo flows to them.** Routine and urgent runs go to whichever station
   is shortest, loading at the Ceres depot or, for fuel, at Anchor.
 - **New voices**: Mayor Adeyemi (Meridian), Harbourmaster Lind (Anchor) and
