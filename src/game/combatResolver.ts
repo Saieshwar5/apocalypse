@@ -62,6 +62,8 @@ export interface CombatDependencies {
  */
 export class CombatResolver {
   private shipLostCause: string | null = null;
+  /** Iron rocks the pilot has already been told to use missiles on. */
+  private readonly ironWarned = new Set<number>();
 
   /** Turns a destroyed rock into orbital debris; returns the tonnes left. Set by the play session. */
   shatterHook: ((asteroid: Asteroid, weapon: WeaponKind, position: THREE.Vector3) => number) | null = null;
@@ -257,7 +259,9 @@ export class CombatResolver {
       } else {
         explosions.spawnRockChips(point, Math.min(1.5, damage / 20));
       }
-      if (mine && resisted && weapon === 'laser' && asteroid.health > asteroid.maxHealth * 0.6) {
+      if (mine && resisted && weapon === 'laser' && asteroid.health > asteroid.maxHealth * 0.6 && !this.ironWarned.has(asteroid.id)) {
+        // Once per rock is enough; repeating it while the laser is held was noise.
+        this.ironWarned.add(asteroid.id);
         hud.showMessage('Iron resists lasers. Use missiles (F)', 'warning', 2.5);
       }
       return;

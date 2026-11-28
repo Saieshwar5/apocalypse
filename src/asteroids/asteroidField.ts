@@ -147,9 +147,13 @@ export class AsteroidField {
     return asteroid;
   }
 
-  /** Asteroids that could still threaten the planet; passers-by do not hold up a field. */
+  /**
+   * Asteroids that could still hit the planet. Passers-by and rocks already
+   * deflected onto a miss do not hold up a field: waiting for them to drift
+   * out of the neighbourhood was dead time.
+   */
   get threatCount(): number {
-    return this.asteroids.reduce((count, asteroid) => count + (asteroid.passerBy ? 0 : 1), 0);
+    return this.asteroids.reduce((count, asteroid) => count + (asteroid.passerBy || asteroid.timeToImpact === null ? 0 : 1), 0);
   }
 
   /**

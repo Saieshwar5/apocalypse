@@ -22,8 +22,8 @@ export interface RivalDefinition {
 }
 
 export const RIVALS: readonly RivalDefinition[] = [
-  { id: 'kestrel', name: 'KESTREL', callSign: 'KES', style: 'hunter', color: '#ff6b5e', tint: [1.0, 0.32, 0.26], decisionSeconds: 4, pitch: 1.15 },
-  { id: 'moth', name: 'MOTH', callSign: 'MOTH', style: 'hauler', color: '#ffd75e', tint: [1.0, 0.82, 0.3], decisionSeconds: 5, pitch: 0.75 },
+  { id: 'kestrel', name: 'KESTREL', callSign: 'KES', style: 'hunter', color: '#ff6b5e', tint: [1.0, 0.32, 0.26], decisionSeconds: 2.5, pitch: 1.15 },
+  { id: 'moth', name: 'MOTH', callSign: 'MOTH', style: 'hauler', color: '#ffd75e', tint: [1.0, 0.82, 0.3], decisionSeconds: 3.5, pitch: 0.75 },
 ];
 
 export function pilotName(pilot: PilotId): string {
@@ -34,7 +34,7 @@ export function pilotName(pilot: PilotId): string {
  * Rivals' lasers are a little weaker than a skilled player's aim makes the
  * player's, so a pilot who commits early usually wins the race for a rock.
  */
-export const RIVAL_LASER_DAMAGE = 0.8;
+export const RIVAL_LASER_DAMAGE = 1;
 
 /** Fine for hitting a rival's ship with your own weapons. */
 export const RIVAL_HIT_FINE = 100;
