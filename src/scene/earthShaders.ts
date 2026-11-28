@@ -39,6 +39,8 @@ export const SURFACE_FRAGMENT = /* glsl */ `
   uniform vec4 impacts[MAX_IMPACTS];
   uniform float impactHeat[MAX_IMPACTS];
   uniform int impactCount;
+  /** Cloud layer's extra turn relative to the ground, in UV units, for shadows. */
+  uniform float cloudShift;
 
   varying vec2 vUv;
   varying vec3 vWorldPosition;
@@ -110,6 +112,10 @@ export const SURFACE_FRAGMENT = /* glsl */ `
       heat = max(heat, crater * crater * impactHeat[i]);
     }
     dayColor = mix(dayColor, dayColor * vec3(0.2, 0.16, 0.13), scar * 0.9);
+    // Cloud shadows: the cloud layer sampled a little towards the sun, darkening the ground.
+    vec2 shadowUv = vec2(fract(vUv.x - cloudShift + dot(sunDirection, vec3(0.004, 0.0, 0.0))), vUv.y + 0.003);
+    float shadow = smoothstep(0.25, 1.0, texture2D(detailMap, shadowUv).b);
+    dayColor *= 1.0 - shadow * 0.38;
     nightColor *= 1.0 - blackout;
 
     float roughness = detail.g;
@@ -138,6 +144,11 @@ export const SURFACE_FRAGMENT = /* glsl */ `
 export const CLOUDS_FRAGMENT = /* glsl */ `
   uniform sampler2D detailMap;
   uniform vec3 sunDirection;
+  uniform float time;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
 
   varying vec2 vUv;
   varying vec3 vWorldPosition;
@@ -150,7 +161,67 @@ export const CLOUDS_FRAGMENT = /* glsl */ `
     float light = smoothstep(-0.15, 0.45, dot(normal, sunDirection));
     vec3 viewDirection = normalize(vWorldPosition - cameraPosition);
     float edgeFade = pow(1.0 - max(dot(normal, -viewDirection), 0.0), 2.0);
-    gl_FragColor = vec4(vec3(light * 0.95 + 0.015), cloud * (0.92 - edgeFade * 0.45));
+    // Night-side storms: thick cloud cells flicker with lightning now and then.
+    vec2 cell = floor(vUv * vec2(180.0, 90.0));
+    float beat = floor(time * 7.0);
+    float storm = step(0.9965, hash(cell + beat * 0.137)) * step(0.55, cloud) * (1.0 - light);
+    vec2 inCell = fract(vUv * vec2(180.0, 90.0)) - 0.5;
+    float flash = storm * (1.0 - smoothstep(0.0, 0.5, length(inCell))) * (0.6 + 0.4 * sin(time * 90.0));
+    vec3 lit = vec3(light * 0.95 + 0.015) + vec3(0.75, 0.82, 1.0) * flash * 2.5;
+    gl_FragColor = vec4(lit, max(cloud * (0.92 - edgeFade * 0.45), flash));
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }
+`;
+
+/**
+ * Auroras: curtains of green and violet light in a ring around each
+ * magnetic pole, on the night side, rippling slowly. Solar storms brighten
+ * them and push them towards the equator.
+ */
+export const AURORA_FRAGMENT = /* glsl */ `
+  uniform vec3 sunDirection;
+  uniform float time;
+  uniform float strength;
+
+  varying vec2 vUv;
+  varying vec3 vWorldPosition;
+  varying vec3 vWorldNormal;
+  varying vec3 vLocalNormal;
+
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5453);
+    float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5453);
+    float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+    float d = fract(sin(dot(i + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+  }
+
+  void main() {
+    float latitude = asin(clamp(abs(vLocalNormal.y), 0.0, 1.0));
+    float longitude = atan(vLocalNormal.z, vLocalNormal.x);
+    float centre = radians(mix(68.0, 58.0, clamp(strength - 1.0, 0.0, 1.0)));
+    float wave = 0.035 * sin(longitude * 3.0 + time * 0.15) + 0.02 * sin(longitude * 7.0 - time * 0.23);
+    float offset = latitude - centre - wave;
+    // Sharp lower edge, soft upper glow, like real curtains.
+    float band = offset < 0.0
+      ? 1.0 - smoothstep(0.0, radians(1.2 + strength), -offset)
+      : 1.0 - smoothstep(0.0, radians(3.5 + 3.0 * strength), offset);
+    float folds = noise(vec2(longitude * 9.0 + time * 0.25, time * 0.1)) * 0.6
+      + noise(vec2(longitude * 31.0 - time * 0.6, time * 0.3)) * 0.3
+      + noise(vec2(longitude * 83.0 + time * 1.1, 4.0)) * 0.1;
+    float curtain = smoothstep(0.35, 0.85, folds);
+    float night = 1.0 - smoothstep(-0.2, 0.15, dot(normalize(vWorldNormal), sunDirection));
+    vec3 viewDirection = normalize(vWorldPosition - cameraPosition);
+    float edge = 0.35 + 0.65 * pow(1.0 - abs(dot(normalize(vWorldNormal), viewDirection)), 1.5);
+    vec3 green = vec3(0.2, 1.0, 0.55);
+    vec3 violet = vec3(0.65, 0.3, 1.0);
+    vec3 color = mix(green, violet, smoothstep(0.2, 1.0, max(offset, 0.0) / radians(4.0 + 3.0 * strength)));
+    float alpha = band * curtain * night * edge * strength * 0.6;
+    gl_FragColor = vec4(color * alpha, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }

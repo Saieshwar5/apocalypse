@@ -2,6 +2,7 @@ import { PLANET_RADIUS } from '../logic/units';
 import * as THREE from 'three';
 import {
   ATMOSPHERE_FRAGMENT,
+  AURORA_FRAGMENT,
   ATMOSPHERE_VERTEX,
   CLOUDS_FRAGMENT,
   CLOUDS_VERTEX,
@@ -53,6 +54,10 @@ export class Earth {
   private readonly impacts: THREE.Vector4[] = [];
   private readonly impactHeat: number[] = [];
   private nextImpactSlot = 0;
+  private readonly aurora: THREE.Mesh;
+  private readonly time = { value: 0 };
+  private readonly auroraStrength = { value: 1 };
+  private auroraTarget = 1;
 
   constructor(textures: EarthTextures, sunDirection: THREE.Vector3) {
     this.group.rotation.z = AXIAL_TILT;
@@ -74,6 +79,7 @@ export class Earth {
       impacts: { value: this.impacts },
       impactHeat: { value: this.impactHeat },
       impactCount: { value: 0 },
+      cloudShift: { value: 0 },
     };
     const surface = new THREE.Mesh(
       new THREE.SphereGeometry(EARTH_RADIUS, 192, 96),
@@ -88,7 +94,7 @@ export class Earth {
     this.clouds = new THREE.Mesh(
       new THREE.SphereGeometry(EARTH_RADIUS * 1.008, 160, 80),
       new THREE.ShaderMaterial({
-        uniforms: { detailMap: { value: textures.detail }, sunDirection: { value: sunDirection } },
+        uniforms: { detailMap: { value: textures.detail }, sunDirection: { value: sunDirection }, time: this.time },
         vertexShader: CLOUDS_VERTEX,
         fragmentShader: CLOUDS_FRAGMENT,
         transparent: true,
@@ -117,11 +123,32 @@ export class Earth {
       }),
     );
     this.group.add(atmosphere);
+
+    this.aurora = new THREE.Mesh(
+      new THREE.SphereGeometry(EARTH_RADIUS * 1.025, 128, 64),
+      new THREE.ShaderMaterial({
+        uniforms: { sunDirection: { value: sunDirection }, time: this.time, strength: this.auroraStrength },
+        vertexShader: ATMOSPHERE_VERTEX,
+        fragmentShader: AURORA_FRAGMENT,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    this.spin.add(this.aurora);
+  }
+
+  /** 1 normally; a solar storm raises it towards 2 and the auroras flare. */
+  setAuroraStrength(target: number): void {
+    this.auroraTarget = target;
   }
 
   update(deltaSeconds: number): void {
     this.spin.rotation.y += SPIN_RATE * deltaSeconds;
     this.clouds.rotation.y += CLOUD_DRIFT_RATE * deltaSeconds;
+    this.surfaceUniforms.cloudShift.value = this.clouds.rotation.y / (Math.PI * 2);
+    this.time.value += deltaSeconds;
+    this.auroraStrength.value += (this.auroraTarget - this.auroraStrength.value) * Math.min(1, deltaSeconds * 0.5);
     const cooling = deltaSeconds / IMPACT_COOL_SECONDS;
     for (let index = 0; index < this.impactHeat.length; index += 1) {
       this.impactHeat[index] = Math.max(0, this.impactHeat[index] - cooling);

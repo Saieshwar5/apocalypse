@@ -376,6 +376,9 @@ export class Game {
   private updatePlaying(deltaSeconds: number): void {
     this.play.update(deltaSeconds);
     this.career.update(deltaSeconds);
+    // Solar storms light up the auroras; a warning makes them start to stir.
+    const weather = this.play.services.weather.phase;
+    this.earth.setAuroraStrength(weather === 'storm' ? 2.2 : weather === 'warning' ? 1.4 : 1);
     this.radio.update(deltaSeconds);
     if (this.play.campaign.orbitComplete) {
       this.endRun(`${STAR_SYSTEMS[this.systemIndex].planet} is through the debris field`, true);
