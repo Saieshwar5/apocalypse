@@ -34,6 +34,8 @@ export interface OutpostBerthDependencies {
 export class OutpostBerths {
   /** Line for the bottom of the HUD while berthed or close, or null. */
   hint: string | null = null;
+  /** Something is on the ship's tow line: the berth waits until it is released. */
+  loadOnLine = false;
   private berth: Outpost | null = null;
   private readonly offset = new THREE.Vector3();
   private readonly hold = new THREE.Quaternion();
@@ -81,9 +83,11 @@ export class OutpostBerths {
       const relativeSpeed = ship.velocity.distanceTo(outpost.velocity);
       const close = distance <= BERTH.range && relativeSpeed <= BERTH.maxRelativeSpeed;
       this.hint = close
-        ? pilotBusy
-          ? `${outpost.name}: release the controls to berth`
-          : `${outpost.name}: berthing…`
+        ? this.loadOnLine
+          ? `${outpost.name}: release the tow line first (T); stations do not berth a ship with a load`
+          : pilotBusy
+            ? `${outpost.name}: release the controls to berth`
+            : `${outpost.name}: berthing…`
         : `${outpost.name}: come within ${Math.round(BERTH.range)} units of the port and brake to berth`;
       this.still = close && !pilotBusy && this.cooldown <= 0 ? this.still + deltaSeconds : 0;
       if (this.still >= BERTH.holdSeconds) {

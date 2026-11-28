@@ -127,6 +127,7 @@ export class OrbitServices {
       sound: deps.sound,
     });
     this.haul = new HaulWork({
+      aegis: () => deps.stationOps.whereabouts()?.position ?? null,
       ...job,
       field: deps.field,
       outposts: this.outposts,
@@ -242,7 +243,9 @@ export class OrbitServices {
     const { input, ship } = this.deps;
     this.outposts.update(deltaSeconds);
     this.outposts.collide(ship.position, ship.velocity);
-    if (input.consumePress('KeyT') && flying) {
+    // T always works with something on the line, even if a station is holding the ship.
+    const loadOnLine = this.tow.load !== null || this.tow.body !== null;
+    if (input.consumePress('KeyT') && (flying || (active && loadOnLine))) {
       this.toggleTow();
     }
     this.work.update(deltaSeconds);
@@ -293,7 +296,7 @@ export class OrbitServices {
 
   /** The hint line: berthing first, then any storm warning. */
   get hint(): string | null {
-    return this.berths.hint ?? this.weather.hint;
+    return this.haul.hint ?? this.berths.hint ?? this.weather.hint;
   }
 
   /** Work posted in a calm zone besides satellite jobs: hauls, crew calls, sometimes a storm. */

@@ -47,6 +47,8 @@ export interface DockingDependencies {
  */
 export class DockingController {
   state: DockingState = 'free';
+  /** Something is on the ship's tow line: the guides wait until it is released. */
+  loadOnLine = false;
   /** Line for the bottom of the HUD, or null when there is nothing to say. */
   hint: string | null = null;
   private timer = 0;
@@ -116,9 +118,11 @@ export class DockingController {
         ? distance > DOCKING.range
           ? `Aegis station: fly closer and brake (S) below ${formatSpeed(DOCKING.maxRelativeSpeed)} to dock`
           : `Too fast to dock: ${formatSpeed(relativeSpeed)}. Hold S to brake below ${formatSpeed(DOCKING.maxRelativeSpeed)}`
-        : readiness === 'ready' && pilotBusy
-          ? 'In docking range: release the controls to dock'
-          : null;
+        : readiness === 'ready' && this.loadOnLine
+          ? 'Aegis will not dock a ship towing a load: release it first (T). Rocks go to Ceres Works'
+          : readiness === 'ready' && pilotBusy
+            ? 'In docking range: release the controls to dock'
+            : null;
     if (readiness === 'ready' && !pilotBusy) {
       this.state = 'approach';
       this.timer = 0;

@@ -312,9 +312,12 @@ export class PlaySession {
       this.updateWeapons(deltaSeconds);
     }
     this.loss.update(deltaSeconds);
-    // The docking guides will not take a ship with a load on its tow line.
-    const pilotBusy =
-      input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || this.deps.input.firingPrimary || this.services.tow.load !== null;
+    // Stations will not take a ship with anything on its tow line (a satellite, a rock or a pod):
+    // once held, the pilot could not release the load.
+    const loadOnLine = this.services.tow.load !== null || this.services.tow.body !== null;
+    this.stationOps.docking.loadOnLine = loadOnLine;
+    this.services.berths.loadOnLine = loadOnLine;
+    const pilotBusy = input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || this.deps.input.firingPrimary || loadOnLine;
     this.stationOps.update(deltaSeconds, active, this.tactical, pilotBusy);
     shipModel.group.updateMatrixWorld();
     this.hazards.update(deltaSeconds, active);

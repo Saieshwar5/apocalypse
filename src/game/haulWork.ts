@@ -8,8 +8,8 @@ import { formatCredits } from '../logic/contracts';
 import type { Wallet } from '../logic/economy';
 import { randomBetween, randomUnitVector, type RandomSource } from '../logic/random';
 import { HAUL_PAY_PER_TONNE, haulLoadMass, haulTonnes } from '../logic/stationEconomy';
-import { TOW, isPlaced } from '../logic/towing';
-import { formatDistance } from '../logic/units';
+import { PLACEMENT, TOW, isPlaced } from '../logic/towing';
+import { formatDistance, formatSpeed } from '../logic/units';
 import type { Outposts } from '../station/outposts';
 import type { GameEvents } from './gameEvents';
 import type { JobRow, Waypoint } from './satelliteJobHelpers';
@@ -29,6 +29,8 @@ export interface HaulWorkDependencies {
   sound: SoundEffects;
   rng: RandomSource;
   radio: RadioNet;
+  /** Where Aegis is, so the hint can say it does not buy rocks. */
+  aegis?: () => THREE.Vector3 | null;
   /** Seconds of play, for grading jobs; and what the fitted modules do. */
   clock: () => number;
   fit: () => ModuleEffects;
@@ -168,6 +170,33 @@ export class HaulWork {
       this.deps.tow.snapped = false;
       this.deps.hud.showMessage('Tow line snapped: the rock was pulled too hard', 'danger', 3);
     }
+  }
+
+  /**
+   * While the haul rock is on the line, the bottom line says what to do: only
+   * Ceres buys it, where its intake is, and when it is slow enough to release.
+   */
+  get hint(): string | null {
+    const haul = this.haul;
+    if (!haul || this.deps.tow.body !== haul.body) {
+      return null;
+    }
+    const { outposts, ship } = this.deps;
+    const ceres = outposts.get('ceres');
+    const intake = outposts.portPosition('ceres');
+    const distance = haul.rock.mesh.position.distanceTo(intake);
+    const speed = haul.rock.velocity.distanceTo(ceres.velocity);
+    if (distance <= INTAKE_RANGE) {
+      return speed <= PLACEMENT.maxSpeed
+        ? 'In the Ceres intake zone: release now (T) to deliver'
+        : `In the Ceres intake zone: slow down below ${formatSpeed(PLACEMENT.maxSpeed)} (S), then release (T). Now ${formatSpeed(speed)}`;
+    }
+    const aegis = this.deps.aegis?.() ?? null;
+    const elsewhere = outposts.list.some((outpost) => outpost.id !== 'ceres' && outpost.position.distanceTo(ship.position) < 40);
+    if (elsewhere || (aegis !== null && aegis.distanceTo(ship.position) < 40)) {
+      return `Only Ceres Works buys rocks: tow it to the Ceres intake (${formatDistance(distance)} away)`;
+    }
+    return distance < 60 ? `Bring the rock within ${formatDistance(INTAKE_RANGE)} of the Ceres intake, nearly stopped, then release (T)` : null;
   }
 
   rows(): JobRow[] {
