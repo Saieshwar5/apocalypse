@@ -49,6 +49,24 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | Enter | Skip the launch |
 | Esc | Pause |
 
+## Stage 7a: satellite and station care
+
+- **Solar storms** (sometimes, in calm zones): Capcom calls a 30-second
+  warning, then a 35-second storm. Out in the open it drains the shield
+  (6 a second, then the hull) and halves the scanner; the planet's shadow on
+  the night side, or being docked or berthed, is shelter. The hint line
+  counts down and says whether you are sheltered.
+- **The swell**: after a storm the atmosphere has swollen and drags the
+  lowest satellites (below 60 units) down. They sink until they burn up in
+  the atmosphere, leaving nothing, and their operators post **reboost**
+  contracts (380 cr): connect, tow it back up to its orbit slot and release
+  it there. The board shows how long each has before it burns up. Moth takes
+  reboosts too.
+- **Crew service calls** from Halo (450 cr): berth at Halo to take a crew
+  aboard, fly to the satellite and hold close and steady beside it while they
+  work (20 s), then bring them home. Hard hits worry the crew; losing the
+  ship with a crew aboard is the worst failure in the game (-25 reputation).
+
 ## Stage 6b: training flight, ranks and Season 1
 
 - **Training flight** (menu button, or `?training` in the address): Capcom
@@ -416,7 +434,7 @@ satellite job paths, rival choices, shared pay, radio rationing, the autopilot,
 the Cascade (debris, drag, growth, sweeping, orbits through a point), automatic
 quality, reputation, probation, insurance and the emergency loan, station prices,
 shuttle routes and haul masses, call signs and radio rationing, career ranks and
-the season's story beats,
+the season's story beats, storm shelter and the swell,
 the scanner projection, fuel, docking and station stock. In development builds the running game is available as
 `window.singularity` so browser automation can drive it; production builds do
 not expose it.

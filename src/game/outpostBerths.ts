@@ -47,6 +47,11 @@ export class OutpostBerths {
     return this.berth !== null;
   }
 
+  /** Which outpost the ship is berthed at, or null. */
+  get berthedAt(): Outpost['id'] | null {
+    return this.berth?.id ?? null;
+  }
+
   reset(): void {
     this.berth = null;
     this.hint = null;

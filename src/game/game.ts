@@ -30,6 +30,7 @@ import { saveRun } from './runHistory';
 import { bindSettingsControls, loadSettings, type QualityPreference, type Settings } from './settings';
 import { createSampler, effectiveQuality, sampleFrame, type GraphicsQuality } from '../logic/qualityTier';
 import { EnvironmentLighting } from '../scene/environmentLighting';
+import { SUN_DIRECTION } from '../scene/sunDirection';
 import { RadioNet } from './radioNet';
 import { DEFAULT_CALL_SIGN } from '../logic/cast';
 import { nextRank, rankFor, recordCareerRun } from '../logic/career';
@@ -46,7 +47,6 @@ export interface GameOptions {
   training?: boolean;
 }
 
-const SUN_DIRECTION = new THREE.Vector3(1, 0.25, 0.45).normalize();
 const MAX_FRAME_SECONDS = 1 / 20;
 
 /** Owns the scene, the game phases and the per-frame update order. */

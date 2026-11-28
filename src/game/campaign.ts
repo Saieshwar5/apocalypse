@@ -53,8 +53,8 @@ export interface CampaignDependencies {
   work: SatelliteWork;
   /** A hint from berthing at an outpost, shown like the docking hint. */
   extraHint: () => string | null;
-  /** Ceres posts an asteroid haul; false when one is already open. */
-  postHaul: () => boolean;
+  /** Hauls, crew calls and the odd solar storm, posted in calm zones. */
+  calmZoneWork: () => void;
   /** Working satellites, which pay the pilot a fee when a field is cleared. */
   workingSatellites: () => number;
   radio: RadioNet;
@@ -258,9 +258,7 @@ export class Campaign {
     if (rng() < 0.5) {
       this.dodgeIn = 6 + rng() * 6;
     }
-    if (rng() < 0.6 && this.deps.postHaul()) {
-      this.deps.radio.moment('haul-posted');
-    }
+    this.deps.calmZoneWork();
   }
 
   private updateSatelliteJobs(deltaSeconds: number): void {

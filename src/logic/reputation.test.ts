@@ -22,6 +22,7 @@ describe('reputation', () => {
   it('punishes failures, and letting a rock hit a city most of all among impacts', () => {
     expect(reputationChange({ type: 'contract-lost', site: true })).toBeLessThan(reputationChange({ type: 'contract-lost', site: false }));
     expect(reputationChange({ type: 'ship-lost' })).toBeLessThan(-10);
+    expect(reputationChange({ type: 'crew-lost' })).toBeLessThan(reputationChange({ type: 'ship-lost' }));
     expect(reputationChange({ type: 'debris-left', tonnes: 8 })).toBe(-2);
   });
 

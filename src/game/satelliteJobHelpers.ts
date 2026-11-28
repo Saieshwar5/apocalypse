@@ -1,7 +1,12 @@
 import type * as THREE from 'three';
 import type { Asteroid } from '../asteroids/asteroidField';
 import type { PilotId } from '../logic/rivals';
-import type { Satellite } from '../satellites/satelliteFleet';
+import type { SoundEffects } from '../audio/soundEffects';
+import type { Hud } from '../hud/hud';
+import { TOW } from '../logic/towing';
+import { formatDistance } from '../logic/units';
+import type { Satellite, SatelliteFleet } from '../satellites/satelliteFleet';
+import type { TowEvent } from './towLine';
 
 // Geometry and types shared by the satellite contracts and the pilots who work them.
 
@@ -60,4 +65,35 @@ export function secondsToStrike(asteroid: Asteroid, satellite: Satellite): numbe
   const offset = satellite.position.clone().sub(asteroid.mesh.position);
   const closing = asteroid.velocity.clone().sub(satellite.velocity).dot(offset.clone().normalize());
   return closing > 0 ? offset.length() / closing : null;
+}
+
+/**
+ * Tells the player what happened on their tow line. Returns true when the
+ * load was released and still needs placing.
+ */
+export function announceTowEvent(event: TowEvent, hud: Hud, sound: SoundEffects, fleet: SatelliteFleet): boolean {
+  const name = KIND_LABEL[event.satellite.kind];
+  if (event.type === 'out-of-reach') {
+    const tooFar = event.surfaceDistance > TOW.attachRange;
+    hud.showMessage(
+      tooFar ? `Get within ${formatDistance(TOW.attachRange)} of the ${name} to connect` : 'Match its speed to connect: brake (S) until the gap stops closing',
+      'warning',
+      2.5,
+    );
+    return false;
+  }
+  if (event.type === 'attached') {
+    hud.showMessage(`Tow line connected to ${name}. Heavier now: brake early`, 'success', 3);
+    sound.dockClamp();
+    return false;
+  }
+  if (event.type === 'snapped' || event.type === 'wrecked') {
+    hud.showMessage(event.type === 'snapped' ? 'Tow line snapped: you pulled too hard' : `${name} broke apart under the strain`, 'danger', 3);
+    if (event.type === 'wrecked') {
+      fleet.destroy(event.satellite);
+    }
+    return false;
+  }
+  sound.dockClamp();
+  return true;
 }

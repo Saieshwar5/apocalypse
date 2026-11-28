@@ -220,6 +220,7 @@ export class PlaySession {
       playerGoodStanding: () => this.licence.inGoodStanding,
       radio: deps.radio,
       aegisStock: () => (this.stationOps.present ? this.stationOps.station.stock : null),
+      atStation: () => this.stationOps.holdingShip,
     });
     this.campaign = new Campaign({
       field: this.field,
@@ -236,8 +237,8 @@ export class PlaySession {
       missiles: this.missiles,
       contracts: this.contracts,
       work: this.services.work,
-      extraHint: () => this.services.berths.hint,
-      postHaul: () => this.services.haul.post(),
+      extraHint: () => this.services.hint,
+      calmZoneWork: () => this.services.calmZoneWork(),
       workingSatellites: () => this.satellites.fleet.aliveCount,
       radio: deps.radio,
       onTrainingComplete: deps.onTrainingComplete,
@@ -463,7 +464,7 @@ export class PlaySession {
         towing: this.services.work.towStatus(),
       },
     });
-    const range = (this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * this.satellites.scannerBonus;
+    const range = (this.sites.isStanding('radar') ? SCANNER_RANGE : SCANNER_RANGE / 2) * this.satellites.scannerBonus * this.services.weather.scannerFactor;
     const urgent = new Set(ranked.slice(0, 3).filter((threat) => threat.timeToImpact !== null).map((threat) => threat.id));
     radar.draw(deltaSeconds, shipModel.group, this.field.all, urgent, this.missiles.lockedTarget?.id ?? null, EARTH_RADIUS, range, this.stationOps.present ? this.stationOps.station.position : null, this.campaign.scannerBlind, this.satellites.positions(), this.services.radarContacts());
     if (!showTargets || !this.shipActive || !this.targeting || this.stationOps.holdingShip) {

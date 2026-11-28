@@ -28,7 +28,8 @@ export type ReputationEvent =
   | { type: 'satellite-destroyed-by-player' }
   | { type: 'rival-hit' }
   | { type: 'debris-left'; tonnes: number }
-  | { type: 'ship-lost' };
+  | { type: 'ship-lost' }
+  | { type: 'crew-lost' };
 
 /** How much each event moves reputation. */
 export function reputationChange(event: ReputationEvent): number {
@@ -49,6 +50,8 @@ export function reputationChange(event: ReputationEvent): number {
       return -0.25 * event.tonnes;
     case 'ship-lost':
       return -15;
+    case 'crew-lost':
+      return -25;
   }
 }
 
