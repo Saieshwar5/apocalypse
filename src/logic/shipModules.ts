@@ -18,8 +18,8 @@ export interface ModuleDefinition {
 
 /** Order sets the yard's 1-7 keys. */
 export const MODULES: readonly ModuleDefinition[] = [
-  { id: 'cargoPod', name: 'Cargo pod', effect: '+40% haul pay', price: 1200, mass: 0.22 },
-  { id: 'crewCabin', name: 'Crew cabin', effect: '+30% crew pay, softer ride', price: 900, mass: 0.15 },
+  { id: 'cargoPod', name: 'Cargo pod', effect: '+40% cargo pay', price: 1200, mass: 0.22 },
+  { id: 'crewCabin', name: 'Crew cabin', effect: '+30% passenger and rescue pay, softer ride', price: 900, mass: 0.15 },
   { id: 'auxTank', name: 'Auxiliary tank', effect: '+50% fuel', price: 700, mass: 0.18 },
   { id: 'heavyWinch', name: 'Heavy winch', effect: 'stronger, steadier tow line', price: 1000, mass: 0.12 },
   { id: 'sweeperNet', name: 'Sweeper net', effect: '2× sweep, faster passes', price: 800, mass: 0.08 },
@@ -44,7 +44,7 @@ export function moduleById(id: ModuleId): ModuleDefinition {
 export interface ModuleEffects {
   /** 1 for the bare ship; thrust is divided by it and turning by its square root. */
   massFactor: number;
-  haulPay: number;
+  cargoPay: number;
   crewPay: number;
   /** Passengers feel a hit only when it takes more hull than this. */
   crewCushion: number;
@@ -62,7 +62,7 @@ export function moduleEffects(fitted: readonly ModuleId[]): ModuleEffects {
   const mass = fitted.reduce((total, id) => total + moduleById(id).mass, 0);
   return {
     massFactor: 1 + mass,
-    haulPay: has('cargoPod') ? 1.4 : 1,
+    cargoPay: has('cargoPod') ? 1.4 : 1,
     crewPay: has('crewCabin') ? 1.3 : 1,
     crewCushion: has('crewCabin') ? 6 : 1,
     fuelCapacity: has('auxTank') ? 1.5 : 1,

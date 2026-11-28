@@ -17,30 +17,13 @@ import type { Satellite, SatelliteFleet } from '../satellites/satelliteFleet';
 import type { ShipController } from '../ship/shipController';
 import type { Outposts } from '../station/outposts';
 import type { TowEvent, TowLine } from './towLine';
-import { JOB_FOR, announceTowEvent, jobScore, asteroidGone, escapePoint, secondsToStrike, type JobRow, type OpenJob, type Waypoint } from './satelliteJobHelpers';
+import { JOB_FOR, jobTitle, type Job, announceTowEvent, jobScore, asteroidGone, escapePoint, secondsToStrike, type JobRow, type OpenJob, type Waypoint } from './satelliteJobHelpers';
 
 export type { JobRow, OpenJob, Waypoint };
 
 /** Seconds between posting a dodge threat and the asteroid reaching the satellite. */
 const DODGE_WARNING_SECONDS = 45;
 const DODGE_SPEED = 4.2;
-
-interface Job {
-  id: number;
-  kind: SatelliteJobKind;
-  satellite: Satellite;
-  pay: number;
-  /** Dodge: the asteroid on a collision course with the satellite. */
-  asteroid: Asteroid | null;
-  /** Repair tow: the yard has finished with it. */
-  repaired: boolean;
-  /** Dodge: the asteroid has gone by. */
-  clear: boolean;
-  /** The pilot who has taken the job; others cannot tow this satellite. */
-  claimedBy: PilotId | null;
-  /** Play clock when it was posted. */
-  postedAt: number;
-}
 
 export interface SatelliteWorkDependencies {
   fleet: SatelliteFleet;
@@ -109,7 +92,25 @@ export class SatelliteWork {
     return true;
   }
 
-  /** An asteroid that will miss the planet but strike a satellite: its operator wants it moved. */
+  /** Vulcan Yard builds a replacement for a lost satellite: carry it from the cradle to the empty slot. */
+  postDeploy(): boolean {
+    const lost = this.deps.fleet.lost[0];
+    if (!lost || this.yardBusy) {
+      return false;
+    }
+    this.deps.fleet.rebuild(lost, this.deps.outposts.get('vulcan').port);
+    this.inYard = lost;
+    this.repairLeft = 0;
+    this.addJob('repair-tow', lost, SATELLITE_JOB_PAY.repairTow, null, 'has a replacement ready at Vulcan Yard. Contract: carry it to its orbit slot');
+    const job = this.jobFor(lost);
+    if (job) {
+      job.repaired = true;
+      job.deploy = true;
+    }
+    return true;
+  }
+
+  /** An asteroid that will miss the planet but strike a satellite: its operator wants it kept safe. */
   postDodge(): boolean {
     const satellite = this.pickSatellite();
     if (!satellite) {
@@ -120,7 +121,7 @@ export class SatelliteWork {
     const size = this.deps.rng() < 0.5 ? 'large' : 'medium';
     const asteroid = this.deps.field.spawnFragment(size, 'iron', new THREE.Vector3(...path.position), new THREE.Vector3(...path.velocity));
     asteroid.passerBy = true;
-    this.addJob('dodge', satellite, SATELLITE_JOB_PAY.dodge, asteroid, 'is in an iron rock\'s path. Contract: tow it clear, or destroy the rock');
+    this.addJob('dodge', satellite, SATELLITE_JOB_PAY.dodge, asteroid, 'is in an iron rock\'s path. Contract: guard it. Destroy or push the rock, or tow the satellite clear');
     return true;
   }
 
@@ -277,7 +278,7 @@ export class SatelliteWork {
     const rows = this.jobs.map((job) => {
       const rival = job.claimedBy !== null && job.claimedBy !== 'player';
       return {
-        title: rival ? `${this.title(job)} · ${pilotName(job.claimedBy ?? 'player')}` : this.title(job),
+        title: rival ? `${jobTitle(job)} · ${pilotName(job.claimedBy ?? 'player')}` : jobTitle(job),
         detail: rival ? `claimed by ${pilotName(job.claimedBy ?? 'player')}` : this.stepText(job),
         pay: job.pay,
         urgent: !rival && ((job.kind === 'dodge' && !job.clear) || (job.kind === 'reboost' && job.satellite.mode === 'orbit')),
@@ -392,13 +393,13 @@ export class SatelliteWork {
     this.jobs = this.jobs.filter((candidate) => candidate !== job);
     this.completed[pilot] = (this.completed[pilot] ?? 0) + 1;
     if (pilot === 'player') {
-      this.deps.events.emit({ type: 'satellite-job-completed', job: JOB_FOR[job.kind], score: jobScore(job.kind, (this.deps.clock?.() ?? 0) - job.postedAt, offsetFromSlot), pay: paid });
+      this.deps.events.emit({ type: 'satellite-job-completed', job: job.deploy ? 'deploy' : JOB_FOR[job.kind], score: jobScore(job.kind, (this.deps.clock?.() ?? 0) - job.postedAt, offsetFromSlot), pay: paid });
     } else {
-      this.deps.hud.showMessage(`${pilotName(pilot)} finished the ${this.title(job).toLowerCase()} (${formatCredits(paid)})`, 'info', 3.5);
+      this.deps.hud.showMessage(`${pilotName(pilot)} finished the ${jobTitle(job).toLowerCase()} (${formatCredits(paid)})`, 'info', 3.5);
       return;
     }
     const precision = offsetFromSlot === null ? '' : ` Placed within ${formatDistance(offsetFromSlot)}.`;
-    this.deps.hud.showMessage(`${this.title(job)} complete: ${formatCredits(paid)} paid.${precision}`, 'success', 4.5);
+    this.deps.hud.showMessage(`${jobTitle(job)} complete: ${formatCredits(paid)} paid.${precision}`, 'success', 4.5);
     this.deps.sound.killConfirm();
   }
 
@@ -478,20 +479,13 @@ export class SatelliteWork {
     }
   }
 
-  private title(job: Job): string {
-    const name = job.satellite.name;
-    return job.kind === 'dodge' ? `Move ${name} clear` : job.kind === 'reboost' ? `Reboost ${name}` : `Repair tow: ${name}`;
-  }
-
   private stepText(job: Job): string {
     if (job.kind === 'dodge' && !job.clear && job.asteroid) {
       const seconds = secondsToStrike(job.asteroid, job.satellite);
-      return `Iron rock strikes in ${seconds === null ? '—' : formatCountdown(seconds)} · tow it clear or destroy the rock`;
+      return `Iron rock strikes in ${seconds === null ? '—' : formatCountdown(seconds)} · destroy or push the rock, or tow the satellite clear`;
     }
     const sinking = job.kind === 'reboost' && job.satellite.mode === 'orbit' && job.satellite.sinkRate > 0;
     const burn = sinking ? ` · burns up in ${formatCountdown(secondsUntilBurn(this.deps.fleet.currentRadius(job.satellite), this.deps.fleet.burnRadius))}` : '';
     return (this.destination(job)?.label.toLowerCase().replace(/\(t\)/g, '(T)') ?? '') + burn;
   }
-
-
 }

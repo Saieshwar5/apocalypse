@@ -6,15 +6,19 @@
  * and the tally is kept with the career.
  */
 export type Medal = 'bronze' | 'silver' | 'gold';
-export type JobKind = 'contract' | 'dodge' | 'tow' | 'reboost' | 'haul' | 'crew' | 'rescue' | 'escort';
+export type JobKind = 'contract' | 'dodge' | 'tow' | 'reboost' | 'cargo' | 'passengers' | 'deploy' | 'haul' | 'crew' | 'rescue' | 'escort';
 
-export const JOB_KINDS: readonly JobKind[] = ['contract', 'dodge', 'tow', 'reboost', 'haul', 'crew', 'rescue', 'escort'];
+/** Rock hauls and crew runs are retired jobs; their medals stay on a pilot's record. */
+export const JOB_KINDS: readonly JobKind[] = ['contract', 'dodge', 'tow', 'reboost', 'cargo', 'passengers', 'deploy', 'haul', 'crew', 'rescue', 'escort'];
 
 export const JOB_LABEL: Record<JobKind, string> = {
   contract: 'Intercepts',
-  dodge: 'Satellite dodges',
+  dodge: 'Satellites guarded',
   tow: 'Repair tows',
   reboost: 'Reboosts',
+  cargo: 'Cargo runs',
+  passengers: 'Passenger runs',
+  deploy: 'Satellites deployed',
   haul: 'Rock hauls',
   crew: 'Crew runs',
   rescue: 'Rescues',

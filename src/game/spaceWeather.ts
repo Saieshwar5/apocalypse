@@ -21,6 +21,8 @@ export interface SpaceWeatherDependencies {
   sunDirection: THREE.Vector3;
   /** Docked at Aegis or berthed at an outpost: the station's shielding protects the ship. */
   atStation: () => boolean;
+  /** The pilot's licence covers satellite tows; until it does, storms do not sink satellites. */
+  canReboost: () => boolean;
 }
 
 type Phase = 'clear' | 'warning' | 'storm';
@@ -115,6 +117,10 @@ export class SpaceWeather {
   /** After the storm, the swollen atmosphere drags the lowest satellites down. */
   private swell(): void {
     const { fleet, work, hud, radio } = this.deps;
+    if (!this.deps.canReboost()) {
+      hud.showMessage('Storm over', 'success', 4);
+      return;
+    }
     let posted = 0;
     for (const satellite of fleet.satellites) {
       if (!satellite.alive || satellite.mode !== 'orbit' || fleet.currentRadius(satellite) >= SWELL.belowRadius) {

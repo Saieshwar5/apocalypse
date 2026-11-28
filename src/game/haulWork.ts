@@ -224,6 +224,6 @@ export class HaulWork {
   }
 
   private pay(tonnes: number): number {
-    return Math.round((tonnes * HAUL_PAY_PER_TONNE * this.deps.fit().haulPay) / 5) * 5;
+    return Math.round((tonnes * HAUL_PAY_PER_TONNE * this.deps.fit().cargoPay) / 5) * 5;
   }
 }

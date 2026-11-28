@@ -161,7 +161,7 @@ export class NavComputer {
     // A waypoint that is simply "go to this satellite" is already in the list as that satellite's job.
     const sameAsSatellite = waypoint !== null && play.satellites.all.some((satellite) => satellite.alive && jobText.includes(satellite.name) && satellite.position.distanceTo(waypoint.world) < 2);
     if (waypoint && !sameAsSatellite) {
-      entries.push({ id: `job:${waypoint.label}`, group: 'job', label: waypoint.label, world: waypoint.world, velocity: null, arriveSpeed: TOW.attachSpeed, arriveRange: 8 });
+      entries.push({ id: `job:${waypoint.label}`, group: 'job', label: waypoint.label, world: waypoint.world, velocity: null, arriveSpeed: waypoint.arrive?.speed ?? TOW.attachSpeed, arriveRange: waypoint.arrive?.range ?? 8 });
     }
     const aegis = play.stationOps.whereabouts();
     if (aegis) {

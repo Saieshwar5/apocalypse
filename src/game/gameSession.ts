@@ -1,3 +1,4 @@
+import type { RankName } from '../logic/career';
 import { DIFFICULTY, type Difficulty, type DifficultyRules } from '../logic/difficulty';
 import { moduleEffects, type ModuleEffects } from '../logic/shipModules';
 import { MAX_PLANET_INTEGRITY } from '../logic/planetDamage';
@@ -26,6 +27,10 @@ export class GameSession {
   clock = 0;
   /** What the fitted modules do; set by the yard. */
   fit: ModuleEffects = moduleEffects([]);
+  /** Mass a loaded hold adds to the ship; set by the cargo work. */
+  cargoMass = 0;
+  /** The pilot's rank now, counting what this run has earned; set by the career. */
+  rank: RankName = 'Cadet';
   /** Hardcore licence: no replacement ships, no loan, better pay. */
   hardcore = false;
   /** Set at the start of each run from the pilot's settings. */

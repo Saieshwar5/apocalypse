@@ -1,3 +1,4 @@
+import { jobUnlocked } from '../logic/jobAccess';
 import { LOCK_RANGE } from '../weapons/missileLauncher';
 import * as THREE from 'three';
 import type { AsteroidField } from '../asteroids/asteroidField';
@@ -190,7 +191,7 @@ export class Campaign {
     ship.fuel = Math.min(ship.fuel, ship.fuelCapacity);
     ship.shieldCapacity = loadout.shieldCapacity;
     ship.thrustMultiplier = loadout.thrustMultiplier;
-    ship.massFactor = fit.massFactor;
+    ship.massFactor = fit.massFactor + session.cargoMass;
     laser.damageMultiplier = loadout.laserDamageMultiplier;
     laser.coolingMultiplier = loadout.laserCoolingMultiplier;
     missiles.capacity = loadout.missileCapacity + fit.extraMissiles;
@@ -257,11 +258,13 @@ export class Campaign {
   }
 
   private calmZoneJobs(): void {
-    const { work, rng } = this.deps;
-    if (!work.yardBusy && rng() < 0.75 && work.postRepairTow()) {
+    const { work, rng, session } = this.deps;
+    // Satellite work comes with the Pilot rank; replacing a lost satellite with Senior Pilot.
+    const replaced = jobUnlocked('deploy', session.rank) && rng() < 0.6 && work.postDeploy();
+    if (!replaced && jobUnlocked('satelliteTow', session.rank) && !work.yardBusy && rng() < 0.75 && work.postRepairTow()) {
       this.deps.radio.moment('repair-posted');
     }
-    if (rng() < 0.5) {
+    if (jobUnlocked('guard', session.rank) && rng() < 0.5) {
       this.dodgeIn = 6 + rng() * 6;
     }
     this.deps.calmZoneWork();

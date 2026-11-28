@@ -234,6 +234,23 @@ export class SatelliteFleet {
     target.returnFrom.copy(target.position);
   }
 
+  /** A replacement for a lost satellite, built in a yard cradle and ready to be carried to its old slot. */
+  rebuild(satellite: Satellite, holder: THREE.Object3D): void {
+    const target = this.find(satellite);
+    target.alive = true;
+    target.broken = false;
+    target.condition = 100;
+    target.sink = 0;
+    target.sinkRate = 0;
+    this.group.add(target.object);
+    this.stow(target, holder);
+  }
+
+  /** Satellites lost this run, which the yard could replace. */
+  get lost(): readonly Satellite[] {
+    return this.live.filter((satellite) => !satellite.alive);
+  }
+
   breakDown(satellite: Satellite): void {
     this.find(satellite).broken = true;
   }

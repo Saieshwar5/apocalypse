@@ -220,7 +220,7 @@ export class Navigation {
     return {
       threat: play.guidance.priority !== null,
       job: play.services.waypoint() !== null,
-      committed: play.services.delivery() !== null || play.services.crew.aboard,
+      committed: play.services.delivery() !== null || play.services.cargo.passengersAboard,
       station: true,
       home: play.stationOps.present,
       target: this.computer.selected !== null && this.computer.current() !== null,
@@ -270,8 +270,8 @@ export class Navigation {
         world = waypoint.world;
         label = waypoint.label;
         tag = 'JOB';
-        arriveSpeed = TOW.attachSpeed;
-        arriveRange = 8;
+        arriveSpeed = waypoint.arrive?.speed ?? TOW.attachSpeed;
+        arriveRange = waypoint.arrive?.range ?? 8;
         key = `job-${waypoint.label}`;
       }
     } else if (kind === 'home') {
