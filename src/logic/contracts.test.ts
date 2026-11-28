@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTRACT_PAY, contractPayout, contractValue, formatCredits } from './contracts';
+import { CONTRACT_PAY, contractPayout, contractValue, formatCredits, formatPrice } from './contracts';
 import { EMERGENCY_FUEL_LEVEL, PRICES, STARTING_BALANCE, Wallet, buyUnits, emergencyFuel } from './economy';
 import { impactDamage } from './planetDamage';
 
@@ -43,6 +43,8 @@ describe('defence contracts', () => {
   it('formats credits for the HUD', () => {
     expect(formatCredits(1250)).toBe('1,250 cr');
     expect(formatCredits(59.6)).toBe('60 cr');
+    expect(formatPrice(2.64)).toBe('2.6 cr');
+    expect(formatPrice(60)).toBe('60 cr');
   });
 });
 

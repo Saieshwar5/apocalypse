@@ -11,6 +11,12 @@ import type { ShipController } from '../ship/shipController';
 import { Outposts, type OutpostId } from '../station/outposts';
 import { SatelliteWork, type JobRow, type Waypoint } from './satelliteWork';
 import { TowLine } from './towLine';
+import { StationMarket } from './stationMarket';
+import { OutpostBerths } from './outpostBerths';
+import { HaulWork } from './haulWork';
+import { YARD_PARTS } from '../logic/stationEconomy';
+import { STATION_STOCK } from '../logic/stationSupply';
+import { formatPrice } from '../logic/contracts';
 import { OrbitDebris } from './orbitDebris';
 import type { SatelliteTraffic } from '../satellites/satelliteTraffic';
 import { FRAGILE } from '../logic/towing';
@@ -40,6 +46,8 @@ export interface OrbitServicesDependencies {
   station: () => { position: THREE.Vector3; velocity: THREE.Vector3 } | null;
   /** Rivals give way to a pilot in good standing, and stop once the licence is under review. */
   playerGoodStanding: () => boolean;
+  /** Aegis's own fuel and missile store, for the market; null once it is destroyed. */
+  aegisStock: () => { fuel: number; missiles: number } | null;
 }
 
 export interface StationMarker {
@@ -64,9 +72,17 @@ export class OrbitServices {
   readonly rivals: RivalPilots;
   /** The Cascade: debris, Orbit Health and the clean-up job. */
   readonly debris: OrbitDebris;
+  readonly market: StationMarket;
+  readonly berths: OutpostBerths;
+  readonly haul: HaulWork;
 
   constructor(private readonly deps: OrbitServicesDependencies) {
     this.outposts = new Outposts(deps.outpostModels);
+    this.market = new StationMarket({
+      positionOf: (station) => (station === 'aegis' ? (deps.station()?.position ?? null) : this.outposts.get(station).position),
+      aegisStock: deps.aegisStock,
+      aegisMissileCapacity: STATION_STOCK.capacity.missiles,
+    });
     this.tow = new TowLine(deps.ship, deps.fleet);
     this.work = new SatelliteWork({
       fleet: deps.fleet,
@@ -79,8 +95,30 @@ export class OrbitServices {
       hud: deps.hud,
       sound: deps.sound,
       rng: deps.rng,
+      useYardParts: () => this.market.stock('vulcan', 'parts') >= YARD_PARTS.perRepair && this.market.add('vulcan', 'parts', -YARD_PARTS.perRepair) < 0,
     });
-    deps.scene.add(this.outposts.group, this.tow.mesh);
+    this.berths = new OutpostBerths({
+      outposts: this.outposts,
+      market: this.market,
+      ship: deps.ship,
+      input: deps.input,
+      wallet: deps.walletOf('player'),
+      hud: deps.hud,
+      sound: deps.sound,
+    });
+    this.haul = new HaulWork({
+      field: deps.field,
+      outposts: this.outposts,
+      market: this.market,
+      tow: this.tow,
+      ship: deps.ship,
+      wallet: deps.walletOf('player'),
+      events: deps.session.events,
+      hud: deps.hud,
+      sound: deps.sound,
+      rng: deps.rng,
+    });
+    deps.scene.add(this.outposts.group, this.tow.mesh, this.market.group);
     this.debris = new OrbitDebris({
       traffic: deps.traffic,
       ship: deps.ship,
@@ -114,18 +152,24 @@ export class OrbitServices {
     this.work.reset();
     this.rivals.reset();
     this.debris.reset();
+    this.market.reset();
+    this.berths.reset();
+    this.haul.reset();
   }
 
   /** `flying`: the pilot has the controls (not docked, not on the map, no autopilot). */
   /** `active`: the player's ship is still in one piece. */
-  update(deltaSeconds: number, flying: boolean, active = true): void {
+  update(deltaSeconds: number, flying: boolean, active = true, pilotBusy = false): void {
     const { input, ship } = this.deps;
     this.outposts.update(deltaSeconds);
     this.outposts.collide(ship.position, ship.velocity);
     if (input.consumePress('KeyT') && flying) {
-      this.work.toggleTow();
+      this.toggleTow();
     }
     this.work.update(deltaSeconds);
+    this.haul.update();
+    this.market.update(deltaSeconds);
+    this.berths.update(deltaSeconds, active, pilotBusy);
     // The line groans as the pull nears the strain a satellite can take.
     this.deps.sound.towCreak(Math.min(1, this.tow.tension / (FRAGILE.safeTension * 1.4)));
     this.rivals.update(deltaSeconds, active);
@@ -135,7 +179,13 @@ export class OrbitServices {
   /** On-screen markers for the outposts; only the job's destination gets an edge arrow. */
   markers(): StationMarker[] {
     return [
-      ...this.outposts.list.map((outpost) => ({ world: outpost.position, name: outpost.name, ghost: false, color: outpost.color, edgeArrow: false })),
+      ...this.outposts.list.map((outpost) => ({
+        world: outpost.position,
+        name: `${outpost.name} · fuel ${formatPrice(this.market.price(outpost.id, 'fuel'))}`,
+        ghost: false,
+        color: outpost.color,
+        edgeArrow: false,
+      })),
       ...this.rivals.markers(),
     ];
   }
@@ -145,10 +195,26 @@ export class OrbitServices {
   }
 
   jobRows(): JobRow[] {
-    return [...this.work.rows(), ...this.debris.rows()];
+    return [...this.work.rows(), ...this.haul.rows(), ...this.debris.rows()];
   }
 
   waypoint(): Waypoint | null {
-    return this.work.waypoint();
+    if (this.tow.rock) {
+      return this.haul.waypoint();
+    }
+    return this.work.waypoint() ?? this.haul.waypoint();
+  }
+
+  /** T: the haul rock if it is the nearest thing to tow, otherwise satellite work. */
+  private toggleTow(): void {
+    if (this.tow.rock) {
+      this.haul.release();
+      return;
+    }
+    if (!this.tow.load && this.haul.rockNear(this.deps.ship.position)) {
+      this.haul.connect();
+      return;
+    }
+    this.work.toggleTow();
   }
 }
