@@ -88,7 +88,7 @@ export function whatNow(situation: WhatNowSituation): string[] {
     );
   }
   if (situation.objective) {
-    advice.push(`The compass points at: ${situation.objective}. G chooses something else to point at; hold X to turn the nose towards it.`);
+    advice.push(`The compass points at: ${situation.objective}. N picks anything by name (a station, a satellite), U flies you there on autopilot, and the line under the compass says what to do next.`);
   }
   return advice.slice(0, 6);
 }

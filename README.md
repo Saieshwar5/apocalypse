@@ -49,10 +49,57 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | G | Choose what the target compass points at: auto, priority rock, job, nearest station, home |
 | Hold X | Turn the nose towards the compass objective (not on a hardcore licence) |
 | B / hold B | Scanner range (auto, close, medium, far) / enlarge the scanner |
+| N, then 1-9 | Navigation computer: pick any job, station, satellite, pilot or debris cloud as the nav target (0 clears) |
+| U | Approach autopilot to the target; any control takes over (not on a hardcore licence) |
+| L | Radio log |
+| O | Orbit FM: calm generated music, off by default |
+| Esc | Pause: settings, help, Restart run, Quit to menu |
 | H | Help: what to do now, controls, jobs, how to read the screen |
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |
+
+## Navigation computer, flight director, a living radio, and a new title screen
+
+- **Every satellite has its own name**: `WX-1 NIMBUS`, `WX-2 CIRRUS`,
+  `NAV-1 POLARIS`, `COM-1 ECHO` and so on. Three satellites used to share
+  the name WEATHER SAT, so a contract could not say which one it meant.
+- **Navigation computer (N)**: a list of everything worth flying to (jobs
+  first, then the stations, satellites, rival pilots and debris clouds),
+  each with its distance, a direction arrow and arrival time. A number key
+  makes it the nav target; numbers also appear beside the listed objects in
+  view so the list matches the sky. N again shows the next page; 0 clears.
+- **Meeting points**: for anything that moves, the compass steers for where
+  it will be when you arrive. A dashed route line leads to a MEET HERE mark.
+- **Flight director**: one instruction at a time under the compass, worked
+  out from the ship's own physics: TURN to the dot, BURN up to the speed
+  shown, COAST with a countdown to the brake point, BRAKE NOW, MATCH SPEED.
+- **Approach autopilot (U)**: flies to the target and stops beside it at its
+  speed: inside a station's berth, in Aegis's docking range, or within tow
+  range of a satellite. Any control takes over. Not on a hardcore licence.
+- **Tactical map (Tab)** draws the stations' orbits and the nav target's.
+- **Pause screen**: Restart run and Quit to menu (each asks once more). The
+  title screen has Start a new career (asks twice).
+- **A living radio**: one voice at a time, each line waiting for the last
+  to finish, exchanges kept together, emergencies cutting in and chatter
+  only filling silence. Your ship talks too: it asks Aegis for docking,
+  calls a station when coming alongside, reports a satellite on the line
+  and announces nav targets; control answers with where the target is in
+  plain words ("behind you, below"). Launches from Earth's spaceports are
+  called out as traffic, and calm zones bring news from the ground. Each
+  person has their own voice where the browser has several, the squelch
+  clicks and hisses, the radio strip shows the channel and a waveform, and
+  **L** opens the radio log.
+- **Orbit FM (O)**: calm music generated live (a slow four-chord progression
+  with pad, plucked arpeggio, echo and bass; a light hi-hat when things get
+  tense). Off by default.
+- **Title screen**: the wordmark is set wide like aerospace insignia with an
+  orbit drawn through it and your ship travelling it, one sentence briefs
+  the season, and Launch is the one warm button. The settings form is now
+  your pilot licence: call sign, rank with progress to the next, ship name,
+  paint chips that repaint the ship hanging in front of Earth, career
+  stats, the hardcore option and the logbook. The controls list moved to
+  Help.
 
 ## Navigation, a better scanner, and help
 

@@ -28,7 +28,7 @@ describe('what now', () => {
     expect(advice[0]).toContain('will hit MUMBAI in 0:40');
     expect(advice.join(' ')).toContain('boost');
     expect(advice.join(' ')).toContain('missiles (F)');
-    expect(advice.at(-1)).toContain('G chooses');
+    expect(advice.at(-1)).toContain('N picks anything');
   });
 
   it('puts survival first', () => {
