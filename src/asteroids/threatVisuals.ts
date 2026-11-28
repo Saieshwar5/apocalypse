@@ -32,6 +32,8 @@ export class ThreatVisuals {
   private readonly glintColors: Float32Array;
   private readonly markers = new Map<number, THREE.Mesh>();
   private readonly tails = new Map<number, FireTail>();
+  /** Ice rocks trail a pale haze of vapour, so they can be told from stone by eye. */
+  private readonly vapour = new Map<number, THREE.Sprite>();
   private readonly markerGeometry = new THREE.RingGeometry(0.7, 1, 48);
   private readonly tailGeometry: THREE.ConeGeometry;
   private readonly tailTexture = createConeGradientTexture([
@@ -102,6 +104,9 @@ export class ThreatVisuals {
       this.writeGlint(index, asteroid);
       this.updateMarker(asteroid, tone === 'miss');
       this.updateFireTail(asteroid);
+      if (asteroid.material === 'ice') {
+        this.updateVapour(asteroid);
+      }
     }
     this.lines.geometry.setDrawRange(0, count * VERTICES_PER_ASTEROID);
     this.glints.geometry.setDrawRange(0, count);
@@ -233,6 +238,13 @@ export class ThreatVisuals {
   }
 
   private removeStale(seen: ReadonlySet<number>): void {
+    for (const [id, haze] of this.vapour) {
+      if (!seen.has(id)) {
+        this.group.remove(haze);
+        haze.material.dispose();
+        this.vapour.delete(id);
+      }
+    }
     for (const [id, marker] of this.markers) {
       if (!seen.has(id)) {
         this.removeMarker(id, marker);
@@ -249,6 +261,19 @@ export class ThreatVisuals {
     this.group.remove(marker);
     (marker.material as THREE.Material).dispose();
     this.markers.delete(id);
+  }
+
+  private updateVapour(asteroid: Asteroid): void {
+    let haze = this.vapour.get(asteroid.id);
+    if (!haze) {
+      haze = new THREE.Sprite(new THREE.SpriteMaterial({ map: getGlowTexture(), color: new THREE.Color(0.55, 0.8, 1.1), transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+      this.vapour.set(asteroid.id, haze);
+      this.group.add(haze);
+    }
+    // The haze hangs behind the rock, along the way it came.
+    const behind = this.scratch.copy(asteroid.velocity).normalize();
+    haze.position.copy(asteroid.mesh.position).addScaledVector(behind, -asteroid.radius * 1.6);
+    haze.scale.setScalar(asteroid.radius * (4.5 + Math.sin(this.elapsed * 2 + asteroid.id) * 0.5));
   }
 
   private removeTail(id: number, tail: FireTail): void {
