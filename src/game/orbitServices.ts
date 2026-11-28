@@ -280,8 +280,11 @@ export class OrbitServices {
     return [...this.outposts.list.map((outpost) => ({ position: outpost.position, color: outpost.color })), ...this.rivals.radarContacts(), ...clouds];
   }
 
+  /** More rows for the board from outside the orbit services (photo jobs). */
+  extraRows: () => JobRow[] = () => [];
+
   jobRows(): JobRow[] {
-    return [...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.crew.rows(), ...this.haul.rows(), ...this.debris.rows()];
+    return [...this.extraRows(), ...this.rescue.rows(), ...this.escort.rows(), ...this.work.rows(), ...this.crew.rows(), ...this.haul.rows(), ...this.debris.rows()];
   }
 
   waypoint(): Waypoint | null {

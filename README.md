@@ -45,6 +45,7 @@ Then open the address Vite prints (usually http://localhost:5173) and click
 | F or right click | Missile at the locked target |
 | Tab | Tactical map (time slows; mouse rotates the view) |
 | C | Switch between chase and cockpit camera |
+| P | Photo mode: the action freezes; mouse orbits, W/S zoom, 1-4 looks, Space takes the picture |
 | M | Sound on or off |
 | Enter | Skip the launch |
 | Esc | Pause |

@@ -120,16 +120,30 @@
       <p class="loading-text">Loading Earth…</p>
     </div>
 
+    <div id="photo-mode" class="photo-mode" hidden aria-live="polite">
+      <div class="photo-bars"></div>
+      <p id="photo-status" class="photo-status"></p>
+    </div>
+    <div id="photo-flash" class="photo-flash" aria-hidden="true"></div>
+
     <div id="menu" class="screen" hidden>
       <div class="screen-card">
         <p class="eyebrow">Planetary Defence Wing</p>
         <h1>Singularity</h1>
         <p class="tagline">One interceptor. One planet. Paid by the rock.</p>
         <label class="callsign" for="callsign-input">Your call sign <input id="callsign-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" value="VEGA" /></label>
+        <div class="ship-identity">
+          <label for="shipname-input">Ship name <input id="shipname-input" type="text" maxlength="18" autocomplete="off" spellcheck="false" placeholder="unnamed" /></label>
+          <label for="livery-input">Paint <select id="livery-input"></select></label>
+        </div>
         <button id="start-button" type="button" disabled>Loading…</button>
         <button id="training-button" type="button" class="secondary">Training flight (new pilots start here)</button>
         <label class="hardcore" for="hardcore-input"><input id="hardcore-input" type="checkbox" /> <span><strong>Hardcore licence</strong> · one ship, no emergency loan, +25% on every payment</span></label>
         <p id="rank-line" class="rank-line">Rank: Cadet</p>
+        <details id="logbook" class="logbook" hidden>
+          <summary>Pilot's logbook</summary>
+          <ol id="logbook-list"></ol>
+        </details>
         <dl class="controls">
           <dt>Mouse or arrow keys</dt><dd>Steer</dd>
           <dt>W</dt><dd>Thrust. The ship keeps its speed when you let go</dd>
@@ -147,6 +161,7 @@
           <dt>Enter</dt><dd>Leave a calm zone early (or skip the launch)</dd>
           <dt>Tab</dt><dd>Tactical map (slows time)</dd>
           <dt>C</dt><dd>Chase or cockpit camera</dd>
+          <dt>P</dt><dd>Photo mode: orbit the ship, Space takes the picture</dd>
         </dl>
         <p class="screen-note">You are a contract pilot. Every asteroid heading for the planet carries a contract from the Earth Defence Authority, paid by how much damage it would do, with a bonus for stopping it early; a rock that will burn up pays nothing, so scan before you chase. Spend your earnings on fuel, missiles, repairs and upgrades at Aegis. Small rocks dent the planet; giants can end it. Follow the yellow PRIORITY marker: it shows whether you can reach a rock before it lands. Lasers only reach a short way, so fly to the rock; missiles destroy big rocks whole but their blast hurts you if the target is too close. Iron shrugs off lasers. Your shield recharges; your hull does not. Guard the marked cities and installations, brake before you get too low, and do not lose your ship: there is only one.</p>
       </div>
